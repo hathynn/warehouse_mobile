@@ -1,39 +1,39 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { useFonts } from 'expo-font';
-import { Stack } from 'expo-router';
-import * as SplashScreen from 'expo-splash-screen';
-import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
-import 'react-native-reanimated';
-
-import { useColorScheme } from '@/hooks/useColorScheme';
-
-// Prevent the splash screen from auto-hiding before asset loading is complete.
-SplashScreen.preventAutoHideAsync();
-
-export default function RootLayout() {
-  const colorScheme = useColorScheme();
-  const [loaded] = useFonts({
-    SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
-  });
+import { Stack, useRouter } from "expo-router";
+import { Provider, useSelector } from "react-redux";
+import { RootState, store } from "../redux/store";
+import { useEffect, useState } from "react";
+import "@/global.css"
+function AuthHandler() {
+  const isAuthenticated = useSelector((state: RootState) => state.auth.isLoggedIn);
+  const router = useRouter();
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (loaded) {
-      SplashScreen.hideAsync();
+    // Giả lập quá trình tải dữ liệu từ Redux (có thể thay bằng AsyncStorage)
+    setTimeout(() => {
+      setIsLoading(false);
+    }, 500); // Giả lập 0.5 giây delay
+  }, []);
+
+  useEffect(() => {
+    if (!isLoading) {
+      if (!isAuthenticated) {
+        router.replace("/login");
+      } else {
+        router.replace("/(tabs)/import");
+      }
     }
-  }, [loaded]);
+  }, [isAuthenticated, isLoading]);
 
-  if (!loaded) {
-    return null;
-  }
+  if (isLoading) return null; // Hiển thị màn hình trắng trong lúc load
 
+  return <Stack screenOptions={{ headerShown: false }} />;
+}
+
+export default function Layout() {
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="+not-found" />
-      </Stack>
-      <StatusBar style="auto" />
-    </ThemeProvider>
+    <Provider store={store}>
+      <AuthHandler />
+    </Provider>
   );
 }
