@@ -161,7 +161,7 @@ export default function KiemDemScreen() {
           </Text>
         </TouchableOpacity>
         <TouchableOpacity className="bg-red-600 px-5 py-4 rounded-full flex-1 ml-2">
-          <Text className="text-white font-semibold text-sm text-center">
+          <Text   onPress={() => router.push("/import/sign")} className="text-white font-semibold text-sm text-center">
             Ký xác nhận
           </Text>
         </TouchableOpacity>
