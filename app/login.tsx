@@ -12,7 +12,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useDispatch } from "react-redux";
 import { login } from "@/redux/authSlice";
 import { useRouter } from "expo-router";
-import { Button } from "tamagui";
+import { Button, Square, XStack } from "tamagui";
 
 const LoginScreen = () => {
   // const [selectedTab, setSelectedTab] = useState("phone");
@@ -95,7 +95,7 @@ const LoginScreen = () => {
           </Text>
          
         </TouchableOpacity>
-
+    
         {/* Social Login */}
         <Text className="text-center text-gray-500 mt-6">Hoặc</Text>
         <View className=" flex items-center  mt-4 ">
