@@ -2,9 +2,13 @@ import { Stack, useRouter } from "expo-router";
 import { Provider, useSelector } from "react-redux";
 import { RootState, store } from "../redux/store";
 import { useEffect, useState } from "react";
-import "@/global.css"
+import "@/global.css";
+import { TamaguiProvider } from "tamagui";
+import tamaguiConfig from "@/tamagui.config";
 function AuthHandler() {
-  const isAuthenticated = useSelector((state: RootState) => state.auth.isLoggedIn);
+  const isAuthenticated = useSelector(
+    (state: RootState) => state.auth.isLoggedIn
+  );
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
 
@@ -32,8 +36,10 @@ function AuthHandler() {
 
 export default function Layout() {
   return (
-    <Provider store={store}>
-      <AuthHandler />
-    </Provider>
+    <TamaguiProvider config={tamaguiConfig}>
+      <Provider store={store}>
+        <AuthHandler />
+      </Provider>
+    </TamaguiProvider>
   );
 }
