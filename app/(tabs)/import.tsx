@@ -65,8 +65,9 @@ function ReceiptListComponent() {
     ) || [];
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-100 p-5">
-      <View className="">
+    <SafeAreaView className="flex-1 bg-gray-100 ">
+      <View></View>
+      <View className="px-5">
         <View className="bg-black px-4 py-7 flex-row items-center rounded-2xl">
           <Text className="text-white text-lg font-bold ml-4 flex-1">
             Danh sách phiếu nhập
@@ -78,6 +79,7 @@ function ReceiptListComponent() {
       </View>
 
       {/* Tabs */}
+      <View className="px-5">
       <View className="flex-row  my-3 bg-gray-200 rounded-lg p-1">
         {["Done", "Not done"].map((tab) => (
           <TouchableOpacity
@@ -97,14 +99,14 @@ function ReceiptListComponent() {
           </TouchableOpacity>
         ))}
       </View>
-
+      </View>
       {/* Danh sách phiếu nhập */}
-      <ScrollView className="  flex-1">
+      <ScrollView className="  px-5 flex-1">
         {receipts.length > 0 ? (
           receipts.map((receipt) => (
             <TouchableOpacity
               key={receipt.id}
-              className="flex-row items-center px-4 py-6 my-2 rounded-3xl bg-white"
+              className="flex-row items-center  py-6 my-2 px-5 rounded-3xl bg-white"
               onPress={() => router.push(`/import/${receipt.id}` as any)}
             >
               {/* Icon trạng thái */}
