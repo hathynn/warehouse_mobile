@@ -3,8 +3,7 @@ import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 interface Product {
   id: string;
   name: string;
-  expected: number;
-  actual: number;
+  quantity: number;
   location?: string | null; // 🆕 Thêm trường vị trí
 }
 

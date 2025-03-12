@@ -1,121 +1,53 @@
-// import { useState, useRef, useEffect } from "react";
-// import { View, Text, Button, StyleSheet, Alert } from "react-native";
-// import { CameraView, useCameraPermissions, BarcodeScanningResult } from "expo-camera";
-// import { useDispatch, useSelector } from "react-redux";
-// import { addProduct } from "@/redux/productSlice";
-// import { useRouter } from "expo-router";
-// import { RootState } from "@/redux/store";
+import React, { useState, useEffect } from "react";
+import { Text, View, StyleSheet, Button } from "react-native";
+import { CameraView, Camera } from "expo-camera";
+import { router, useNavigation } from "expo-router";
 
+export default function ScanQrSCreen() {
+  const navigate = useNavigation();
+  const [hasPermission, setHasPermission] = useState<boolean | null>(null);
+  const [scanned, setScanned] = useState(false);
 
-// export default function QRScannerScreen() {
-//   const [permission, requestPermission] = useCameraPermissions();
-//   const [scanned, setScanned] = useState(false); // ✅ Thêm state để kiểm soát quét
-//   const cameraRef = useRef(null);
-//   const dispatch = useDispatch();
-//   const router = useRouter();
-//   const products = useSelector((state: RootState) => state.product.products);
+  useEffect(() => {
+    (async () => {
+      const { status } = await Camera.requestCameraPermissionsAsync();
+      setHasPermission(status === "granted");
+    })();
+  }, []);
 
-//   useEffect(() => {
-//     if (!permission?.granted) {
-//       requestPermission();
-//     }
-//   }, [permission]);
-
-
-//   const scannedRef = useRef(false); // ✅ Dùng useRef để kiểm soát quét
-
-//   const handleBarcodeScanned = (result: BarcodeScanningResult) => {
-//     if (scannedRef.current) return; // ✅ Ngăn chặn quét nhiều lần
-//     scannedRef.current = true;
-  
-//     let { data } = result;
-  
-//     console.log("Mã QR quét được:", data);
-  
-//     // ✅ Kiểm tra nếu dữ liệu là JSON, nếu không thì để nguyên
-//     try {
-//       data = JSON.parse(data);
-//     } catch (error) {
-//       Alert.alert("Dữ liệu không phải JSON hợp lệ:", data);
-//     }
-  
-//     Alert.alert(data);
-  
-//     // ✅ Kiểm tra xem sản phẩm đã tồn tại chưa
-//     // const isDuplicate = products.some((product) => product.id === data.id );
-//     // if (isDuplicate) {
-//     //   Alert.alert("Cảnh báo", "Sản phẩm này đã có trong danh sách!");
-//     //   setTimeout(() => (scannedRef.current = false), 2000);
-//     //   return;
-//     // }
-//     console.log("Mã QR quét được:", data);
-
-//     // const newProduct = {
-//     //   id: data.id,
-//     //   name: `Sản phẩm ${data.id}`,
-//     //   expected: 10,
-//     //   actual: 0,
-//     //   location: null,
-//     // };
-  
-//     // dispatch(addProduct(newProduct));
-  
-//   //   Alert.alert("Thành công", `Đã thêm sản phẩm ${data.id}`, [
-//   //     {
-//   //       text: "OK",
-//   //       onPress: () => {
-//   //         setTimeout(() => {
-//   //           scannedRef.current = false; // ✅ Cho phép quét lại sau khi điều hướng
-//   //           router.push("/import/create-import");
-//   //         }, 500);
-//   //       },
-//   //     },
-//   //   ]);
-//   // };
+  const handleBarCodeScanned = ({ type, data }: { type: string; data: string }) => {
+    setScanned(true);
+    router.push({
+      pathname: "/import/create-quantity",
+      params: { qrData: data }, // Truyền dữ liệu mã QR
+    });
+  };
   
 
+  if (hasPermission === null) {
+    return <Text>Requesting camera permission...</Text>;
+  }
+  if (hasPermission === false) {
+    return <Text>No access to camera</Text>;
+  }
 
-//   if (!permission) {
-//     return <Text>Đang kiểm tra quyền camera...</Text>;
-//   }
+  return (
+    <View style={styles.container}>
+      <CameraView
+        barcodeScannerSettings={{
+          barcodeTypes: ["qr", "ean13", "code128"],
+        }}
+        onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
+        style={StyleSheet.absoluteFillObject}
+      />
+      {scanned && <Button title="Scan Again" onPress={() => setScanned(false)} />}
+    </View>
+  );
+}
 
-//   if (!permission.granted) {
-//     return (
-//       <View style={styles.container}>
-//         <Text>Bạn cần cấp quyền camera để quét mã QR.</Text>
-//         <Button title="Cấp quyền" onPress={requestPermission} />
-//       </View>
-//     );
-//   }
-
-//   return (
-//     <View style={styles.container}>
-//       <CameraView
-//         ref={cameraRef}
-//         style={styles.camera}
-//         barcodeScannerSettings={{
-//           barcodeTypes: ["qr"],
-//         }}
-//         onBarcodeScanned={scanned ? undefined : handleBarcodeScanned} // ✅ Chỉ quét khi `scanned` là `false`
-//       />
-//       <Text style={styles.instructions}>Hãy đưa mã QR vào camera</Text>
-//     </View>
-//   );
-// }
-
-// const styles = StyleSheet.create({
-//   container: {
-//     flex: 1,
-//     justifyContent: "center",
-//     alignItems: "center",
-//   },
-//   camera: {
-//     width: "100%",
-//     height: 400,
-//   },
-//   instructions: {
-//     marginTop: 20,
-//     fontSize: 16,
-//     color: "gray",
-//   },
-// });
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    justifyContent: "center",
+  },
+});
