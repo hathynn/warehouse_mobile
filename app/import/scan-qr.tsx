@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { Text, View, StyleSheet, Button } from "react-native";
 import { CameraView, Camera } from "expo-camera";
-import { router, useNavigation } from "expo-router";
+import { router, useLocalSearchParams, useNavigation } from "expo-router";
 
 export default function ScanQrSCreen() {
   const navigate = useNavigation();
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [scanned, setScanned] = useState(false);
+  const { id } = useLocalSearchParams<{ id: string }>(); // Lấy id từ URL
 
   useEffect(() => {
     (async () => {
@@ -19,7 +20,7 @@ export default function ScanQrSCreen() {
     setScanned(true);
     router.push({
       pathname: "/import/create-quantity",
-      params: { qrData: data }, // Truyền dữ liệu mã QR
+      params: { qrData: data, id }, // Truyền dữ liệu mã QR
     });
   };
   
