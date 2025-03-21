@@ -26,7 +26,7 @@ import {
   YStack,
 } from "tamagui";
 import { CheckCircle } from "@tamagui/lucide-icons";
-import { addProduct } from "@/redux/productSlice";
+import { addProduct, updateProductActual } from "@/redux/productSlice";
 import { useDispatch } from "react-redux";
 
 export default function SuccessPage() {
@@ -34,7 +34,8 @@ export default function SuccessPage() {
   const parsedQrData = qrData ? JSON.parse(qrData as string) : null;
   const dispatch = useDispatch();
   const { showToast, ToastComponent } = useToast();
-  
+  const { id } = useLocalSearchParams<{ id: string }>(); // Lấy id từ URL
+
   const [status, setStatus] = useState<"off" | "submitting" | "submitted">("off");
   const [quantity, setQuantity] = useState("1");
 
@@ -47,15 +48,15 @@ export default function SuccessPage() {
 
   const handleSubmit = () => {
     dispatch(
-      addProduct({
-        id: parsedQrData?.id,
-        name: parsedQrData?.name,
-        quantity: Number(quantity),
-        location: null,
+      updateProductActual({
+        productId: parsedQrData?.id,
+        actual: Number(quantity),
       })
     );
+    
+    
     setStatus("submitting");
-    router.push("/import/create-import");
+    router.push(`/import/create-import/${id}`);
   };
 
   return (

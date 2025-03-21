@@ -1,20 +1,18 @@
 import { setProductLocation } from "@/redux/productSlice";
 import { RootState } from "@/redux/store";
+import useStoredLocation from "@/services/useLocationStored";
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
-import React, { useState } from "react";
+import { router, useLocalSearchParams } from "expo-router";
+import React, { useEffect, useState } from "react";
 import { View, Text, TouchableOpacity } from "react-native";
 import DropDownPicker from "react-native-dropdown-picker";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useDispatch, useSelector } from "react-redux";
 
-type DropdownItem = {
-  label: string;
-  value: string;
-};
 
 const WarehouseLocationSelector: React.FC = () => {
   const dispatch = useDispatch();
+  const { storedLocations, fetchStoredLocations } = useStoredLocation();
 
   const [warehouse, setWarehouse] = useState<string | null>(null);
   const [floor, setFloor] = useState<string | null>(null);
@@ -27,34 +25,36 @@ const WarehouseLocationSelector: React.FC = () => {
   const [openRow, setOpenRow] = useState(false);
   const [openLot, setOpenLot] = useState(false);
   const [openProducts, setOpenProducts] = useState(false);
+  const { id } = useLocalSearchParams<{ id: string }>();
 
   const products = useSelector((state: RootState) => state.product.products);
 
-  const warehouseItems: DropdownItem[] = [
-    { label: "Kho A", value: "A" },
-    { label: "Kho B", value: "B" },
-    { label: "Kho C", value: "C" },
-  ];
+  useEffect(() => {
+    fetchStoredLocations();
+  }, []);
 
-  const floorItems: DropdownItem[] = [
-    { label: "Tầng 1", value: "1" },
-    { label: "Tầng 2", value: "2" },
-    { label: "Tầng 3", value: "3" },
-  ];
+  const warehouseItems = Array.from(new Set(storedLocations.map((l) => l.zone))).map(zone => ({
+    label: `Kho ${zone}`,
+    value: zone
+  }));
+  
+  const floorItems = Array.from(new Set(storedLocations.map((l) => l.floor))).map(floor => ({
+    label: `Tầng ${floor}`,
+    value: floor
+  }));
+  
+  const rowItems = Array.from(new Set(storedLocations.map((l) => l.row))).map(row => ({
+    label: `Dãy ${row}`,
+    value: row
+  }));
+  
+  const lotItems = Array.from(new Set(storedLocations.map((l) => l.batch))).map(batch => ({
+    label: `Lô ${batch}`,
+    value: batch
+  }));
+  
 
-  const rowItems: DropdownItem[] = [
-    { label: "Dãy A", value: "A" },
-    { label: "Dãy B", value: "B" },
-    { label: "Dãy C", value: "C" },
-  ];
-
-  const lotItems: DropdownItem[] = [
-    { label: "Lô 1", value: "1" },
-    { label: "Lô 2", value: "2" },
-    { label: "Lô 3", value: "3" },
-  ];
-
-  const productItems: DropdownItem[] = products.map((product) => ({
+  const productItems = products.map((product) => ({
     label: product.id,
     value: product.id,
   }));
@@ -64,16 +64,21 @@ const WarehouseLocationSelector: React.FC = () => {
       alert("Vui lòng chọn đầy đủ thông tin");
       return;
     }
-
-    const location = `Kho ${warehouse} - Tầng ${floor} - Dãy ${row} - Lô ${lot}`;
-
+  
+    const location = {
+      zone: warehouse,
+      floor: floor,
+      row: row,
+      batch: lot,
+    };
+  
     selectedProducts.forEach((productId) => {
       dispatch(setProductLocation({ productId, location }));
     });
-
-    router.push("/import/create-import");
+  
+    // Quay về trang chi tiết đơn nhập
+    router.replace(`/import/create-import/${id}`);
   };
-
   
 
   return (
@@ -195,7 +200,6 @@ const WarehouseLocationSelector: React.FC = () => {
             backgroundColor: "#fff",
             borderRadius: 10,
             borderColor: "white",
-           
           }}
           dropDownContainerStyle={{
             backgroundColor: "#fff",
@@ -209,7 +213,7 @@ const WarehouseLocationSelector: React.FC = () => {
 
       {/* Nút Xác Nhận */}
       <View className="flex-row mt-2">
-        <TouchableOpacity onPress={handleConfirmLocation}  className="bg-black px-5 py-4 rounded-full flex-1 mr-2">
+        <TouchableOpacity onPress={handleConfirmLocation} className="bg-black px-5 py-4 rounded-full flex-1 mr-2">
           <Text className="text-white font-semibold text-sm text-center">
             Xác nhận vị trí
           </Text>

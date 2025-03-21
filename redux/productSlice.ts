@@ -1,10 +1,18 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 
+interface Location {
+  zone: string;
+  floor: string;
+  row: string;
+  batch: string;
+}
+
 interface Product {
   id: string;
   name: string;
-  quantity: number;
-  location?: string | null; // 🆕 Thêm trường vị trí
+  expect: number;
+  actual: number;
+  location?: Location | null; // Sửa location thành object
 }
 
 interface ProductState {
@@ -24,7 +32,7 @@ const productSlice = createSlice({
     },
     setProductLocation: (
       state,
-      action: PayloadAction<{ productId: string; location: string }>
+      action: PayloadAction<{ productId: string; location: Location }>
     ) => {
       const product = state.products.find((p) => p.id === action.payload.productId);
       if (product) {
@@ -32,10 +40,20 @@ const productSlice = createSlice({
       }
     },
     addProduct: (state, action: PayloadAction<Product>) => {
-        state.products.push(action.payload);
-      },
+      state.products.push(action.payload);
+    },
+    updateProductActual: (
+      state,
+      action: PayloadAction<{ productId: string; actual: number }>
+    ) => {
+      const product = state.products.find((p) => p.id === action.payload.productId);
+      if (product) {
+        product.actual = action.payload.actual;
+      }
+    },
+    
   },
 });
 
-export const { setProducts, setProductLocation, addProduct  } = productSlice.actions;
+export const { setProducts, setProductLocation, addProduct, updateProductActual } = productSlice.actions;
 export default productSlice.reducer;

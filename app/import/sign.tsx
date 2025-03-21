@@ -106,9 +106,13 @@ const Sign = () => {
                     animation="medium"
                     exitStyle={{ opacity: 0 }}
                   >
-                    <Paragraph>Tên sản phẩm: {product?.name}</Paragraph>
-                    <Paragraph>Số lượng: {product?.quantity}</Paragraph>
-                    <Paragraph>Vị trí: {product?.location}</Paragraph>
+                    <Paragraph>Số lượng: {product?.actual}</Paragraph>
+                    <Paragraph>
+                      Vị trí:{" "}
+                      {product?.location
+                        ? `Kho: ${product.location.zone}, Tầng: ${product.location.floor}, Dãy: ${product.location.row}, Lô: ${product.location.batch}`
+                        : "Không có thông tin vị trí"}
+                    </Paragraph>
                   </Accordion.Content>
                 </Accordion.HeightAnimator>
               </Accordion.Item>
@@ -152,8 +156,6 @@ const Sign = () => {
                 onBegin={() => setScrollEnabled(false)}
                 onEnd={() => setScrollEnabled(true)}
                 descriptionText="Ký tên tại đây"
-                clearText="Xóa"
-                confirmText="Lưu"
                 imageType="image/png"
               />
             </View>
