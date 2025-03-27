@@ -2,20 +2,26 @@ import { useState, useCallback } from "react";
 import axios from "axios";
 import { ImportOrderType } from "../types/importOrder.type";
 
-const BASE_URL = "https://67dbbf111fd9e43fe475b291.mockapi.io/import-order";
+const BASE_URL = "https://warehouse-backend-q6ibz.ondigitalocean.app/import-order";
 
 const useImportOrder = () => {
   const [loading, setLoading] = useState(false);
   const [importOrders, setImportOrders] = useState<ImportOrderType[]>([]);
   const [importOrder, setImportOrder] = useState<ImportOrderType | null>(null);
 
-
-  const fetchImportOrders = useCallback(async () => {
+  // Lấy danh sách import order theo importRequestId
+  const fetchImportOrders = useCallback(async (importRequestId: number, page = 1, limit = 10) => {
     setLoading(true);
     try {
-      const response = await axios.get(BASE_URL);
-      setImportOrders(response.data);
-      return response.data;
+      const response = await axios.get(`${BASE_URL}/page/${page}`, {
+        params: {
+          importRequestId,
+          page,
+          limit,
+        },
+      });
+      setImportOrders(response.data.content);
+      return response.data.content;
     } catch (error) {
       console.error("Lỗi khi lấy danh sách import order:", error);
       return [];
@@ -25,7 +31,7 @@ const useImportOrder = () => {
   }, []);
 
   // Fetch chi tiết import order theo ID
-  const fetchImportOrderById = useCallback(async (id: string) => {
+  const fetchImportOrderById = useCallback(async (id: number) => {
     if (!id) return null;
 
     setLoading(true);
@@ -42,7 +48,7 @@ const useImportOrder = () => {
   }, []);
 
   // Tạo mới import order
-  const createImportOrder = useCallback(async (newOrder: Omit<ImportOrderType, "id">) => {
+  const createImportOrder = useCallback(async (newOrder: Omit<ImportOrderType, "importOrderId">) => {
     setLoading(true);
     try {
       const response = await axios.post(BASE_URL, newOrder);
@@ -56,7 +62,7 @@ const useImportOrder = () => {
   }, []);
 
   // Cập nhật import order
-  const updateImportOrder = useCallback(async (id: string, updatedData: Partial<ImportOrderType>) => {
+  const updateImportOrder = useCallback(async (id: number, updatedData: Partial<ImportOrderType>) => {
     setLoading(true);
     try {
       const response = await axios.put(`${BASE_URL}/${id}`, updatedData);
@@ -70,7 +76,7 @@ const useImportOrder = () => {
   }, []);
 
   // Xóa import order
-  const deleteImportOrder = useCallback(async (id: string) => {
+  const deleteImportOrder = useCallback(async (id: number) => {
     setLoading(true);
     try {
       await axios.delete(`${BASE_URL}/${id}`);
@@ -91,7 +97,7 @@ const useImportOrder = () => {
     fetchImportOrderById,
     createImportOrder,
     updateImportOrder,
-    deleteImportOrder
+    deleteImportOrder,
   };
 };
 

@@ -20,8 +20,9 @@ export default function ScanQrSCreen() {
     setScanned(true);
     router.push({
       pathname: "/import/create-quantity",
-      params: { qrData: data, id }, // Truyền dữ liệu mã QR
+      params: { qrData: encodeURIComponent(data), id },
     });
+    
   };
   
 

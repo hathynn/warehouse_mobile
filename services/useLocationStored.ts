@@ -3,7 +3,7 @@ import axios from "axios";
 import { StoredLocation } from "@/types/locationStored";
 
 
-const BASE_URL = "https://sharemebackend.online/stored-locations";
+const BASE_URL = "https://warehouse-backend-q6ibz.ondigitalocean.app/stored-locations";
 
 const useStoredLocation = () => {
   const [loading, setLoading] = useState(false);

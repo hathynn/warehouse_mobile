@@ -2,7 +2,7 @@ import { useState, useCallback } from "react";
 import axios from "axios";
 import { ImportRequestType } from "../types/importRequest.type";
 
-const BASE_URL = "https://67dbbf111fd9e43fe475b291.mockapi.io/import";
+const BASE_URL = "https://warehouse-backend-q6ibz.ondigitalocean.app/import-request";
 
 const useImportRequest = () => {
   const [loading, setLoading] = useState(false);
@@ -14,8 +14,8 @@ const useImportRequest = () => {
     setLoading(true);
     try {
       const response = await axios.get(BASE_URL);
-      setImportRequests(response.data);
-      return response.data;
+      setImportRequests(response.data.content);
+      return response.data.content;
     } catch (error) {
       console.error("Lỗi khi lấy danh sách yêu cầu nhập hàng:", error);
       return [];
@@ -25,9 +25,7 @@ const useImportRequest = () => {
   }, []);
 
   // Fetch chi tiết import request theo ID
-  const fetchImportRequestById = useCallback(async (id: string) => {
-    if (!id) return null;
-
+  const fetchImportRequestById = useCallback(async (id: number) => {
     setLoading(true);
     try {
       const response = await axios.get(`${BASE_URL}/${id}`);
@@ -42,7 +40,7 @@ const useImportRequest = () => {
   }, []);
 
   // Tạo mới import request
-  const createImportRequest = useCallback(async (newRequest: Omit<ImportRequestType, "id">) => {
+  const createImportRequest = useCallback(async (newRequest: Omit<ImportRequestType, "importRequestId">) => {
     setLoading(true);
     try {
       const response = await axios.post(BASE_URL, newRequest);
@@ -56,7 +54,7 @@ const useImportRequest = () => {
   }, []);
 
   // Cập nhật import request
-  const updateImportRequest = useCallback(async (id: string, updatedData: Partial<ImportRequestType>) => {
+  const updateImportRequest = useCallback(async (id: number, updatedData: Partial<ImportRequestType>) => {
     setLoading(true);
     try {
       const response = await axios.put(`${BASE_URL}/${id}`, updatedData);
@@ -70,7 +68,7 @@ const useImportRequest = () => {
   }, []);
 
   // Xóa import request
-  const deleteImportRequest = useCallback(async (id: string) => {
+  const deleteImportRequest = useCallback(async (id: number) => {
     setLoading(true);
     try {
       await axios.delete(`${BASE_URL}/${id}`);
@@ -91,7 +89,7 @@ const useImportRequest = () => {
     fetchImportRequestById,
     createImportRequest,
     updateImportRequest,
-    deleteImportRequest
+    deleteImportRequest,
   };
 };
 
