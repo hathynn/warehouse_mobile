@@ -2,20 +2,37 @@ import { useState, useCallback } from "react";
 import axios from "axios";
 import { ImportOrderDetailType } from "../types/importOrderDetail.type";
 
-const BASE_URL = "https://67dca0a5e00db03c406886db.mockapi.io/import-order-detail"; // thay URL theo mockapi của bạn
+const BASE_URL = "https://warehouse-backend-q6ibz.ondigitalocean.app/import-order-detail"; 
 
 const useImportOrderDetail = () => {
   const [loading, setLoading] = useState(false);
   const [importOrderDetails, setImportOrderDetails] = useState<ImportOrderDetailType[]>([]);
   const [importOrderDetail, setImportOrderDetail] = useState<ImportOrderDetailType | null>(null);
 
-  // Fetch danh sách import order details
-  const fetchImportOrderDetails = useCallback(async () => {
+  // Fetch danh sách import order details theo importOrderId
+  const fetchImportOrderDetails = useCallback(async (importOrderId: number) => {
+    if (!importOrderId) return [];
+  
     setLoading(true);
     try {
-      const response = await axios.get(BASE_URL);
-      setImportOrderDetails(response.data);
-      return response.data;
+      const response = await axios.get(`${BASE_URL}/${importOrderId}`);
+  
+      // console.log("📥 API Response:", response.data); // Debug full response
+  
+      const data = response.data.content;
+      
+      // Đảm bảo trả về một mảng để tránh lỗi
+      if (Array.isArray(data)) {
+        setImportOrderDetails(data);
+        return data;
+      } else if (data && typeof data === "object") {
+        // Nếu API trả về object đơn lẻ, chuyển thành mảng
+        setImportOrderDetails([data]);
+        return [data];
+      } else {
+        console.warn("API trả về dữ liệu không hợp lệ:", data);
+        return [];
+      }
     } catch (error) {
       console.error("Lỗi khi lấy danh sách import order details:", error);
       return [];
@@ -23,9 +40,10 @@ const useImportOrderDetail = () => {
       setLoading(false);
     }
   }, []);
+  
 
   // Fetch chi tiết import order detail theo ID
-  const fetchImportOrderDetailById = useCallback(async (id: string) => {
+  const fetchImportOrderDetailById = useCallback(async (id: number) => {
     if (!id) return null;
 
     setLoading(true);
@@ -42,7 +60,7 @@ const useImportOrderDetail = () => {
   }, []);
 
   // Tạo mới import order detail
-  const createImportOrderDetail = useCallback(async (newDetail: Omit<ImportOrderDetailType, "id">) => {
+  const createImportOrderDetail = useCallback(async (newDetail: Omit<ImportOrderDetailType, "importOrderDetailId">) => {
     setLoading(true);
     try {
       const response = await axios.post(BASE_URL, newDetail);
@@ -56,7 +74,7 @@ const useImportOrderDetail = () => {
   }, []);
 
   // Cập nhật import order detail
-  const updateImportOrderDetail = useCallback(async (id: string, updatedData: Partial<ImportOrderDetailType>) => {
+  const updateImportOrderDetail = useCallback(async (id: number, updatedData: Partial<ImportOrderDetailType>) => {
     setLoading(true);
     try {
       const response = await axios.put(`${BASE_URL}/${id}`, updatedData);
@@ -70,7 +88,7 @@ const useImportOrderDetail = () => {
   }, []);
 
   // Xóa import order detail
-  const deleteImportOrderDetail = useCallback(async (id: string) => {
+  const deleteImportOrderDetail = useCallback(async (id: number) => {
     setLoading(true);
     try {
       await axios.delete(`${BASE_URL}/${id}`);
@@ -91,7 +109,7 @@ const useImportOrderDetail = () => {
     fetchImportOrderDetailById,
     createImportOrderDetail,
     updateImportOrderDetail,
-    deleteImportOrderDetail
+    deleteImportOrderDetail,
   };
 };
 

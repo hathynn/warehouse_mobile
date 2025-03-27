@@ -1,24 +1,22 @@
 export interface ImportRequestType {
-    id: string
-    provider_id: number
-    import_reason: string
-    created_by: string
-    updated_by: string
-    created_date: Date
-    updated_date: Date
-    status: ImportRequestStatus
-    type: ImportRequestTypeEnum
-    export_request_id?: string | null
-  }
-  
-  export enum ImportRequestStatus {
-    PENDING = "Pending",
-    APPROVED = "Approved",
-    COMPLETED = "Completed"
-  }
-  
-  export enum ImportRequestTypeEnum {
-    ORDER = "ORDER",
-    RETURN = "RETURN"
-  }
-  
+  importRequestId: number;
+  importReason: string;
+  importType: ImportRequestTypeEnum;
+  status: ImportRequestStatus;
+  providerId: number;
+  exportRequestId?: number | null;
+  importRequestDetailIds: number[];
+  importOrdersId: number[];
+  createdBy: string;
+  updatedBy: string;
+  createdDate: string;
+  updatedDate: string;
+}
+
+export enum ImportRequestStatus {
+  NOT_STARTED = "NOT_STARTED"
+}
+
+export enum ImportRequestTypeEnum {
+  ORDER = "ORDER"
+}

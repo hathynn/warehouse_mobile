@@ -77,7 +77,7 @@ const WarehouseLocationSelector: React.FC = () => {
     });
   
     // Quay về trang chi tiết đơn nhập
-    router.replace(`/import/create-import/${id}`);
+    router.replace(`/(tabs)/location`);
   };
   
 
@@ -90,7 +90,7 @@ const WarehouseLocationSelector: React.FC = () => {
             <Ionicons name="arrow-back" size={24} color="white" />
           </TouchableOpacity>
           <Text className="text-white font-bold text-lg">
-            Chọn vị trí lưu kho
+            Chọn vị trí lưu kho cho {id}
           </Text>
         </View>
 
