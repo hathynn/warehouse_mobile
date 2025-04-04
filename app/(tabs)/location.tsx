@@ -54,7 +54,7 @@ export default function WarehouseLocationSelector() {
     <SafeAreaView className="flex-1 bg-gray-100 p-2">
       <View className="flex-1 bg-gray-100 px-5">
         {/* Header */}
-        <View className="bg-black px-4 py-4 flex-row justify-between items-center rounded-2xl">
+        <View className="bg-[#1677ff] px-4 py-4 flex-row justify-between items-center rounded-2xl">
           <TouchableOpacity onPress={() => router.back()} className="p-2">
             <Ionicons name="arrow-back" size={24} color="white" />
           </TouchableOpacity>

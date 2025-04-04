@@ -2,7 +2,8 @@ import { useState, useCallback } from "react";
 import axios from "axios";
 import { ItemType } from "@/types/item.type";
 
-const BASE_URL = "https://warehouse-backend-q6ibz.ondigitalocean.app/items";
+const BASE_URL = "http://192.168.1.4:8080/items";
+
 
 const useItemService = () => {
   const [loading, setLoading] = useState(false);
@@ -10,15 +11,35 @@ const useItemService = () => {
   const [item, setItem] = useState<ItemType | null>(null);
 
   // Fetch danh sách items
-  const fetchItems = async (page = 1, limit = 10) => {
-    try {
-      const response = await axios.get(BASE_URL);
-      return response.data.content || []; // Nếu response.data là undefined, trả về []
-    } catch (error) {
-      console.error("Lỗi khi lấy danh sách sản phẩm:", error);
-      return []; // Trả về mảng rỗng nếu có lỗi
+// Fetch danh sách items
+const fetchItems = async (page = 1, limit = 10) => {
+  setLoading(true);
+  try {
+    const response = await axios.get(BASE_URL, {
+      params: {
+        page,
+        limit,
+      },
+    });
+    const data = response.data?.content || [];
+    setItems(data);
+    return data;
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      console.error("Lỗi khi lấy danh sách sản phẩm:", {
+        status: error.response?.status,
+        message: error.response?.data?.message || error.message,
+      });
+    } else {
+      console.error("Lỗi không xác định:", error);
     }
-  };
+    
+    return [];
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   // Fetch item theo id
   const fetchItemById = useCallback(async (id: string) => {

@@ -2,7 +2,7 @@ import { useState, useCallback } from "react";
 import axios from "axios";
 import { ImportOrderType } from "../types/importOrder.type";
 
-const BASE_URL = "https://warehouse-backend-q6ibz.ondigitalocean.app/import-order";
+const BASE_URL = "http://192.168.1.4:8080/import-order";
 
 const useImportOrder = () => {
   const [loading, setLoading] = useState(false);
@@ -13,7 +13,7 @@ const useImportOrder = () => {
   const fetchImportOrders = useCallback(async (importRequestId: number, page = 1, limit = 10) => {
     setLoading(true);
     try {
-      const response = await axios.get(`${BASE_URL}/page/${page}`, {
+      const response = await axios.get(`${BASE_URL}/page/${importRequestId}`, {
         params: {
           importRequestId,
           page,

@@ -3,7 +3,7 @@ import axios from "axios";
 import { StoredLocation } from "@/types/locationStored";
 
 
-const BASE_URL = "https://warehouse-backend-q6ibz.ondigitalocean.app/stored-locations";
+const BASE_URL = "http://192.168.1.4:8080/stored-locations";
 
 const useStoredLocation = () => {
   const [loading, setLoading] = useState(false);

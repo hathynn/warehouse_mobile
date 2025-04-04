@@ -7,8 +7,8 @@ export default function ScanQrSCreen() {
   const navigate = useNavigation();
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [scanned, setScanned] = useState(false);
-  const { id } = useLocalSearchParams<{ id: string }>(); // Lấy id từ URL
-
+  const { id } = useLocalSearchParams<{ id: string }>(); 
+  
   useEffect(() => {
     (async () => {
       const { status } = await Camera.requestCameraPermissionsAsync();

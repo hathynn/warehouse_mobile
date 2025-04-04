@@ -53,7 +53,7 @@ function ReceiptListComponent() {
     <SafeAreaView className="flex-1 bg-gray-100">
       {/* Header */}
       <View className="px-5">
-        <View className="bg-black px-4 py-7 flex-row items-center rounded-2xl">
+        <View className="bg-[#1677ff] px-4 py-7 flex-row items-center rounded-2xl">
           <Text className="text-white text-lg font-bold ml-4 flex-1">Danh sách phiếu nhập</Text>
         </View>
       </View>

@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   SafeAreaView,
+  Image,
 } from "react-native";
 import { useEffect, useState } from "react";
 import { Ionicons } from "@expo/vector-icons";
@@ -13,6 +14,7 @@ import useImportOrder from "@/services/useImportOrderService";
 import { Button } from "tamagui";
 import { useDispatch } from "react-redux";
 import { setPaperData } from "@/redux/paperSlice";
+import { usePaperService } from "@/services/usePaperService";
 
 export default function ReceiptDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -24,16 +26,33 @@ export default function ReceiptDetail() {
   const [activeTab, setActiveTab] = useState<"With Button" | "Without Button">(
     "With Button"
   );
+  const [papers, setPapers] = useState<any[]>([]); // danh sách chứng từ đã fetch
+  const { getPaperById } = usePaperService();
 
   useEffect(() => {
-    if (id) {
-      fetchImportOrders(parseInt(id)).then((orders) => {
-        const filtered = orders.filter(
-          (order: any) => order.importRequestId === parseInt(id)
-        );
-        setFilteredOrders(filtered);
-      });
-    }
+    if (!id) return;
+
+    fetchImportOrders(parseInt(id)).then(async (orders) => {
+      setFilteredOrders(orders);
+
+      // Lấy danh sách paperIds (mỗi đơn nhập chỉ có 1 paperId)
+      const paperIds = orders
+        .map((order: any) => order.paperIds)
+        .filter(Boolean);
+
+      if (paperIds.length === 0) return;
+
+      // Fetch thông tin của từng paperId
+      const fetchedPapers = await Promise.all(paperIds.map(getPaperById));
+
+      setPapers(fetchedPapers);
+    });
+  }, [id]);
+
+  useEffect(() => {
+    if (!id) return;
+    fetchImportOrders(parseInt(id)).then(setFilteredOrders);
+    console.log("ID:", id);
   }, [id]);
 
   return (
@@ -41,7 +60,7 @@ export default function ReceiptDetail() {
       <ScrollView className="p-2 flex-1">
         <View className="px-5">
           {/* Header */}
-          <View className="bg-black px-4 py-4 flex-row justify-between items-center rounded-2xl">
+          <View className="bg-[#1677ff] px-4 py-4 flex-row justify-between items-center rounded-2xl">
             <TouchableOpacity onPress={() => router.back()} className="p-2">
               <Ionicons name="arrow-back" size={24} color="white" />
             </TouchableOpacity>
@@ -91,7 +110,7 @@ export default function ReceiptDetail() {
                 {activeTab === "With Button" ? (
                   <>
                     <Text className="text-lg font-bold mb-2">
-                      Thông tin phiếu nhập
+                      Đơn nhập số {order.importOrderId}
                     </Text>
                     <View className="border-t border-gray-300 pt-2">
                       <InfoRow
@@ -115,26 +134,40 @@ export default function ReceiptDetail() {
                       />
                     </View>
 
-                    <Button
-                      marginTop="20"
-                      onPress={() => {
-                        dispatch(
-                          setPaperData({ importOrderId: order.importOrderId })
-                        );
-                        router.push(
-                          `/import/create-import/${order.importOrderId}`
-                        );
-                      }}
-                    >
-                      Tạo chứng từ
-                    </Button>
+                    {order.paperIds ? (
+                      <Button
+                        marginTop="10"
+                        onPress={() => {
+                          // Nếu đã có paperIds thì không cần dispatch nữa
+                          router.push(
+                            `/import/paper-detail/${order.paperIds}`
+                          );
+                        }}
+                      >
+                        Xem chứng từ
+                      </Button>
+                    ) : (
+                      <Button
+                        marginTop="10"
+                        onPress={() => {
+                          dispatch(
+                            setPaperData({ importOrderId: order.importOrderId })
+                          );
+                          router.push(
+                            `/import/create-import/${order.importOrderId}`
+                          );
+                        }}
+                      >
+                        Tạo chứng từ
+                      </Button>
+                    )}
                   </>
                 ) : (
                   <>
                     <Text className="text-lg font-bold mb-2">
-                      Thông tin chi tiết
+                      Thông tin đơn nhập {order.importOrderId}
                     </Text>
-                    <View className="border-t border-gray-300 pt-2">
+                    <View className="border-t  border-b border-gray-300 pt-2 pb-2">
                       <InfoRow
                         title="Mã đơn nhập"
                         value={order.importOrderId}
@@ -143,8 +176,11 @@ export default function ReceiptDetail() {
                         title="Mã phiếu nhập"
                         value={order.importRequestId}
                       />
-                      <InfoRow title="Ngày nhận" value={order.dateReceived} />
-                      <InfoRow title="Giờ nhận" value={order.timeReceived} />
+                      <InfoRow
+                        title="Ngày tạo đơn"
+                        value={order.dateReceived}
+                      />
+                      <InfoRow title="Giờ tạo đơn" value={order.timeReceived} />
                       <InfoRow
                         title="Ghi chú"
                         value={order.note || "Không có ghi chú"}
@@ -158,23 +194,85 @@ export default function ReceiptDetail() {
                         title="Người cập nhật"
                         value={order.updatedBy || "Chưa cập nhật"}
                       />
-                      <InfoRow
+                      {/* <InfoRow
                         title="Danh sách chi tiết đơn nhập"
                         value={order.importOrderDetailIds.join(", ")}
-                      />
+                      /> */}
 
                       <InfoRow
                         title="Thủ kho phụ trách"
                         value={order.assignedWareHouseKeeperId}
                       />
-                      <InfoRow
+                      {/* <InfoRow
                         title="Danh sách chứng từ"
                         value={
                           order.paperIds
                             ? order.paperIds.join(", ")
                             : "Không có chứng từ"
                         }
-                      />
+                      /> */}
+                    </View>
+                    <View className="mt-2">
+                      <Text className="text-gray-600 pt-2 pb-2 font-semibold mb-1">
+                        Thông tin chứng từ:
+                      </Text>
+
+                      {order.paperIds ? ( // Nếu có paperId
+                        (() => {
+                          const paper = papers.find(
+                            (p) => p?.id === order.paperIds
+                          );
+                          return paper ? (
+                            <View>
+                              {/* <Text className="text-black font-semibold mb-1">
+                                #{paper.id}:{" "}
+                                {paper.description || "Không có mô tả"}
+                              </Text> */}
+                              <InfoRow title="Mã chứng từ" value={paper.id} />
+                              <InfoRow
+                                title="Lý do nhập"
+                                value={paper.description || "Không có mô tả"}
+                              />
+ <Button
+                        marginTop="10"
+                        onPress={() => {
+                          // Nếu đã có paperIds thì không cần dispatch nữa
+                          router.push(
+                            `/import/paper-detail/${order.paperIds}`
+                          );
+                        }}
+                      >
+                       Chi tiết chứng từ
+                      </Button>
+                              {/* <Text className="text-gray-500 text-sm mb-1">
+                                Người tạo: {paper.createdBy || "Không rõ"}
+                              </Text> */}
+                              {/* <Text className="text-gray-500 text-sm mb-2">
+                                Ngày tạo:{" "}
+                                {new Date(order.createdDate).toLocaleString(
+                                  "vi-VN",
+                                  {
+                                    day: "2-digit",
+                                    month: "2-digit",
+                                    year: "numeric",
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                    second: "2-digit",
+                                  }
+                                )}
+                              </Text> */}
+
+                             
+                            </View>
+                          ) : (
+                            <Text className="text-gray-500">
+                              Không tìm thấy chứng từ #{order.paperIds}
+                            </Text>
+                          );
+                        })()
+                      ) : (
+                        <Text className="text-gray-500">Không có chứng từ</Text>
+                      )}
                     </View>
                   </>
                 )}
