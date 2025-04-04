@@ -30,7 +30,7 @@ const Confirm = () => {
         <View className="flex-1 pt-2" >
           <ScrollView scrollEnabled={scrollEnabled} contentContainerStyle={{ flexGrow: 1 }}>
             <View className="px-5">
-              <View className="bg-black px-4 py-4 flex-row justify-between items-center rounded-2xl">
+              <View className="bg-[#1677ff] px-4 py-4 flex-row justify-between items-center rounded-2xl">
                 <TouchableOpacity onPress={() => router.back()} className="p-2">
                   <Ionicons name="arrow-back" size={24} color="white" />
                 </TouchableOpacity>
@@ -63,7 +63,7 @@ const Confirm = () => {
                     >
                       {({ open }: { open: boolean }) => (
                         <>
-                          <Paragraph fontWeight="500">{product?.id}</Paragraph>
+                          <Paragraph fontWeight="500">Mã sản phẩm: {product?.id}</Paragraph>
                           <Square
                             animation="quick"
                             rotate={open ? "180deg" : "0deg"}
@@ -91,7 +91,7 @@ const Confirm = () => {
           <View className="p-5">
             <TouchableOpacity
               onPress={() => router.push("/import/sign/deliver-sign")}
-              className="bg-black px-5 py-4 rounded-full"
+              className="bg-[#0d1925] px-5 py-4 rounded-full"
             >
               <Text className="text-white font-semibold text-sm text-center">
                 Ký xác nhận

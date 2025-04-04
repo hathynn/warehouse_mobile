@@ -1,149 +1,66 @@
-import { useState, useCallback } from "react";
 import axios from "axios";
+import * as FileSystem from 'expo-file-system';
 
-const BASE_URL = "https://warehouse-backend-q6ibz.ondigitalocean.app/paper";
-
-const usePaperService = () => {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  // 🔹 Kiểm tra nếu dữ liệu là Base64
-  const isBase64 = (data: string) => data.startsWith("data:image/");
-
-  // 🔹 Chuyển Base64 thành Blob
-  const base64ToBlob = (base64: string): Blob => {
-    const [prefix, data] = base64.split(",");
-    const mime = prefix.match(/:(.*?);/)?.[1] || "image/png"; // Lấy MIME type
-    const byteCharacters = atob(data);
-    const byteNumbers = new Uint8Array(byteCharacters.length).map((_, i) =>
-      byteCharacters.charCodeAt(i)
-    );
-    return new Blob([byteNumbers], { type: mime });
-  };
-
-  // ✅ Hàm tạo paper
-  const createPaper = useCallback(
-    async (paperData: {
-      signProviderUrl: string | Blob; // Có thể là Base64 hoặc Blob
-      signWarehouseUrl: string | Blob;
-      description?: string;
-      importOrderId: number;
-      exportRequestId?: number;
-    }) => {
-      setLoading(true);
-      setError(null);
-
-      try {
-        const formData = new FormData();
-
-        // Chuyển Base64 thành Blob nếu cần
-        const signProviderBlob =
-          typeof paperData.signProviderUrl === "string" &&
-          isBase64(paperData.signProviderUrl)
-            ? base64ToBlob(paperData.signProviderUrl)
-            : (paperData.signProviderUrl as Blob); // Đảm bảo là Blob
-
-        const signWarehouseBlob =
-          typeof paperData.signWarehouseUrl === "string" &&
-          isBase64(paperData.signWarehouseUrl)
-            ? base64ToBlob(paperData.signWarehouseUrl)
-            : (paperData.signWarehouseUrl as Blob); // Đảm bảo là Blob
-
-        // Thêm dữ liệu vào FormData
-        formData.append(
-          "signProviderUrl",
-          signProviderBlob,
-          "provider_signature.png"
-        );
-        formData.append(
-          "signWarehouseUrl",
-          signWarehouseBlob,
-          "warehouse_signature.png"
-        );
-        if (paperData.description) {
-          formData.append("description", paperData.description);
-        }
-        formData.append("importOrderId", String(paperData.importOrderId));
-        if (paperData.exportRequestId) {
-          formData.append("exportRequestId", String(paperData.exportRequestId));
-        }
-
-        // Gửi API
-        const response = await axios.post(BASE_URL, formData, {
+export const usePaperService = () => {
+  const createPaper = async (paperData: any) => {
+    try {
+      const formData = new FormData();
+  
+      formData.append("id", paperData.id || "");
+      formData.append("description", paperData.description || "");
+      formData.append("importOrderId", paperData.importOrderId.toString());
+      formData.append("exportRequestId", paperData.exportRequestId || "");
+      const saveBase64ToFile = async (base64: string, filename: string) => {
+        const path = `${FileSystem.cacheDirectory}${filename}`;
+        await FileSystem.writeAsStringAsync(path, base64.split(',')[1], {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+        return path;
+      };
+      const signProviderPath = await saveBase64ToFile(paperData.signProviderUrl, "chuki1.jpg");
+      const signWarehousePath = await saveBase64ToFile(paperData.signWarehouseUrl, "chuki2.jpg");
+  
+      formData.append("signProviderUrl", {
+        uri: signProviderPath,
+        name: "chuki1.jpg",
+        type: "image/jpeg",
+      } as any);
+  
+      formData.append("signWarehouseUrl", {
+        uri: signWarehousePath,
+        name: "chuki2.jpg",
+        type: "image/jpeg",
+      } as any);
+  
+      const response = await axios.post(
+        "http://192.168.1.4:8080/paper",
+        formData,
+        {
           headers: {
             "Content-Type": "multipart/form-data",
           },
-        });
+        }
+      );
+  
+      console.log("✅ Paper Created:", response.data);
+      return response.data;
+    } catch (error: any) {
+      console.error("❌ Lỗi tạo paper:", error.message || error);
+      return null;
+    }
+  };
+  
 
-        return response.data;
-      } catch (err: any) {
-        console.error("Lỗi khi tạo paper:", err);
-        setError(err.response?.data?.message || "Lỗi khi tạo paper");
-        return null;
-      } finally {
-        setLoading(false);
-      }
-    },
-    []
-  );
+  const getPaperById = async (id: number | string) => {
+    try {
+      const response = await axios.get(`http://192.168.1.4:8080/paper/${id}`);
+      return response.data.content;
+    } catch (error: any) {
+      console.error("❌ Lỗi lấy chứng từ:", error.message || error);
+      return null;
+    }
+  };
 
-  return { loading, error, createPaper };
+  return { createPaper, getPaperById };
 };
 
-export default usePaperService;
-
-// import { useState, useCallback } from "react";
-// import axios from "axios";
-
-// const BASE_URL = "https://warehouse-backend-q6ibz.ondigitalocean.app/paper";
-
-// const usePaperService = () => {
-//   const [loading, setLoading] = useState(false);
-//   const [error, setError] = useState<string | null>(null);
-
-//   // ✅ Hàm tạo paper
-//   const createPaper = useCallback(
-//     async (paperData: {
-//       signProviderUrl: Blob;
-//       signWarehouseUrl: Blob;
-//       description?: string;
-//       importOrderId: number;
-//       exportRequestId?: number;
-//     }) => {
-//       setLoading(true);
-//       setError(null);
-
-//       try {
-//         const formData = new FormData();
-//         formData.append("signProviderUrl", paperData.signProviderUrl);
-//         formData.append("signWarehouseUrl", paperData.signWarehouseUrl);
-//         if (paperData.description) {
-//           formData.append("description", paperData.description);
-//         }
-//         formData.append("importOrderId", String(paperData.importOrderId));
-//         if (paperData.exportRequestId) {
-//           formData.append("exportRequestId", String(paperData.exportRequestId));
-//         }
-
-//         const response = await axios.post(BASE_URL, formData, {
-//           headers: {
-//             "Content-Type": "multipart/form-data",
-//           },
-//         });
-
-//         return response.data;
-//       } catch (err) {
-//         console.error("Lỗi khi tạo paper:", err);
-//         setError("Lỗi khi tạo paper");
-//         return null;
-//       } finally {
-//         setLoading(false);
-//       }
-//     },
-//     []
-//   );
-
-//   return { loading, error, createPaper };
-// };
-
-// export default usePaperService;

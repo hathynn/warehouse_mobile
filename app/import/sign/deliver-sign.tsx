@@ -14,7 +14,7 @@ const SignDeliverScreen = () => {
   const dispatch = useDispatch();
 
   const handleContinue = (img : string) => {
-    // console.log("🔹 Chữ ký nhận được:", img); // Debug chữ ký trước khi dispatch
+    console.log("🔹 Chữ ký nhận được:", img); // Debug chữ ký trước khi dispatch
 
     if (signature) {
       console.log("🔹 Lưu chữ ký:", signature);

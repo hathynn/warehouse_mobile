@@ -2,7 +2,7 @@ import { useState, useCallback } from "react";
 import axios from "axios";
 import { ImportOrderDetailType } from "../types/importOrderDetail.type";
 
-const BASE_URL = "https://warehouse-backend-q6ibz.ondigitalocean.app/import-order-detail"; 
+const BASE_URL = "http://192.168.1.4:8080/import-order-detail"; 
 
 const useImportOrderDetail = () => {
   const [loading, setLoading] = useState(false);
@@ -10,36 +10,38 @@ const useImportOrderDetail = () => {
   const [importOrderDetail, setImportOrderDetail] = useState<ImportOrderDetailType | null>(null);
 
   // Fetch danh sách import order details theo importOrderId
-  const fetchImportOrderDetails = useCallback(async (importOrderId: number) => {
-    if (!importOrderId) return [];
+  const fetchImportOrderDetails = useCallback(
+    async (importOrderId: number, page = 1, size = 10) => {
+      if (!importOrderId) return [];
   
-    setLoading(true);
-    try {
-      const response = await axios.get(`${BASE_URL}/${importOrderId}`);
+      setLoading(true);
+      try {
+        const response = await axios.get(`${BASE_URL}/page/${importOrderId}`, {
+          params: { page, size },
+        });
   
-      // console.log("📥 API Response:", response.data); // Debug full response
+        const data = response.data.content;
   
-      const data = response.data.content;
-      
-      // Đảm bảo trả về một mảng để tránh lỗi
-      if (Array.isArray(data)) {
-        setImportOrderDetails(data);
-        return data;
-      } else if (data && typeof data === "object") {
-        // Nếu API trả về object đơn lẻ, chuyển thành mảng
-        setImportOrderDetails([data]);
-        return [data];
-      } else {
-        console.warn("API trả về dữ liệu không hợp lệ:", data);
+        if (Array.isArray(data)) {
+          setImportOrderDetails(data);
+          return data;
+        } else if (data && typeof data === "object") {
+          setImportOrderDetails([data]);
+          return [data];
+        } else {
+          console.warn("API trả về dữ liệu không hợp lệ:", data);
+          return [];
+        }
+      } catch (error) {
+        console.error("Lỗi khi lấy danh sách import order details:", error);
         return [];
+      } finally {
+        setLoading(false);
       }
-    } catch (error) {
-      console.error("Lỗi khi lấy danh sách import order details:", error);
-      return [];
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+    },
+    []
+  );
+  
   
 
   // Fetch chi tiết import order detail theo ID

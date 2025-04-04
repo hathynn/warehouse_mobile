@@ -8,6 +8,7 @@ import { Button } from "tamagui";
 import { useDispatch, useSelector } from "react-redux";
 import { RootState } from "@/redux/store";
 import { setPaperData } from "@/redux/paperSlice";
+import { usePaperService } from "@/services/usePaperService";
 
 const SignReceiveScreen = () => {
   const [signature, setSignature] = useState<string | null>(null);
@@ -19,19 +20,37 @@ const SignReceiveScreen = () => {
     setSignature(img);
     dispatch(setPaperData({ signProviderUrl: img })); // Lưu chữ ký vào Redux
   };
+  const base64ToBlob = (base64: string) => {
+    const byteCharacters = atob(base64.split(",")[1]); // Bỏ "data:image/png;base64,"
+    const byteNumbers = new Array(byteCharacters.length)
+      .fill(0)
+      .map((_, i) => byteCharacters.charCodeAt(i));
+    const byteArray = new Uint8Array(byteNumbers);
+    return new Blob([byteArray], { type: "image/png" });
+  };
 
   const handleClear = () => {
     setSignature(null);
     signatureRef.current?.clearSignature();
   };
 
-  const handleConfirm = () => {
-    // console.log("🔹 Dữ liệu Paper trong Redux:", paperData);
+  const { createPaper } = usePaperService();
 
-    if (paperData.signWarehouseUrl) {
-      console.log("🔹 Dữ liệu Paper trong Redux:", paperData);
-    } else {
-      console.log("❌ Chưa có chữ ký, vui lòng ký trước khi xác nhận.");
+  const handleConfirm = async () => {
+    if (!paperData.signProviderUrl || !paperData.signWarehouseUrl) {
+      console.log("❌ Chưa có đủ chữ ký, vui lòng ký trước khi xác nhận.");
+      return;
+    }
+
+    // Trực tiếp gọi API và truyền paperData
+    try {
+      const response = await createPaper(paperData);
+      if (response) {
+        console.log("✅ Tạo paper thành công:", response);
+        router.push("/(tabs)/import");
+      }
+    } catch (error) {
+      console.error("❌ Lỗi khi tạo paper:", error);
     }
   };
 
@@ -42,13 +61,16 @@ const SignReceiveScreen = () => {
       dispatch(setPaperData({ signWarehouseUrl: img })); // Cập nhật Redux
     }
   };
-  
-  useEffect(() => {
-    if (paperData.signWarehouseUrl) {
-      handleConfirm();
-    }
-  }, [paperData.signWarehouseUrl]);
-  
+
+  // useEffect(() => {
+  //   if (paperData.signWarehouseUrl) {
+  //     handleConfirm();
+  //   }
+  // }, [paperData.signWarehouseUrl]);
+
+  // useEffect(() => {
+  //   console.log("📦 Dữ liệu paper từ Redux:", paperData.signWarehouseUrl);
+  // }, [paperData]);
 
   return (
     <SafeAreaView className="flex-1 p-2 bg-white">
@@ -75,7 +97,6 @@ const SignReceiveScreen = () => {
           <Signature
             ref={signatureRef}
             onOK={(signature) => {
-            
               dispatch(setPaperData({ signWarehouseUrl: signature }));
             }}
             onEnd={handleEnd}
