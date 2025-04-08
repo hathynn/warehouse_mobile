@@ -1,21 +1,29 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
-import { View, Image, TouchableOpacity, Text } from "react-native";
+import { View, Image, TouchableOpacity, Text, ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Signature, { SignatureViewRef } from "react-native-signature-canvas";
-import { Button } from "tamagui";
+import { Button, Label } from "tamagui";
 import { useDispatch, useSelector } from "react-redux";
 import { RootState } from "@/redux/store";
 import { setPaperData } from "@/redux/paperSlice";
 import { usePaperService } from "@/services/usePaperService";
+import ProductListAccordion from "@/components/ui/ProductList";
 
 const SignReceiveScreen = () => {
   const [signature, setSignature] = useState<string | null>(null);
   const signatureRef = useRef<SignatureViewRef>(null);
   const dispatch = useDispatch();
   const paperData = useSelector((state: RootState) => state.paper); // Lấy dữ liệu từ Redux
+  const importOrderId = useSelector(
+    (state: RootState) => state.paper.importOrderId
+  );
+  const [scrollEnabled, setScrollEnabled] = useState(true);
 
+  const products = useSelector((state: RootState) =>
+    state.product.products.filter((p) => p.importOrderId === importOrderId)
+  );
   const handleSave = (img: string) => {
     setSignature(img);
     dispatch(setPaperData({ signProviderUrl: img })); // Lưu chữ ký vào Redux
@@ -73,59 +81,91 @@ const SignReceiveScreen = () => {
   // }, [paperData]);
 
   return (
-    <SafeAreaView className="flex-1 p-2 bg-white">
-      <View className="px-3">
-        <View className="bg-black mb-2 px-4 py-4 flex-row justify-between items-center rounded-2xl">
-          <TouchableOpacity onPress={() => router.back()} className="p-2">
-            <Ionicons name="arrow-back" size={24} color="white" />
-          </TouchableOpacity>
-          <Text className="text-white font-bold text-lg">
-            Người nhận hàng ký
-          </Text>
-        </View>
-
-        <View
-          style={{
-            height: 710,
-            borderWidth: 1,
-            borderColor: "#ccc",
-            borderRadius: 10,
-            backgroundColor: "white",
-            padding: 5,
-          }}
-        >
-          <Signature
-            ref={signatureRef}
-            onOK={(signature) => {
-              dispatch(setPaperData({ signWarehouseUrl: signature }));
+    <SafeAreaView className="flex-1 p-2">
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        scrollEnabled={scrollEnabled}
+      >
+        <View className="px-3">
+          <View className="bg-[#1677ff] mb-2 px-4 py-4 flex-row justify-between items-center rounded-2xl">
+            <TouchableOpacity onPress={() => router.back()} className="p-2">
+              <Ionicons name="arrow-back" size={24} color="white" />
+            </TouchableOpacity>
+            <Text className="text-white font-bold text-lg">
+              Người nhận hàng ký
+            </Text>
+          </View>
+          <View className="items-center">
+            <Label>Xác nhận thông tin sản phẩm</Label>
+          </View>
+          <ProductListAccordion products={products} />
+          <View className="items-center">
+        
+            {paperData.signProviderUrl && (
+              <>
+                <View className=" items-center">
+                  <Label>Chữ ký người giao hàng</Label>
+                </View>
+                <View className="w-full bg-white p-3 rounded-2xl mt-3 items-center">
+                  <Image
+                    source={{ uri: paperData.signProviderUrl }}
+                    className="w-full h-64  rounded-md"
+                    resizeMode="contain"
+                  />
+                </View>
+              </>
+            )}
+          </View>
+          <View className="items-center">
+            <Label>Ký tên</Label>
+          </View>
+          <View
+            style={{
+              height: 710,
+              borderWidth: 1,
+              borderColor: "#ccc",
+              borderRadius: 10,
+              backgroundColor: "white",
+              padding: 5,
             }}
-            onEnd={handleEnd}
-            descriptionText="Ký tên tại đây"
-            imageType="image/png"
-            webStyle={`
+          >
+            <Signature
+              ref={signatureRef}
+              onBegin={() => setScrollEnabled(false)}
+              onOK={(signature) => {
+                dispatch(setPaperData({ signWarehouseUrl: signature }));
+              }}
+              onEnd={() => {
+                setScrollEnabled(true); // Bật lại scroll sau khi ký
+                handleEnd(); // Xử lý ảnh
+              }}
+              descriptionText="Ký tên tại đây"
+              imageType="image/png"
+              webStyle={`
           .m-signature-pad { height: 100% !important; }
           .m-signature-pad--body { height: 100% !important; }
           .m-signature-pad--footer { display: none; }
           body, html { height: 100%; margin: 0; padding: 0; }
         `}
-            style={{ flex: 1, height: 710 }} // Đảm bảo WebView Signature có đúng chiều cao
-          />
-        </View>
+              style={{ flex: 1, height: 710 }} // Đảm bảo WebView Signature có đúng chiều cao
+            />
+          </View>
 
-        <View className="flex-row justify-center mt-4">
-          <Button onPress={handleClear}>Xóa</Button>
-          <View style={{ width: 20 }} />
-          <Button onPress={handleConfirm}>Xác nhận</Button>
-        </View>
+          <View className="flex-row justify-center mt-4">
+            <Button onPress={handleClear}>Xóa</Button>
+            <View style={{ width: 20 }} />
+            <Button onPress={handleConfirm}>Xác nhận</Button>
+          </View>
 
-        {signature && (
-          <Image
-            source={{ uri: signature }}
-            className="w-full h-32 mt-4 border"
-            resizeMode="contain"
-          />
-        )}
-      </View>
+          {signature && (
+            <Image
+              source={{ uri: signature }}
+              className="w-full h-32 mt-4 border"
+              resizeMode="contain"
+            />
+          )}
+        </View>
+      </ScrollView>
     </SafeAreaView>
   );
 };

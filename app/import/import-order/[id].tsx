@@ -12,9 +12,12 @@ import { useEffect, useState } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import useImportOrder from "@/services/useImportOrderService";
 import { Button } from "tamagui";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { setPaperData } from "@/redux/paperSlice";
 import { usePaperService } from "@/services/usePaperService";
+import useImportOrderDetail from "@/services/useImportOrderDetailService";
+import { setProducts } from "@/redux/productSlice";
+import { RootState } from "@/redux/store";
 
 export default function ReceiptDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -28,7 +31,7 @@ export default function ReceiptDetail() {
   );
   const [papers, setPapers] = useState<any[]>([]); // danh sách chứng từ đã fetch
   const { getPaperById } = usePaperService();
-
+  const { fetchImportOrderDetails } = useImportOrderDetail();
   useEffect(() => {
     if (!id) return;
 
@@ -48,6 +51,12 @@ export default function ReceiptDetail() {
       setPapers(fetchedPapers);
     });
   }, [id]);
+
+  const products = useSelector((state: RootState) => state.product.products);
+
+  useEffect(() => {
+    console.log("Redux products:", products);
+  }, [products]);
 
   useEffect(() => {
     if (!id) return;
@@ -139,9 +148,7 @@ export default function ReceiptDetail() {
                         marginTop="10"
                         onPress={() => {
                           // Nếu đã có paperIds thì không cần dispatch nữa
-                          router.push(
-                            `/import/paper-detail/${order.paperIds}`
-                          );
+                          router.push(`/import/paper-detail/${order.paperIds}`);
                         }}
                       >
                         Xem chứng từ
@@ -149,13 +156,32 @@ export default function ReceiptDetail() {
                     ) : (
                       <Button
                         marginTop="10"
-                        onPress={() => {
-                          dispatch(
-                            setPaperData({ importOrderId: order.importOrderId })
-                          );
-                          router.push(
-                            `/import/create-import/${order.importOrderId}`
-                          );
+                        onPress={async () => {
+                          try {
+                            const response = await fetchImportOrderDetails(
+                              order.importOrderId
+                            );
+
+                            const products = response?.map((item: any) => ({
+                              id: item.itemId,
+                              name: item.itemName,
+                              expect: item.expectQuantity,
+                              actual: item.actualQuantity || 0,
+                              importOrderId: order.importOrderId,
+                            }));
+                            
+
+                            dispatch(setProducts(products));
+                            dispatch(
+                              setPaperData({
+                                importOrderId: order.importOrderId,
+                              })
+                            );
+
+                            router.push("/import/scan-qr");
+                          } catch (error) {
+                            console.error("Lỗi khi tạo chứng từ:", error);
+                          }
                         }}
                       >
                         Tạo chứng từ
@@ -233,17 +259,17 @@ export default function ReceiptDetail() {
                                 title="Lý do nhập"
                                 value={paper.description || "Không có mô tả"}
                               />
- <Button
-                        marginTop="10"
-                        onPress={() => {
-                          // Nếu đã có paperIds thì không cần dispatch nữa
-                          router.push(
-                            `/import/paper-detail/${order.paperIds}`
-                          );
-                        }}
-                      >
-                       Chi tiết chứng từ
-                      </Button>
+                              <Button
+                                marginTop="10"
+                                onPress={() => {
+                                  // Nếu đã có paperIds thì không cần dispatch nữa
+                                  router.push(
+                                    `/import/paper-detail/${order.paperIds}`
+                                  );
+                                }}
+                              >
+                                Chi tiết chứng từ
+                              </Button>
                               {/* <Text className="text-gray-500 text-sm mb-1">
                                 Người tạo: {paper.createdBy || "Không rõ"}
                               </Text> */}
@@ -261,8 +287,6 @@ export default function ReceiptDetail() {
                                   }
                                 )}
                               </Text> */}
-
-                             
                             </View>
                           ) : (
                             <Text className="text-gray-500">

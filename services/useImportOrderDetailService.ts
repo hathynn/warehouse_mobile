@@ -2,7 +2,7 @@ import { useState, useCallback } from "react";
 import axios from "axios";
 import { ImportOrderDetailType } from "../types/importOrderDetail.type";
 
-const BASE_URL = "http://192.168.1.4:8080/import-order-detail"; 
+const BASE_URL = "https://warehouse-backend-jlcj5.ondigitalocean.app/import-order-detail"; 
 
 const useImportOrderDetail = () => {
   const [loading, setLoading] = useState(false);

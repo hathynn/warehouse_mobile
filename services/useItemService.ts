@@ -2,7 +2,7 @@ import { useState, useCallback } from "react";
 import axios from "axios";
 import { ItemType } from "@/types/item.type";
 
-const BASE_URL = "http://192.168.1.4:8080/items";
+const BASE_URL = "https://warehouse-backend-jlcj5.ondigitalocean.app/items";
 
 
 const useItemService = () => {
