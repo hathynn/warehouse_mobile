@@ -1,287 +1,128 @@
-// import { RootState } from "@/redux/store";
-// import { Ionicons } from "@expo/vector-icons";
-// import { ChevronDown } from "@tamagui/lucide-icons";
-// import { router } from "expo-router";
-// import React, { useRef, useState } from "react";
-// import { Text, View, ScrollView, Image, TouchableOpacity } from "react-native";
-// import { SafeAreaView } from "react-native-safe-area-context";
-// import Signature from "react-native-signature-canvas";
-// import { useSelector } from "react-redux";
-// import {
-//   Accordion,
-//   Button,
-//   H3,
-//   H4,
-//   Input,
-//   Label,
-//   Paragraph,
-//   Square,
-//   TextArea,
-//   XStack,
-// } from "tamagui";
+import React, { useState, useEffect } from "react";
+import { Text, View, StyleSheet, SafeAreaView, Alert } from "react-native";
+import { CameraView, Camera } from "expo-camera";
+import { useLocalSearchParams } from "expo-router";
+import { useSelector } from "react-redux";
+import { RootState } from "@/redux/store"; // update path nếu khác
+import { ScrollView } from "react-native-gesture-handler";
+import { Button } from "tamagui";
 
-// const Sign = () => {
-//   const [scrollEnabled, setScrollEnabled] = useState(true);
-//   const [signature, setSignature] = useState<string | null>(null);
-//   const [signature2, setSignature2] = useState<string | null>(null);
-//   const signatureRef = useRef<Signature>(null);
-//   const signatureRef2 = useRef<Signature>(null);
+export default function ScanQrScreen() {
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const [hasPermission, setHasPermission] = useState<boolean | null>(null);
+  const [scanned, setScanned] = useState(false);
+  const [scannedProduct, setScannedProduct] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
 
-//   const products = useSelector((state: RootState) => state.product.products);
+  // Lấy danh sách sản phẩm từ Redux
+  const products = useSelector((state: RootState) => state.product.products);
 
-//   // Hàm lưu chữ ký
-//   const handleSave = (img: string) => {
-//     if (img) {
-//       setSignature(img);
-//     }
-//   };
+  useEffect(() => {
+    (async () => {
+      const { status } = await Camera.requestCameraPermissionsAsync();
+      setHasPermission(status === "granted");
+    })();
+  }, []);
 
-//   const handleSave2 = (img: string) => {
-//     if (img) setSignature2(img);
-//   };
+  const handleBarCodeScanned = ({ data }: { data: string }) => {
+    setScanned(true);
+    setError(null);
 
-//   // Hàm xóa chữ ký
-//   const handleClear = () => {
-//     setSignature(null);
-//     signatureRef.current?.clearSignature();
-//   };
+    try {
+      // Parse dữ liệu JSON từ mã QR
+      const qrData = JSON.parse(decodeURIComponent(data));
 
-//   const handleClear2 = () => {
-//     setSignature2(null);
-//     signatureRef2.current?.clearSignature();
-//   };
+      // Kiểm tra xem sản phẩm có tồn tại trong danh sách không (so sánh số)
+      const foundProduct = products.find(
+        (product: any) => product.id === qrData.id // so sánh id là kiểu number
+      );
 
-//   // Gọi lưu chữ ký từ ref khi bấm nút "Lưu"
-//   const saveSignature = () => {
-//     signatureRef.current?.readSignature();
-//   };
+      if (foundProduct) {
+        setScannedProduct(foundProduct);
+      } else {
+        setScannedProduct(null);
+        setError("❌ Sản phẩm không có trong đơn nhập.");
+      }
+    } catch (error) {
+      setError("❌ Mã QR không hợp lệ.");
+      setScannedProduct(null);
+    }
+  };
 
-//   const saveSignature2 = () => {
-//     signatureRef2.current?.readSignature();
-//   };
+  if (hasPermission === null) return <Text>Đang xin quyền camera...</Text>;
+  if (hasPermission === false) return <Text>Không có quyền dùng camera</Text>;
 
-//   return (
-//     <SafeAreaView>
-//       <ScrollView scrollEnabled={scrollEnabled}>
-//         <View className="px-5">
-//           <View className="bg-black px-4 py-4 flex-row justify-between items-center rounded-2xl">
-//             <TouchableOpacity onPress={() => router.back()} className="p-2">
-//               <Ionicons name="arrow-back" size={24} color="white" />
-//             </TouchableOpacity>
-//             <Text className="text-white font-bold text-lg">
-//               Xác nhận đơn nhập số <Text className="text-blue-200">#136</Text>
-//             </Text>
-//           </View>
-//           <Label width="100%" textAlign="center" fontWeight={500}>
-//             Thông tin sản phẩm
-//           </Label>
+  return (
+    <SafeAreaView style={{ flex: 1 }}>
+      {/* Camera view */}
+      <View style={{ flex: 3 }}>
+        <CameraView
+          barcodeScannerSettings={{
+            barcodeTypes: ["qr", "ean13", "code128"],
+          }}
+          onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
+          style={StyleSheet.absoluteFillObject}
+        />
+      </View>
 
-//           <Accordion
-//             overflow="hidden"
-//             width="100%"
-//             type="multiple"
-//             marginBottom="$3"
-//             borderRadius="$6"
-//           >
-//             {products.map((product, index) => (
-//               <Accordion.Item key={product?.id} value={product-${index}}>
-//                 <Accordion.Trigger
-//                   flexDirection="row"
-//                   justifyContent="space-between"
-//                 >
-//                   {({ open }: { open: boolean }) => (
-//                     <>
-//                       <Paragraph fontWeight="500">{product?.id}</Paragraph>
-//                       <Square
-//                         animation="quick"
-//                         rotate={open ? "180deg" : "0deg"}
-//                       >
-//                         <ChevronDown size="$1" />
-//                       </Square>
-//                     </>
-//                   )}
-//                 </Accordion.Trigger>
-//                 <Accordion.HeightAnimator animation="medium">
-//                   <Accordion.Content
-//                     animation="medium"
-//                     exitStyle={{ opacity: 0 }}
-//                   >
-//                     <Paragraph>Số lượng: {product?.actual}</Paragraph>
-//                     <Paragraph>
-//                       Vị trí:{" "}
-//                       {product?.location
-//                         ? Kho: ${product.location.zone}, Tầng: ${product.location.floor}, Dãy: ${product.location.row}, Lô: ${product.location.batch}
-//                         : "Không có thông tin vị trí"}
-//                     </Paragraph>
-//                   </Accordion.Content>
-//                 </Accordion.HeightAnimator>
-//               </Accordion.Item>
-//             ))}
-//           </Accordion>
-//           <Label width={"100%"} textAlign="center" fontWeight={500}>
-//             Ký xác nhận
-//           </Label>
-//           <Text className="flex-row text-center font-extralight">
-//             (Vui lòng đọc kĩ thông tin trên và kí xác nhận bên dưới)
-//           </Text>
+      {/* Action/result view */}
+      <View style={styles.bottomContainer}>
+        {scanned && (
+          <Button
+            
+            onPress={() => {
+              setScanned(false);
+              setScannedProduct(null);
+              setError(null);
+            }}
+          >
+            Quét lại
+          </Button>
+        )}
 
-//           <ScrollView scrollEnabled={scrollEnabled}>
-//             <View
-//               style={{
-//                 position: "relative",
-//                 height: 300,
-//                 borderWidth: 2,
-//                 borderColor: "#ccc",
-//                 borderRadius: 10,
-//                 backgroundColor: "white",
-//                 overflow: "hidden",
-//                 marginTop: 10,
-//                 justifyContent: "center", // Canh giữa nội dung
-//                 alignItems: "center",
-//               }}
-//             >
-//               <Label
-//                 position="absolute"
-//                 top="$1"
-//                 left="15%"
-//                 transform="translateX(-50%)"
-//                 fontSize="$3"
-//                 zIndex={1}
-//               >
-//                 Chữ ký của người giao hàng
-//               </Label>
-//               <Signature
-//                 ref={signatureRef}
-//                 onOK={handleSave} // Khi người dùng nhấn "Lưu" trên canvas, nó sẽ gọi handleSave
-//                 onBegin={() => setScrollEnabled(false)}
-//                 onEnd={() => setScrollEnabled(true)}
-//                 descriptionText="Ký tên tại đây"
-//                 imageType="image/png"
-//               />
-//             </View>
+        {error && <Text style={styles.errorText}>{error}</Text>}
 
-//             <Input
-//               flex={1}
-//               id="name"
-//               marginTop="$4"
-//               defaultValue="Nhập họ và tên"
-//               backgroundColor={"white"}
-//             />
+        {scannedProduct && (
+          <View style={styles.resultBox}>
+            <Text style={styles.label}>✅ Sản phẩm đã quét:</Text>
+            <Text>Mã sản phẩm: {scannedProduct.id}</Text>
+            <Text>Tên sản phẩm: {scannedProduct.name}</Text>
+            <Text>Số lượng dự kiến: {scannedProduct.expect}</Text>
+            <Text>Số lượng thực tế: {scannedProduct.actual}</Text>
+          </View>
+        )}
+      </View>
+    </SafeAreaView>
+  );
+}
 
-//             {/* Nút Xóa & Lưu */}
-//             <View
-//               style={{
-//                 flexDirection: "row",
-//                 justifyContent: "center",
-//                 marginTop: 20,
-//               }}
-//             >
-//               <Button onPress={handleClear}>Xóa</Button>
-//               <View style={{ width: 20 }} />
-//               <Button onPress={saveSignature}>Lưu</Button>
-//             </View>
+const styles = StyleSheet.create({
+  bottomContainer: {
+    flex: 2,
+    backgroundColor: "#fff",
+    padding: 16,
 
-//             {/* Hiển thị ảnh chữ ký đã lưu */}
-//             {signature && (
-//               <View style={{ alignItems: "center", marginTop: 20 }}>
-//                 <Text>Chữ ký đã lưu:</Text>
-//                 <Image
-//                   source={{ uri: signature }}
-//                   style={{
-//                     width: 300,
-//                     height: 150,
-//                     borderWidth: 1,
-//                     borderColor: "#000",
-//                   }}
-//                   resizeMode="contain"
-//                 />
-//               </View>
-//             )}
-//             <View style={{ marginTop: 10 }}>
-//               <View
-//                 style={{
-//                   position: "relative",
-//                   height: 300,
-//                   borderWidth: 2,
-//                   borderColor: "#ccc",
-//                   borderRadius: 10,
-//                   backgroundColor: "white",
-//                   overflow: "hidden",
-//                   marginTop: 10,
-//                   justifyContent: "center", // Canh giữa nội dung
-//                   alignItems: "center",
-//                 }}
-//               >
-//                 <Label
-//                   position="absolute"
-//                   top="$1"
-//                   left="15%"
-//                   transform="translateX(-50%)"
-//                   fontSize="$3"
-//                   zIndex={1}
-//                 >
-//                   Chữ ký của người nhận hàng
-//                 </Label>
-//                 <Signature
-//                   ref={signatureRef2}
-//                   onOK={handleSave2}
-//                   onBegin={() => setScrollEnabled(false)}
-//                   onEnd={() => setScrollEnabled(true)}
-//                   descriptionText="Ký tên tại đây"
-//                   clearText="Xóa"
-//                   confirmText="Lưu"
-//                   imageType="image/png"
-//                   webStyle={.m-signature-pad--footer { display: none; }}
-//                 />
-//               </View>
-//               <Input
-//                 flex={1}
-//                 id="name"
-//                 marginTop="$4"
-//                 defaultValue="Nhập họ và tên"
-//                 backgroundColor={"white"}
-//               />
-//               <View
-//                 style={{
-//                   flexDirection: "row",
-//                   justifyContent: "center",
-//                   marginTop: 10,
-//                 }}
-//               >
-//                 <Button onPress={handleClear2}>Xóa</Button>
-//                 <View style={{ width: 20 }} />
-//                 <Button onPress={saveSignature2}>Lưu</Button>
-//               </View>
-
-//               {signature2 && (
-//                 <Image
-//                   source={{ uri: signature2 }}
-//                   style={{
-//                     width: 300,
-//                     height: 100,
-//                     borderWidth: 1,
-//                     borderColor: "#000",
-//                     alignSelf: "center",
-//                     marginTop: 10,
-//                   }}
-//                   resizeMode="contain"
-//                 />
-//               )}
-//             </View>
-//             <Button
-//               width={"100%"}
-//               marginTop="20"
-//               marginBottom="20"
-//               backgroundColor="black"
-//               color="white"
-//             >
-//               Xác nhận thông tin
-//             </Button>
-//           </ScrollView>
-//         </View>
-//       </ScrollView>
-//     </SafeAreaView>
-//   );
-// };
-
-// export default Sign; 
+    shadowColor: "#000",
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+  },
+  resultBox: {
+    marginTop: 20,
+    backgroundColor: "#e0f7fa",
+    padding: 16,
+    borderRadius: 10,
+  },
+  label: {
+    fontWeight: "bold",
+    fontSize: 16,
+    marginBottom: 10,
+    color: "#00796b",
+  },
+  errorText: {
+    color: "red",
+    marginTop: 16,
+    fontWeight: "bold",
+    fontSize: 16,
+    textAlign: "center",
+  },
+});

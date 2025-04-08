@@ -1,24 +1,14 @@
 import { updateActual } from "@/redux/productSlice";
 import { RootState } from "@/redux/store";
 import { Ionicons } from "@expo/vector-icons";
-import { ChevronDown } from "@tamagui/lucide-icons";
 import { router, useLocalSearchParams } from "expo-router";
-import React, { useRef, useState } from "react";
-import {
-  Text,
-  View,
-  ScrollView,
-  TouchableOpacity,
-  Alert,
-  Modal,
-} from "react-native";
+import React, { useState } from "react";
+import { Text, View, ScrollView, TouchableOpacity, Modal } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useDispatch, useSelector } from "react-redux";
 import {
   Accordion,
   Button,
-  H3,
-  H4,
   Input,
   Label,
   Paragraph,
@@ -26,30 +16,28 @@ import {
   XStack,
   YStack,
 } from "tamagui";
+import { ChevronDown } from "@tamagui/lucide-icons";
 
-const Confirm = () => {
-  const [scrollEnabled, setScrollEnabled] = useState(true);
+const ConfirmManual = () => {
   const [searchId, setSearchId] = useState("");
   const [filtered, setFiltered] = useState(false);
-
-  const { id } = useLocalSearchParams<{ id: string }>();
-  const products = useSelector((state: RootState) => state.product.products);
-
-  const filteredProducts = filtered
-    ? products.filter((p) => String(p.id).includes(searchId.trim()))
-    : products;
-
-  const dispatch = useDispatch();
-
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState<number | null>(
     null
   );
   const [inputValue, setInputValue] = useState("");
 
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const products = useSelector((state: RootState) => state.product.products);
+  const dispatch = useDispatch();
+
+  const filteredProducts = filtered
+    ? products.filter((p) => String(p.id).includes(searchId.trim()))
+    : products;
+
   const handleUpdateQuantity = (productId: number) => {
     setSelectedProductId(productId);
-    setInputValue(""); // reset input
+    setInputValue("");
     setModalVisible(true);
   };
 
@@ -64,19 +52,14 @@ const Confirm = () => {
   return (
     <SafeAreaView className="flex-1">
       <View className="flex-1 pt-2">
-        <ScrollView
-          scrollEnabled={scrollEnabled}
-          contentContainerStyle={{ flexGrow: 1 }}
-        >
+        <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
           <View className="px-5">
-            {/* Header */}
             <View className="bg-[#1677ff] px-4 py-4 flex-row justify-between items-center rounded-2xl">
               <TouchableOpacity onPress={() => router.back()} className="p-2">
                 <Ionicons name="arrow-back" size={24} color="white" />
               </TouchableOpacity>
               <Text className="text-white font-bold text-lg">
-                Xác nhận đơn nhập số{" "}
-                <Text className="text-blue-200">#{id}</Text>
+                Nhập số lượng thủ công đơn nhập #{id}
               </Text>
             </View>
 
@@ -133,7 +116,7 @@ const Confirm = () => {
               </XStack>
             </YStack>
 
-            {/* Thông tin sản phẩm */}
+            {/* Danh sách sản phẩm */}
             <Label
               width="100%"
               textAlign="center"
@@ -141,16 +124,16 @@ const Confirm = () => {
               fontSize={15}
               marginTop={20}
             >
-              Thông tin sản phẩm
+              Nhập số lượng thủ công
             </Label>
 
             <Accordion
               overflow="hidden"
               width="100%"
               type="multiple"
-              marginBottom="$3"
               borderRadius="$6"
               marginTop={10}
+              marginBottom="$3"
             >
               {filteredProducts.map((product, index) => (
                 <Accordion.Item key={product.id} value={`product-${index}`}>
@@ -177,7 +160,8 @@ const Confirm = () => {
                       animation="medium"
                       exitStyle={{ opacity: 0 }}
                     >
-                      <Paragraph>Số lượng: {product.actual}</Paragraph>
+                      <Paragraph>Số lượng yêu cầu: {product.expect}</Paragraph>
+                      <Paragraph>Số lượng thực tế: {product.actual}</Paragraph>
                       <Button
                         marginTop="$2"
                         onPress={() => handleUpdateQuantity(product.id)}
@@ -192,7 +176,7 @@ const Confirm = () => {
           </View>
         </ScrollView>
 
-        {/* Nút ký xác nhận */}
+        {/* Nút xác nhận */}
         <View className="p-5">
           <TouchableOpacity
             onPress={() => router.push("/import/sign/deliver-sign")}
@@ -204,6 +188,7 @@ const Confirm = () => {
           </TouchableOpacity>
         </View>
 
+        {/* Modal nhập số lượng */}
         <Modal
           animationType="slide"
           transparent={true}
@@ -223,18 +208,11 @@ const Confirm = () => {
                 className="border border-gray-300 p-3 rounded-md mb-4"
               />
               <View className="flex-row justify-end gap-2 mt-3">
-                <Button
-                  onPress={() => setModalVisible(false)}
-                  className="text-gray-500 font-medium"
-                >
-                  Hủy
-                </Button>
+                <Button onPress={() => setModalVisible(false)}>Hủy</Button>
                 <Button
                   backgroundColor="#1677ff"
                   color="white"
-                  fontWeight={500}
                   onPress={confirmUpdate}
-                  className="text-gray-500 font-medium"
                 >
                   Cập nhật
                 </Button>
@@ -247,4 +225,4 @@ const Confirm = () => {
   );
 };
 
-export default Confirm;
+export default ConfirmManual;

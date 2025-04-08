@@ -33,7 +33,7 @@ export const usePaperService = () => {
       } as any);
   
       const response = await axios.post(
-        "http://192.168.1.4:8080/paper",
+        "https://warehouse-backend-jlcj5.ondigitalocean.app/paper",
         formData,
         {
           headers: {
@@ -53,7 +53,7 @@ export const usePaperService = () => {
 
   const getPaperById = async (id: number | string) => {
     try {
-      const response = await axios.get(`http://192.168.1.4:8080/paper/${id}`);
+      const response = await axios.get(`https://warehouse-backend-jlcj5.ondigitalocean.app/paper/${id}`);
       return response.data.content;
     } catch (error: any) {
       console.error("❌ Lỗi lấy chứng từ:", error.message || error);
