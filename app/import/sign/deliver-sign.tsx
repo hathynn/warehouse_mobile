@@ -83,10 +83,14 @@ const SignDeliverScreen = () => {
           >
             <Signature
               ref={signatureRef}
+              onBegin={() => setScrollEnabled(false)}
               onOK={(signature) => {
                 dispatch(setPaperData({ signProviderUrl: signature })); // Lưu vào Redux
               }}
-              onEnd={handleEnd}
+              onEnd={() => {
+                setScrollEnabled(true); 
+                handleEnd(); 
+              }}
               descriptionText="Ký tên tại đây"
               imageType="image/png"
               webStyle={`

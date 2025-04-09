@@ -7,14 +7,22 @@ import {
   ActivityIndicator,
   TextInput,
 } from "react-native";
-import { useQuery, QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { FontAwesome } from "@expo/vector-icons";
+import {
+  useQuery,
+  QueryClient,
+  QueryClientProvider,
+} from "@tanstack/react-query";
+import { FontAwesome, Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import useExportRequest from "@/services/useExportRequestService";
-import { ExportRequestStatus, ExportRequestType } from "@/types/exportRequest.type";
+import {
+  ExportRequestStatus,
+  ExportRequestType,
+} from "@/types/exportRequest.type";
 import { useDispatch } from "react-redux";
 import { setPaperData } from "@/redux/paperSlice";
+import { Button, Input, XStack, YStack } from "tamagui";
 
 const queryClient = new QueryClient();
 
@@ -42,14 +50,18 @@ function ExportListComponent() {
           ExportRequestStatus.WAITING_EXPORT,
         ].includes(request.status);
       } else if (activeTab === "Done") {
-        return [ExportRequestStatus.COMPLETED, ExportRequestStatus.CANCELLED].includes(request.status);
+        return [
+          ExportRequestStatus.COMPLETED,
+          ExportRequestStatus.CANCELLED,
+        ].includes(request.status);
       }
       return false;
     }) || [];
 
   // Áp dụng search theo mã phiếu xuất
-  const filteredExports = filteredByStatus.filter((request: ExportRequestType) =>
-    request.exportRequestId.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredExports = filteredByStatus.filter(
+    (request: ExportRequestType) =>
+      request.exportRequestId.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const handleSelectExport = (request: ExportRequestType) => {
@@ -66,10 +78,11 @@ function ExportListComponent() {
       {/* Header */}
       <View className="px-5">
         <View className="bg-[#1677ff] px-4 py-7 flex-row items-center rounded-2xl">
-          <Text className="text-white text-lg font-bold ml-4 flex-1">Danh sách phiếu xuất</Text>
+          <Text className="text-white text-lg font-bold ml-4 flex-1">
+            Danh sách phiếu xuất
+          </Text>
         </View>
       </View>
-
 
       {/* Tabs */}
       <View className="px-5 mt-3">
@@ -77,10 +90,16 @@ function ExportListComponent() {
           {["Done", "Not done"].map((tab) => (
             <TouchableOpacity
               key={tab}
-              className={`flex-1 py-2 rounded-lg ${activeTab === tab ? "bg-white" : "bg-gray-200"}`}
+              className={`flex-1 py-2 rounded-lg ${
+                activeTab === tab ? "bg-white" : "bg-gray-200"
+              }`}
               onPress={() => setActiveTab(tab as "Done" | "Not done")}
             >
-              <Text className={`text-center font-semibold ${activeTab === tab ? "text-black" : "text-gray-500"}`}>
+              <Text
+                className={`text-center font-semibold ${
+                  activeTab === tab ? "text-black" : "text-gray-500"
+                }`}
+              >
                 {tab === "Not done" ? "Chưa hoàn thành" : "Hoàn thành"}
               </Text>
             </TouchableOpacity>
@@ -89,14 +108,35 @@ function ExportListComponent() {
       </View>
 
       {/* Thanh Search */}
-      <View className="px-5 mt-3">
+      {/* <View className="px-5 mt-3">
         <TextInput
           placeholder="Tìm theo mã phiếu xuất"
           value={searchQuery}
           onChangeText={setSearchQuery}
           className="bg-white p-3 rounded-lg shadow"
         />
-      </View>
+      </View> */}
+
+      <XStack
+        alignItems="center"
+        backgroundColor="white"
+        borderRadius="$4"
+        paddingHorizontal="$3"
+        marginHorizontal="$4"
+    
+        height="$4.5"
+      >
+        <Ionicons name="search" size={18} color="#999" />
+        <Input
+          flex={1}
+          placeholder="Tìm theo mã phiếu xuất"
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          borderWidth={0}
+          paddingHorizontal="$3"
+          backgroundColor="white"
+        />
+      </XStack>
 
       {/* Danh sách phiếu xuất */}
       <ScrollView className="px-5 flex-1">
@@ -117,12 +157,16 @@ function ExportListComponent() {
               {/* Thông tin phiếu xuất */}
               <View className="ml-4 flex-1">
                 <Text className="text-gray-500 text-sm">Mã phiếu xuất</Text>
-                <Text className="font-semibold text-black">#{request.exportRequestId}</Text>
+                <Text className="font-semibold text-black">
+                  #{request.exportRequestId}
+                </Text>
               </View>
             </TouchableOpacity>
           ))
         ) : (
-          <Text className="text-center text-gray-500 mt-5">Không có phiếu xuất</Text>
+          <Text className="text-center text-gray-500 mt-5">
+            Không có phiếu xuất
+          </Text>
         )}
       </ScrollView>
     </SafeAreaView>
