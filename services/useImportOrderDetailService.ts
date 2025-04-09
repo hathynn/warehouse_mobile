@@ -111,12 +111,14 @@ const useImportOrderDetail = () => {
     }
   }, []);
 
-
-  // Cập nhật actualQuantity theo importOrderId (danh sách itemId)
   const updateImportOrderDetailsByOrderId = useCallback(
     async (
       importOrderId: number,
-      updateItems: { itemId: number; actualQuantity: number }[]
+      updateItems: {
+        itemId: number;
+        quantity: number;
+        actualQuantity: number;
+      }[]
     ) => {
       setLoading(true);
       try {
