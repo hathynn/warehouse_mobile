@@ -77,14 +77,13 @@ const SignReceiveScreen = () => {
       return;
     }
   
-    // Tạo payload chỉ chứa itemId và actualQuantity
     const updatePayload = products.map((p) => ({
       itemId: p.id,
+      quantity: p.expect,
       actualQuantity: p.actual ?? 0, 
     }));
   
     try {
-      // Gọi API cập nhật actualQuantity theo importOrderId
       const updateResponse = await updateImportOrderDetailsByOrderId(
         importOrderId,
         updatePayload
@@ -93,10 +92,10 @@ const SignReceiveScreen = () => {
       if (updateResponse) {
         console.log("✅ Cập nhật actualQuantity thành công");
   
-        // Gọi tiếp API tạo paper
+        //API paper
         const paperResponse = await createPaper(paperData);
         if (paperResponse) {
-          console.log("✅ Tạo paper thành công:", paperResponse);
+          console.log("✅ Tạo paper thành công");
           router.push("/(tabs)/import");
         }
       } else {

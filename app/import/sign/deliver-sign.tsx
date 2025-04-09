@@ -24,17 +24,17 @@ const SignDeliverScreen = () => {
     state.product.products.filter((p) => p.importOrderId === importOrderId)
   );
 
-  const handleContinue = (img: string) => {
-    console.log("🔹 Chữ ký nhận được:", img); // Debug chữ ký trước khi dispatch
+  // const handleContinue = (img: string) => {
+  //   console.log("🔹 Chữ ký nhận được:", img); // Debug chữ ký trước khi dispatch
 
-    if (signature) {
-      console.log("🔹 Lưu chữ ký:", signature);
-      dispatch(setPaperData({ signProviderUrl: signature }));
-      router.push("/import/sign/receive-sign");
-    } else {
-      alert("Vui lòng ký trước khi tiếp tục.");
-    }
-  };
+  //   if (signature) {
+  //     console.log("🔹 Lưu chữ ký:", signature);
+  //     dispatch(setPaperData({ signProviderUrl: signature }));
+  //     router.push("/import/sign/receive-sign");
+  //   } else {
+  //     alert("Vui lòng ký trước khi tiếp tục.");
+  //   }
+  // };
 
   const handleEnd = async () => {
     const img = await signatureRef.current?.readSignature();
