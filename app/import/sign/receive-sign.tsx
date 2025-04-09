@@ -10,6 +10,7 @@ import { RootState } from "@/redux/store";
 import { setPaperData } from "@/redux/paperSlice";
 import { usePaperService } from "@/services/usePaperService";
 import ProductListAccordion from "@/components/ui/ProductList";
+import useImportOrderDetail from "@/services/useImportOrderDetailService";
 
 const SignReceiveScreen = () => {
   const [signature, setSignature] = useState<string | null>(null);
@@ -24,18 +25,21 @@ const SignReceiveScreen = () => {
   const products = useSelector((state: RootState) =>
     state.product.products.filter((p) => p.importOrderId === importOrderId)
   );
+
+  const { updateImportOrderDetailsByOrderId } = useImportOrderDetail();
+
   const handleSave = (img: string) => {
     setSignature(img);
-    dispatch(setPaperData({ signProviderUrl: img })); // Lưu chữ ký vào Redux
+    dispatch(setPaperData({ signProviderUrl: img })); 
   };
-  const base64ToBlob = (base64: string) => {
-    const byteCharacters = atob(base64.split(",")[1]); // Bỏ "data:image/png;base64,"
-    const byteNumbers = new Array(byteCharacters.length)
-      .fill(0)
-      .map((_, i) => byteCharacters.charCodeAt(i));
-    const byteArray = new Uint8Array(byteNumbers);
-    return new Blob([byteArray], { type: "image/png" });
-  };
+  // const base64ToBlob = (base64: string) => {
+  //   const byteCharacters = atob(base64.split(",")[1]); // Bỏ "data:image/png;base64,"
+  //   const byteNumbers = new Array(byteCharacters.length)
+  //     .fill(0)
+  //     .map((_, i) => byteCharacters.charCodeAt(i));
+  //   const byteArray = new Uint8Array(byteNumbers);
+  //   return new Blob([byteArray], { type: "image/png" });
+  // };
 
   const handleClear = () => {
     setSignature(null);
@@ -44,23 +48,65 @@ const SignReceiveScreen = () => {
 
   const { createPaper } = usePaperService();
 
+  // const handleConfirm = async () => {
+  //   if (!paperData.signProviderUrl || !paperData.signWarehouseUrl) {
+  //     console.log("❌ Chưa có đủ chữ ký, vui lòng ký trước khi xác nhận.");
+  //     return;
+  //   }
+
+  //   // Trực tiếp gọi API và truyền paperData
+  //   try {
+  //     const response = await createPaper(paperData);
+  //     if (response) {
+  //       console.log("✅ Tạo paper thành công:", response);
+  //       router.push("/(tabs)/import");
+  //     }
+  //   } catch (error) {
+  //     console.error("❌ Lỗi khi tạo paper:", error);
+  //   }
+  // };
+
   const handleConfirm = async () => {
     if (!paperData.signProviderUrl || !paperData.signWarehouseUrl) {
-      console.log("❌ Chưa có đủ chữ ký, vui lòng ký trước khi xác nhận.");
+      console.log("Chưa có đủ chữ ký, vui lòng ký trước khi xác nhận.");
       return;
     }
 
-    // Trực tiếp gọi API và truyền paperData
+    if (!importOrderId) {
+      console.log("Thiếu importOrderId.");
+      return;
+    }
+  
+    // Tạo payload chỉ chứa itemId và actualQuantity
+    const updatePayload = products.map((p) => ({
+      itemId: p.id,
+      actualQuantity: p.actual ?? 0, 
+    }));
+  
     try {
-      const response = await createPaper(paperData);
-      if (response) {
-        console.log("✅ Tạo paper thành công:", response);
-        router.push("/(tabs)/import");
+      // Gọi API cập nhật actualQuantity theo importOrderId
+      const updateResponse = await updateImportOrderDetailsByOrderId(
+        importOrderId,
+        updatePayload
+      );
+  
+      if (updateResponse) {
+        console.log("✅ Cập nhật actualQuantity thành công");
+  
+        // Gọi tiếp API tạo paper
+        const paperResponse = await createPaper(paperData);
+        if (paperResponse) {
+          console.log("✅ Tạo paper thành công:", paperResponse);
+          router.push("/(tabs)/import");
+        }
+      } else {
+        console.log("❌ Không thể cập nhật actualQuantity.");
       }
     } catch (error) {
-      console.error("❌ Lỗi khi tạo paper:", error);
+      console.error("❌ Lỗi khi xác nhận:", error);
     }
   };
+  
 
   const handleEnd = async () => {
     const img = await signatureRef.current?.readSignature();

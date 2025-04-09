@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import axios from "axios";
-import { StoredLocation } from "@/types/locationStored";
+import { StoredLocation } from "@/types/locationStored.type";
 
 
 const BASE_URL = "https://warehouse-backend-jlcj5.ondigitalocean.app/stored-locations";
