@@ -13,6 +13,8 @@ import { Button, Label } from "tamagui";
 const SignDeliverScreen = () => {
   const [signature, setSignature] = useState<string | null>(null);
   const signatureRef = useRef<SignatureViewRef>(null);
+  const [scrollEnabled, setScrollEnabled] = useState(true);
+
   const dispatch = useDispatch();
   const importOrderId = useSelector(
     (state: RootState) => state.paper.importOrderId
@@ -48,7 +50,10 @@ const SignDeliverScreen = () => {
 
   return (
     <SafeAreaView className="flex-1 p-2 ">
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        scrollEnabled={scrollEnabled}
+      >
         <View className="px-3">
           <View className="bg-[#1677ff] mb-2 px-4 py-4 flex-row justify-between items-center rounded-2xl">
             <TouchableOpacity onPress={() => router.back()} className="p-2">

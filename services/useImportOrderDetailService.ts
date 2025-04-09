@@ -2,26 +2,30 @@ import { useState, useCallback } from "react";
 import axios from "axios";
 import { ImportOrderDetailType } from "../types/importOrderDetail.type";
 
-const BASE_URL = "https://warehouse-backend-jlcj5.ondigitalocean.app/import-order-detail"; 
+const BASE_URL =
+  "https://warehouse-backend-jlcj5.ondigitalocean.app/import-order-detail";
 
 const useImportOrderDetail = () => {
   const [loading, setLoading] = useState(false);
-  const [importOrderDetails, setImportOrderDetails] = useState<ImportOrderDetailType[]>([]);
-  const [importOrderDetail, setImportOrderDetail] = useState<ImportOrderDetailType | null>(null);
+  const [importOrderDetails, setImportOrderDetails] = useState<
+    ImportOrderDetailType[]
+  >([]);
+  const [importOrderDetail, setImportOrderDetail] =
+    useState<ImportOrderDetailType | null>(null);
 
   // Fetch danh sách import order details theo importOrderId
   const fetchImportOrderDetails = useCallback(
     async (importOrderId: number, page = 1, size = 10) => {
       if (!importOrderId) return [];
-  
+
       setLoading(true);
       try {
         const response = await axios.get(`${BASE_URL}/page/${importOrderId}`, {
           params: { page, size },
         });
-  
+
         const data = response.data.content;
-  
+
         if (Array.isArray(data)) {
           setImportOrderDetails(data);
           return data;
@@ -41,8 +45,6 @@ const useImportOrderDetail = () => {
     },
     []
   );
-  
-  
 
   // Fetch chi tiết import order detail theo ID
   const fetchImportOrderDetailById = useCallback(async (id: number) => {
@@ -62,32 +64,38 @@ const useImportOrderDetail = () => {
   }, []);
 
   // Tạo mới import order detail
-  const createImportOrderDetail = useCallback(async (newDetail: Omit<ImportOrderDetailType, "importOrderDetailId">) => {
-    setLoading(true);
-    try {
-      const response = await axios.post(BASE_URL, newDetail);
-      return response.data;
-    } catch (error) {
-      console.error("Lỗi khi tạo import order detail:", error);
-      return null;
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const createImportOrderDetail = useCallback(
+    async (newDetail: Omit<ImportOrderDetailType, "importOrderDetailId">) => {
+      setLoading(true);
+      try {
+        const response = await axios.post(BASE_URL, newDetail);
+        return response.data;
+      } catch (error) {
+        console.error("Lỗi khi tạo import order detail:", error);
+        return null;
+      } finally {
+        setLoading(false);
+      }
+    },
+    []
+  );
 
   // Cập nhật import order detail
-  const updateImportOrderDetail = useCallback(async (id: number, updatedData: Partial<ImportOrderDetailType>) => {
-    setLoading(true);
-    try {
-      const response = await axios.put(`${BASE_URL}/${id}`, updatedData);
-      return response.data;
-    } catch (error) {
-      console.error("Lỗi khi cập nhật import order detail:", error);
-      return null;
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const updateImportOrderDetail = useCallback(
+    async (id: number, updatedData: Partial<ImportOrderDetailType>) => {
+      setLoading(true);
+      try {
+        const response = await axios.put(`${BASE_URL}/${id}`, updatedData);
+        return response.data;
+      } catch (error) {
+        console.error("Lỗi khi cập nhật import order detail:", error);
+        return null;
+      } finally {
+        setLoading(false);
+      }
+    },
+    []
+  );
 
   // Xóa import order detail
   const deleteImportOrderDetail = useCallback(async (id: number) => {
@@ -103,6 +111,30 @@ const useImportOrderDetail = () => {
     }
   }, []);
 
+
+  // Cập nhật actualQuantity theo importOrderId (danh sách itemId)
+  const updateImportOrderDetailsByOrderId = useCallback(
+    async (
+      importOrderId: number,
+      updateItems: { itemId: number; actualQuantity: number }[]
+    ) => {
+      setLoading(true);
+      try {
+        const response = await axios.put(
+          `${BASE_URL}/${importOrderId}`,
+          updateItems
+        );
+        return response.data;
+      } catch (error) {
+        console.error("Lỗi khi cập nhật số lượng thực tế:", error);
+        return null;
+      } finally {
+        setLoading(false);
+      }
+    },
+    []
+  );
+
   return {
     loading,
     importOrderDetails,
@@ -112,6 +144,7 @@ const useImportOrderDetail = () => {
     createImportOrderDetail,
     updateImportOrderDetail,
     deleteImportOrderDetail,
+    updateImportOrderDetailsByOrderId,
   };
 };
 
