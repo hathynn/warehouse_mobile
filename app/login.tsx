@@ -7,23 +7,63 @@ import {
   Image,
   TouchableWithoutFeedback,
   Keyboard,
+  Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useDispatch } from "react-redux";
 import { login } from "@/redux/authSlice";
 import { useRouter } from "expo-router";
-import { Button, Square, XStack } from "tamagui";
+import useAccountService from "@/services/useAccountService";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import api from "@/config/api";
+import { jwtDecode } from "jwt-decode"; 
 
 const LoginScreen = () => {
-  // const [selectedTab, setSelectedTab] = useState("phone");
   const [showPassword, setShowPassword] = useState(false);
   const dispatch = useDispatch();
   const router = useRouter();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const { loginUser } = useAccountService();
 
-  const handleLogin = () => {
-    dispatch(login());
-    router.replace("/tabs" as any);
-  };
+
+
+
+const handleLogin = async () => {
+  if (!email || !password) {
+    Alert.alert("Vui lòng nhập đầy đủ email và mật khẩu");
+    return;
+  }
+
+  try {
+    const res = await loginUser({ email, password });
+    const { access_token, refresh_token } = res.content;
+
+    if (!access_token || !refresh_token) {
+      throw new Error("Token không hợp lệ");
+    }
+
+    await AsyncStorage.setItem("access_token", access_token);
+    await AsyncStorage.setItem("refresh_token", refresh_token);
+
+    api.defaults.headers.common["Authorization"] = `Bearer ${access_token}`;
+    dispatch(login({ access_token, refresh_token }));
+
+
+    // ✅ Replace sang tab import và truyền userId
+    setTimeout(() => {
+      router.replace("/(tabs)/import")
+    }, 200);
+
+  } catch (error: any) {
+    console.error("Login error:", error?.response?.data || error.message);
+    Alert.alert("Đăng nhập thất bại", "Vui lòng kiểm tra lại thông tin");
+  }
+};
+
+  
+  
+
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
       <View className="flex justify-center  flex-1 bg-white px-6 pt-16">
@@ -55,6 +95,8 @@ const LoginScreen = () => {
             className=" p-5 rounded-2xl bg-gray-100"
             placeholder="Email"
             keyboardType="email-address"
+            value={email}
+            onChangeText={setEmail}
           />
           {/* <TextInput
           className=" p-3 rounded-2xl bg-gray-100"
@@ -66,6 +108,8 @@ const LoginScreen = () => {
               className=" p-5 rounded-2xl bg-gray-100"
               placeholder="Password"
               secureTextEntry={!showPassword}
+              value={password}
+              onChangeText={setPassword}
             />
             <TouchableOpacity
               className="absolute right-3 top-3"
@@ -75,6 +119,7 @@ const LoginScreen = () => {
                 name={showPassword ? "eye" : "eye-off"}
                 size={24}
                 color="gray"
+                onPress={() => setShowPassword(showPassword)}
               />
             </TouchableOpacity>
           </View>
@@ -93,9 +138,8 @@ const LoginScreen = () => {
           <Text className="text-center text-white text-lg font-bold">
             Đăng nhập
           </Text>
-         
         </TouchableOpacity>
-    
+
         {/* Social Login */}
         <Text className="text-center text-gray-500 mt-6">Hoặc</Text>
         <View className=" flex items-center  mt-4 ">

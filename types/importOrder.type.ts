@@ -15,7 +15,8 @@ export interface ImportOrderType {
 }
 
 export enum ImportOrderStatus {
-  PENDING = "Pending",
-  APPROVED = "Approved",
-  COMPLETED = "Completed"
+  NOT_STARTED = "NOT_STARTED",
+  IN_PROGRESS = "IN_PROGRESS",
+  COMPLETED = "COMPLETED",
+  CANCELLED = "CANCELLED",
 }

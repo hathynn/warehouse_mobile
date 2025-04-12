@@ -1,93 +1,107 @@
 import { useState, useCallback } from "react";
-import axios from "axios";
 import { ImportOrderType } from "../types/importOrder.type";
+import useApiService from "./useApi";
 
-const BASE_URL = "https://warehouse-backend-jlcj5.ondigitalocean.app/import-order";
+const BASE_URL =
+  "https://warehouse-backend-jlcj5.ondigitalocean.app/import-order";
 
 const useImportOrder = () => {
-  const [loading, setLoading] = useState(false);
+  const { loading, callApi, setIsLoading } = useApiService();
   const [importOrders, setImportOrders] = useState<ImportOrderType[]>([]);
   const [importOrder, setImportOrder] = useState<ImportOrderType | null>(null);
 
-  // Lấy danh sách import order theo importRequestId
-  const fetchImportOrders = useCallback(async (importRequestId: number, page = 1, limit = 10) => {
-    setLoading(true);
-    try {
-      const response = await axios.get(`${BASE_URL}/page/${importRequestId}`, {
-        params: {
-          importRequestId,
-          page,
-          limit,
-        },
-      });
-      setImportOrders(response.data.content);
-      return response.data.content;
-    } catch (error) {
-      console.error("Lỗi khi lấy danh sách import order:", error);
-      return [];
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const fetchImportOrders = useCallback(
+    async (staffId: number, page = 1, limit = 10) => {
+      setIsLoading(true);
+      try {
+        const response = await callApi("get", `${BASE_URL}/staff/${staffId}`, {
+          params: {
+            page,
+            limit,
+          },
+        });
+        setImportOrders(response.content);
+        return response.content;
+      } catch (error) {
+        console.error("Lỗi khi lấy danh sách import order:", error);
+        return [];
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [callApi, setIsLoading]
+  );
 
   // Fetch chi tiết import order theo ID
-  const fetchImportOrderById = useCallback(async (id: number) => {
-    if (!id) return null;
+  const fetchImportOrderById = useCallback(
+    async (id: number) => {
+      if (!id) return null;
 
-    setLoading(true);
-    try {
-      const response = await axios.get(`${BASE_URL}/${id}`);
-      setImportOrder(response.data);
-      return response.data;
-    } catch (error) {
-      console.error("Lỗi khi lấy chi tiết import order:", error);
-      return null;
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+      setIsLoading(true);
+      try {
+        const response = await callApi("get", `${BASE_URL}/${id}`);
+        setImportOrder(response);
+        return response;
+      } catch (error) {
+        console.error("Lỗi khi lấy chi tiết import order:", error);
+        return null;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [callApi, setIsLoading]
+  );
 
   // Tạo mới import order
-  const createImportOrder = useCallback(async (newOrder: Omit<ImportOrderType, "importOrderId">) => {
-    setLoading(true);
-    try {
-      const response = await axios.post(BASE_URL, newOrder);
-      return response.data;
-    } catch (error) {
-      console.error("Lỗi khi tạo import order:", error);
-      return null;
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const createImportOrder = useCallback(
+    async (newOrder: Omit<ImportOrderType, "importOrderId">) => {
+      setIsLoading(true);
+      try {
+        const response = await callApi("post", BASE_URL, newOrder);
+        return response;
+      } catch (error) {
+        console.error("Lỗi khi tạo import order:", error);
+        return null;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [callApi, setIsLoading]
+  );
 
   // Cập nhật import order
-  const updateImportOrder = useCallback(async (id: number, updatedData: Partial<ImportOrderType>) => {
-    setLoading(true);
-    try {
-      const response = await axios.put(`${BASE_URL}/${id}`, updatedData);
-      return response.data;
-    } catch (error) {
-      console.error("Lỗi khi cập nhật import order:", error);
-      return null;
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const updateImportOrder = useCallback(
+    async (id: number, updatedData: Partial<ImportOrderType>) => {
+      setIsLoading(true);
+      try {
+        const response = await callApi("put", `${BASE_URL}/${id}`, updatedData);
+        return response;
+      } catch (error) {
+        console.error("Lỗi khi cập nhật import order:", error);
+        return null;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [callApi, setIsLoading]
+  );
 
   // Xóa import order
-  const deleteImportOrder = useCallback(async (id: number) => {
-    setLoading(true);
-    try {
-      await axios.delete(`${BASE_URL}/${id}`);
-      return true;
-    } catch (error) {
-      console.error("Lỗi khi xóa import order:", error);
-      return false;
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const deleteImportOrder = useCallback(
+    async (id: number) => {
+      setIsLoading(true);
+      try {
+        await callApi("delete", `${BASE_URL}/${id}`);
+        return true;
+      } catch (error) {
+        console.error("Lỗi khi xóa import order:", error);
+        return false;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [callApi, setIsLoading]
+  );
 
   return {
     loading,
