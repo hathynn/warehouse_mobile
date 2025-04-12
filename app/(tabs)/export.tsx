@@ -5,7 +5,6 @@ import {
   ScrollView,
   SafeAreaView,
   ActivityIndicator,
-  TextInput,
 } from "react-native";
 import {
   useQuery,
@@ -42,12 +41,15 @@ function ExportListComponent() {
   // Lọc theo trạng thái dựa vào tab được chọn
   const filteredByStatus =
     exportRequests?.filter((request: ExportRequestType) => {
+      if (!request.status) return false;
+
       if (activeTab === "Not done") {
         return [
           ExportRequestStatus.PROCESSING,
           ExportRequestStatus.CHECKING,
           ExportRequestStatus.CHECKED,
           ExportRequestStatus.WAITING_EXPORT,
+          ExportRequestStatus.NOT_STARTED,
         ].includes(request.status);
       } else if (activeTab === "Done") {
         return [
@@ -57,21 +59,29 @@ function ExportListComponent() {
       }
       return false;
     }) || [];
-
   // Áp dụng search theo mã phiếu xuất
   const filteredExports = filteredByStatus.filter(
     (request: ExportRequestType) =>
-      request.exportRequestId.toLowerCase().includes(searchQuery.toLowerCase())
+      request.exportRequestId
+        .toString()
+        .toLowerCase()
+        .includes(searchQuery.toLowerCase())
   );
 
+  // Khi nhấn một export request sẽ điều hướng sang màn hình chi tiết theo exportRequestId
   const handleSelectExport = (request: ExportRequestType) => {
+    // Nếu cần dispatch dữ liệu lên redux:
     dispatch(
       setPaperData({
-        exportRequestId: parseInt(request.exportRequestId),
+        exportRequestId: request.exportRequestId,
         description: request.exportReason || "Không có lý do",
       })
     );
-    // router.push(`/export/export-order/${request.exportRequestId}`);
+    // Chuyển hướng sang màn hình chi tiết, đường dẫn có thể cấu hình theo setup của bạn
+    router.push({
+      pathname: '/export/export-detail/[id]',
+      params: { id: request.exportRequestId }
+    });
   };
   return (
     <SafeAreaView className="flex-1 bg-gray-100">
@@ -90,15 +100,13 @@ function ExportListComponent() {
           {["Done", "Not done"].map((tab) => (
             <TouchableOpacity
               key={tab}
-              className={`flex-1 py-2 rounded-lg ${
-                activeTab === tab ? "bg-white" : "bg-gray-200"
-              }`}
+              className={`flex-1 py-2 rounded-lg ${activeTab === tab ? "bg-white" : "bg-gray-200"
+                }`}
               onPress={() => setActiveTab(tab as "Done" | "Not done")}
             >
               <Text
-                className={`text-center font-semibold ${
-                  activeTab === tab ? "text-black" : "text-gray-500"
-                }`}
+                className={`text-center font-semibold ${activeTab === tab ? "text-black" : "text-gray-500"
+                  }`}
               >
                 {tab === "Not done" ? "Chưa hoàn thành" : "Hoàn thành"}
               </Text>
@@ -108,22 +116,12 @@ function ExportListComponent() {
       </View>
 
       {/* Thanh Search */}
-      {/* <View className="px-5 mt-3">
-        <TextInput
-          placeholder="Tìm theo mã phiếu xuất"
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          className="bg-white p-3 rounded-lg shadow"
-        />
-      </View> */}
-
       <XStack
         alignItems="center"
         backgroundColor="white"
         borderRadius="$4"
         paddingHorizontal="$3"
         marginHorizontal="$4"
-    
         height="$4.5"
       >
         <Ionicons name="search" size={18} color="#999" />
@@ -146,8 +144,8 @@ function ExportListComponent() {
           filteredExports.map((request: ExportRequestType) => (
             <TouchableOpacity
               key={request.exportRequestId}
-              className="flex-row items-center py-6 my-2 px-5 rounded-3xl bg-white"
               onPress={() => handleSelectExport(request)}
+              className="flex-row items-center py-6 my-2 px-5 rounded-3xl bg-white"
             >
               {/* Icon trạng thái */}
               <View className="w-12 h-12 rounded-2xl flex items-center justify-center bg-gray-400">

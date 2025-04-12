@@ -18,13 +18,6 @@ export default function TabsLayout() {
           tabBarIcon: ({ color, size }) => <Ionicons name="cloud-upload" color={color} size={size} />,
         }}
       />
-      <Tabs.Screen
-        name="location"
-        options={{
-          title: "Location",
-          tabBarIcon: ({ color, size }) => <Ionicons name="location" color={color} size={size} />,
-        }}
-      />
     </Tabs>
   );
 }
