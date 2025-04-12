@@ -1,120 +1,249 @@
 import React, { useEffect } from "react";
-import { ScrollView, View, TextInput } from "react-native";
+import {
+  ScrollView,
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  ActivityIndicator,
+} from "react-native";
 import { useRoute } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
-import { YStack, XStack, Text, Button, Input } from "tamagui";
 import useExportRequest from "@/services/useExportRequestService";
 import useExportRequestDetail from "@/services/useExportRequestDetailService";
+import { router } from "expo-router";
 
 interface RouteParams {
-    id: string;
+  id: string;
 }
 
 const ExportRequestScreen: React.FC = () => {
-    const route = useRoute();
-    const { id } = route.params as RouteParams;
-    const { loading: loadingRequest, exportRequest, fetchExportRequestById } = useExportRequest();
-    const {
-        loading: loadingDetails,
-        exportRequestDetails,
-        fetchExportRequestDetails,
-    } = useExportRequestDetail();
+  const route = useRoute();
+  const { id } = route.params as RouteParams;
+  const {
+    loading: loadingRequest,
+    exportRequest,
+    fetchExportRequestById,
+  } = useExportRequest();
+  const {
+    loading: loadingDetails,
+    exportRequestDetails,
+    fetchExportRequestDetails,
+  } = useExportRequestDetail();
 
-    useEffect(() => {
-        if (id) {
-            const requestId = Number(id);
-            fetchExportRequestById(requestId);
-            fetchExportRequestDetails(requestId, 1, 10);
-        }
-    }, [id]);
-
-    if (loadingRequest || loadingDetails) {
-        return (
-            <View className="flex-1 items-center justify-center">
-                <Text>Đang tải dữ liệu...</Text>
-            </View>
-        );
+  useEffect(() => {
+    if (id) {
+      const requestId = Number(id);
+      fetchExportRequestById(requestId);
+      fetchExportRequestDetails(requestId, 1, 10);
     }
+  }, [id]);
 
+  if (loadingRequest || loadingDetails) {
     return (
-        <ScrollView className="flex-1 bg-white">
-            {/* Header */}
-            <XStack className="bg-blue-600 px-4 py-5 items-center">
-                <Ionicons name="arrow-back" size={24} color="white" />
-                <Text className="text-white font-bold text-lg ml-3">Chi tiết yêu cầu</Text>
-            </XStack>
-
-            <YStack className="p-4 space-y-4">
-                {/* Thông tin chi tiết */}
-                <YStack className="bg-white rounded-xl p-4 shadow-md border border-gray-200">
-                    <Text className="font-bold text-base mb-2">Thông tin chi tiết yêu cầu</Text>
-
-                    <XStack justifyContent="space-between" marginBottom={4}>
-                        <Text>Mã đơn hàng</Text>
-                        <Text className="text-blue-600 font-semibold">
-                            #{exportRequest?.exportRequestId}
-                        </Text>
-                    </XStack>
-
-                    <XStack justifyContent="space-between" marginBottom={4}>
-                        <Text>Tình trạng yêu cầu</Text>
-                        <Text className="text-red-500 font-semibold">{exportRequest?.status}</Text>
-                    </XStack>
-
-                    <XStack justifyContent="space-between" marginBottom={4}>
-                        <Text>Ngày tạo đơn</Text>
-                        <Text>{exportRequest?.exportDate}</Text>
-                    </XStack>
-
-                    <XStack justifyContent="space-between" marginBottom={4}>
-                        <Text>Ngày mong muốn xuất</Text>
-                        <Text>{exportRequest?.expectedReturnDate}</Text>
-                    </XStack>
-
-                    <XStack justifyContent="space-between">
-                        <Text>Loại xuất</Text>
-                        <Text>{exportRequest?.type}</Text>
-                    </XStack>
-                </YStack>
-
-                {/* Bảng danh sách mặt hàng */}
-                <YStack className="rounded-xl bg-white shadow-md border border-gray-200">
-                    <XStack className="bg-gray-100 px-4 py-2 rounded-t-xl">
-                        <Text className="flex-1 font-semibold text-xs">Mã hàng</Text>
-                        <Text className="w-12 font-semibold text-xs text-center">Cần</Text>
-                        <Text className="w-20 font-semibold text-xs text-center">Tồn</Text>
-                        <Text className="w-14" />
-                    </XStack>
-
-                    {exportRequestDetails.map((detail) => (
-                        <XStack
-                            key={detail.id}
-                            className="px-4 py-3 border-t border-gray-200 items-center"
-                        >
-                            <Text className="flex-1 text-sm font-medium">#{detail.itemId}</Text>
-                            <Text className="w-12 text-center">{detail.quantity}</Text>
-                            <Text className="w-20 text-center">{detail.actualQuantity}</Text>
-                            <XStack className="w-14 items-center justify-end space-x-2">
-                                <Button size="$2" theme="blue" onPress={() => { }}>
-                                    Scan
-                                </Button>
-                                <Ionicons name="help-circle-outline" size={18} color="#ccc" />
-                            </XStack>
-                        </XStack>
-                    ))}
-                </YStack>
-
-                {/* Tình trạng tồn kho */}
-                <YStack className="bg-white p-4 rounded-xl shadow-md border border-gray-200">
-                    <Text className="mb-2">Tình trạng tồn kho</Text>
-                    <TextInput
-                        placeholder="Nhập tình trạng"
-                        className="bg-gray-100 p-3 rounded-md text-sm"
-                    />
-                </YStack>
-            </YStack>
-        </ScrollView>
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#1677ff" />
+        <Text style={styles.loadingText}>Đang tải dữ liệu...</Text>
+      </View>
     );
+  }
+
+  return (
+    <ScrollView style={styles.container}>
+      {/* Header */}
+      <View className="px-5">
+        <View className="bg-[#1677ff] px-4 py-3 flex-row justify-between items-center rounded-2xl">
+          <TouchableOpacity onPress={() => router.back()} className="p-2">
+            <Ionicons name="arrow-back" size={24} color="white" />
+          </TouchableOpacity>
+          <Text className="text-white font-bold text-lg">
+            Xác nhận đơn nhập số <Text className="text-blue-200">#{id}</Text>
+          </Text>
+        </View>
+      </View>
+      {/* Thông tin yêu cầu */}
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Thông tin chi tiết yêu cầu</Text>
+
+        <View style={styles.row}>
+          <Text style={styles.label}>Mã đơn hàng</Text>
+          <Text style={styles.valueBlue}>
+            #{exportRequest?.exportRequestId}
+          </Text>
+        </View>
+
+        <View style={styles.row}>
+          <Text style={styles.label}>Tình trạng yêu cầu</Text>
+          <Text style={styles.valueRed}>{exportRequest?.status}</Text>
+        </View>
+
+        <View style={styles.row}>
+          <Text style={styles.label}>Ngày tạo đơn</Text>
+          <Text style={styles.value}>{exportRequest?.exportDate}</Text>
+        </View>
+
+        <View style={styles.row}>
+          <Text style={styles.label}>Ngày mong muốn xuất</Text>
+          <Text style={styles.value}>{exportRequest?.expectedReturnDate}</Text>
+        </View>
+
+        <View style={styles.row}>
+          <Text style={styles.label}>Loại xuất</Text>
+          <Text style={styles.value}>{exportRequest?.type}</Text>
+        </View>
+      </View>
+
+      {/* Danh sách mặt hàng */}
+      <View style={styles.table}>
+        {/* Header bảng */}
+        <View style={[styles.tableRow, styles.tableHeader]}>
+          <Text style={[styles.cell, styles.cellCode]}>Mã hàng</Text>
+          <Text style={styles.cell}>Cần</Text>
+          <Text style={styles.cell}>Tồn</Text>
+          <Text style={[styles.cell, { textAlign: "right" }]}></Text>
+        </View>
+
+        {exportRequestDetails.map((detail) => (
+          <View key={detail.id} style={styles.tableRow}>
+            <Text style={[styles.cell, styles.cellCode]}>#{detail.itemId}</Text>
+            <Text style={styles.cell}>{detail.quantity}</Text>
+            <Text style={styles.cell}>{detail.actualQuantity}</Text>
+            <TouchableOpacity style={styles.scanButton}>
+              <Text style={styles.scanText}>Scan</Text>
+            </TouchableOpacity>
+          </View>
+        ))}
+      </View>
+
+      {/* Tình trạng tồn kho */}
+      <View style={styles.card}>
+        <Text style={styles.inputLabel}>Tình trạng tồn kho</Text>
+        <TextInput
+          placeholder="Nhập tình trạng"
+          style={styles.input}
+          multiline
+        />
+      </View>
+    </ScrollView>
+  );
 };
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#f3f4f6",
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 14,
+    color: "#555",
+  },
+  header: {
+    backgroundColor: "#1677ff",
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 14,
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 16,
+  },
+  backButton: {
+    marginRight: 12,
+  },
+  headerTitle: {
+    color: "white",
+    fontSize: 18,
+    fontWeight: "bold",
+  },
+  card: {
+    backgroundColor: "white",
+    margin: 16,
+    borderRadius: 12,
+    padding: 16,
+    elevation: 2,
+  },
+  cardTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    marginBottom: 12,
+  },
+  row: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 8,
+  },
+  label: {
+    fontSize: 14,
+    color: "#333",
+  },
+  value: {
+    fontSize: 14,
+    color: "#333",
+  },
+  valueBlue: {
+    fontSize: 14,
+    color: "#1677ff",
+    fontWeight: "bold",
+  },
+  valueRed: {
+    fontSize: 14,
+    color: "#e63946",
+    fontWeight: "bold",
+  },
+  table: {
+    backgroundColor: "white",
+    marginHorizontal: 16,
+    marginBottom: 16,
+    borderRadius: 12,
+    overflow: "hidden",
+  },
+  tableHeader: {
+    backgroundColor: "#f0f0f0",
+  },
+  tableRow: {
+    flexDirection: "row",
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#eee",
+    alignItems: "center",
+  },
+  cell: {
+    flex: 1,
+    fontSize: 13,
+    textAlign: "center",
+  },
+  cellCode: {
+    textAlign: "left",
+    flex: 2,
+  },
+  scanButton: {
+    backgroundColor: "#1677ff",
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: 6,
+  },
+  scanText: {
+    color: "white",
+    fontSize: 12,
+  },
+  inputLabel: {
+    fontSize: 14,
+    marginBottom: 6,
+  },
+  input: {
+    backgroundColor: "#f3f4f6",
+    padding: 10,
+    borderRadius: 8,
+    fontSize: 14,
+    height: 80,
+    textAlignVertical: "top",
+  },
+});
 
 export default ExportRequestScreen;

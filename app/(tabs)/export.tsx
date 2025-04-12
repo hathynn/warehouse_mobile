@@ -87,7 +87,7 @@ function ExportListComponent() {
     <SafeAreaView className="flex-1 bg-gray-100">
       {/* Header */}
       <View className="px-5">
-        <View className="bg-[#1677ff] px-4 py-7 flex-row items-center rounded-2xl">
+        <View className="bg-[#1677ff] px-4 py-5  flex-row items-center rounded-2xl">
           <Text className="text-white text-lg font-bold ml-4 flex-1">
             Danh sách phiếu xuất
           </Text>
@@ -95,7 +95,7 @@ function ExportListComponent() {
       </View>
 
       {/* Tabs */}
-      <View className="px-5 mt-3">
+      <View className="px-5">
         <View className="flex-row my-3 bg-gray-200 rounded-lg p-1">
           {["Done", "Not done"].map((tab) => (
             <TouchableOpacity
