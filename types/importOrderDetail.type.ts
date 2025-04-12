@@ -9,7 +9,7 @@ export interface ImportOrderDetailType {
 }
 
 export enum ImportOrderDetailStatus {
-  PENDING = "Pending",
-  APPROVED = "Approved",
-  COMPLETED = "Completed",
+  LACK = "LACK",
+  LESS = "LESS",
+  MATCH = "MATCH",
 }
