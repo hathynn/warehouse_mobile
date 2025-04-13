@@ -19,24 +19,33 @@ import {
   ExportRequestStatus,
   ExportRequestType,
 } from "@/types/exportRequest.type";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { setPaperData } from "@/redux/paperSlice";
 import { Button, Input, XStack, YStack } from "tamagui";
+import { RootState } from "@/redux/store";
 
 const queryClient = new QueryClient();
 
 function ExportListComponent() {
+  const userId = useSelector((state: RootState) => state.auth.user?.id);
+
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<"Done" | "Not done">("Not done");
   const [searchQuery, setSearchQuery] = useState("");
   const dispatch = useDispatch();
 
   // Gọi fake API qua react-query
-  const { fetchExportRequests } = useExportRequest();
+  const { fetchExportRequests, fetchExportRequestsByStaffId  } = useExportRequest();
   const { data: exportRequests, isLoading } = useQuery({
-    queryKey: ["export-requests"],
-    queryFn: fetchExportRequests,
+    queryKey: ["export-requests", userId],
+    queryFn: () =>
+      userId
+        ? fetchExportRequestsByStaffId(Number(userId), 1, 100)
+        : Promise.resolve([]),
+    enabled: !!userId, // chỉ chạy khi userId có giá trị
   });
+  
+  
 
   // Lọc theo trạng thái dựa vào tab được chọn
   const filteredByStatus =

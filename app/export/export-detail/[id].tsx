@@ -16,7 +16,7 @@ import useExportRequestDetail from "@/services/useExportRequestDetailService";
 import { router } from "expo-router";
 import { useDispatch, useSelector } from "react-redux";
 import { setExportRequestDetail } from "@/redux/exportRequestDetailSlice";
-import { RootState } from "@/redux/store";
+import { RootState, store } from "@/redux/store";
 
 interface RouteParams {
   id: string;
@@ -33,18 +33,28 @@ const ExportRequestScreen: React.FC = () => {
     fetchExportRequestById,
   } = useExportRequest();
 
-  const {
-    loading: loadingDetails,
-    fetchExportRequestDetails,
-  } = useExportRequestDetail();
+  const { loading: loadingDetails, fetchExportRequestDetails } =
+    useExportRequestDetail();
 
   useEffect(() => {
     if (id) {
       const requestId = Number(id);
       fetchExportRequestById(requestId);
-      fetchExportRequestDetails(requestId, 1, 10).then((data) => {
-        console.log("📤 Lưu vào Redux:", data);
-        dispatch(setExportRequestDetail(data)); // save vào Redux
+
+      fetchExportRequestDetails(requestId, 1, 10).then((newData) => {
+        const oldDetails = store.getState().exportRequestDetail.details;
+
+        // ✅ Merge actualQuantity
+        const mergedDetails = newData.map((newItem) => {
+          const oldItem = oldDetails.find((o) => o.id === newItem.id);
+          return {
+            ...newItem,
+            actualQuantity: oldItem?.actualQuantity ?? 0,
+          };
+        });
+
+        console.log("📤 Lưu vào Redux (merged):", mergedDetails);
+        dispatch(setExportRequestDetail(mergedDetails));
       });
     }
   }, [id]);
@@ -74,7 +84,7 @@ const ExportRequestScreen: React.FC = () => {
               <Ionicons name="arrow-back" size={24} color="white" />
             </TouchableOpacity>
             <Text className="text-white font-bold text-lg">
-              Xác nhận đơn nhập số <Text className="text-blue-200">#{id}</Text>
+              Kiểm đếm đơn nhập <Text className="text-blue-200">#{id}</Text>
             </Text>
           </View>
         </View>
@@ -102,7 +112,9 @@ const ExportRequestScreen: React.FC = () => {
 
           <View style={styles.row}>
             <Text style={styles.label}>Ngày mong muốn xuất</Text>
-            <Text style={styles.value}>{exportRequest?.expectedReturnDate}</Text>
+            <Text style={styles.value}>
+              {exportRequest?.expectedReturnDate}
+            </Text>
           </View>
 
           <View style={styles.row}>
@@ -123,15 +135,23 @@ const ExportRequestScreen: React.FC = () => {
           {Array.isArray(savedExportRequestDetails) &&
             savedExportRequestDetails.map((detail: any) => (
               <View key={detail.id} style={styles.tableRow}>
-                <Text style={[styles.cell, styles.cellCode]}>#{detail.itemId}</Text>
+                <Text style={[styles.cell, styles.cellCode]}>
+                  #{detail.itemId}
+                </Text>
                 <Text style={styles.cell}>{detail.quantity}</Text>
                 <Text style={styles.cell}>{detail.actualQuantity}</Text>
-                <TouchableOpacity style={styles.scanButton} onPress={() => { router.push(`/export/scan-qr`) }}>
+                <TouchableOpacity
+                  style={styles.scanButton}
+                  onPress={() => {
+                    router.push(
+                      `/export/scan-qr?id=${exportRequest?.exportRequestId}`
+                    );
+                  }}
+                >
                   <Text style={styles.scanText}>Scan</Text>
                 </TouchableOpacity>
               </View>
             ))}
-
         </View>
 
         {/* Tình trạng tồn kho */}
@@ -142,6 +162,17 @@ const ExportRequestScreen: React.FC = () => {
             style={styles.input}
             multiline
           />
+        </View>
+
+        <View className="p-5">
+          <TouchableOpacity
+            onPress={() => router.push("/export/sign/warehouse-sign")}
+            className="bg-[#0d1925] px-5 py-4 rounded-full"
+          >
+            <Text className="text-white font-semibold text-sm text-center">
+              Ký xác nhận
+            </Text>
+          </TouchableOpacity>
         </View>
       </ScrollView>
     </SafeAreaView>

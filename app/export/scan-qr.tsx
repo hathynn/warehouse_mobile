@@ -22,6 +22,7 @@ export default function ScanQrScreen() {
     const [scannedIds, setScannedIds] = useState<string[]>([]);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const dispatch = useDispatch();
+    const [isProcessing, setIsProcessing] = useState(false);
 
     const exportDetails = useSelector(
         (state: RootState) => state.exportRequestDetail.details
@@ -35,38 +36,65 @@ export default function ScanQrScreen() {
     }, []);
 
     const handleBarCodeScanned = ({ data }: { data: string }) => {
+        if (isProcessing) return;
+        setIsProcessing(true); // tạm khoá xử lý
+    
         try {
-            const qrData = JSON.parse(data); // ✅ Sửa ở đây
-            const { id: scannedId, itemId } = qrData;
-
+            const keyValuePairs = data.split(";");
+            const qrData: Record<string, string> = {};
+    
+            keyValuePairs.forEach((pair) => {
+                const [key, value] = pair.split("=");
+                if (key && value) {
+                    qrData[key.trim()] = value.trim();
+                }
+            });
+    
+            const scannedId = qrData.id;
+            const itemId = qrData.itemId;
+    
+            if (!scannedId || !itemId) {
+                setErrorMessage("❌ QR Code không hợp lệ.");
+                setIsProcessing(false);
+                return;
+            }
+    
+            const found = exportDetails.find(
+                (d) => d.id?.toString() === scannedId && d.itemId?.toString() === itemId
+            );
+    
+            if (!found) {
+                setErrorMessage("❌ Không tìm thấy sản phẩm khớp với QR code.");
+                setIsProcessing(false);
+                return;
+            }
+    
             if (scannedIds.includes(scannedId)) {
                 setErrorMessage("⚠️ Mã này đã được quét trước đó.");
+                setIsProcessing(false);
                 return;
             }
-
-            const found = exportDetails.find((d) => d.itemId === itemId);
-            if (!found) {
-                setErrorMessage("❌ Sản phẩm không tồn tại trong danh sách.");
-                return;
-            }
-
+    
             const updatedDetails = exportDetails.map((d) =>
-                d.itemId === itemId
+                d.id?.toString() === scannedId && d.itemId?.toString() === itemId
                     ? { ...d, actualQuantity: d.actualQuantity + 1 }
                     : d
             );
-
+    
             dispatch(setExportRequestDetail(updatedDetails));
             setScannedIds((prev) => [...prev, scannedId]);
-
+    
             setTimeout(() => {
-                router.back();
+                router.replace(`/export/export-detail/${id}`);
             }, 300);
+    
         } catch (e) {
             setErrorMessage("❌ QR Code không hợp lệ.");
+            setIsProcessing(false);
         }
     };
-
+    
+    
 
     const handleRetry = () => {
         setErrorMessage(null);

@@ -27,7 +27,35 @@ const useExportRequest = () => {
     }
   }, [callApi, setIsLoading]);
 
-  // Lấy chi tiết export request theo ID
+  // Lấy danh sách export request theo staffId (có phân trang)
+const fetchExportRequestsByStaffId = useCallback(
+  async (staffId: number, page = 1, limit = 10) => {
+    setIsLoading(true);
+    try {
+      const response = await callApi(
+        "get",
+        `${BASE_URL}/staff/${staffId}`,
+        {
+          params: {
+            page,
+            limit,
+          },
+        }
+      );
+      setExportRequests(response.content); // nếu cần lưu vào state
+      return response.content;
+    } catch (error) {
+      console.error("Lỗi khi lấy export request theo staffId:", error);
+      return [];
+    } finally {
+      setIsLoading(false);
+    }
+  },
+  [callApi, setIsLoading]
+);
+
+
+  
   // Lấy chi tiết Export Request theo ID
   const fetchExportRequestById = useCallback(
     async (id: number) => {
@@ -106,6 +134,7 @@ const useExportRequest = () => {
     createExportRequest,
     updateExportRequest,
     deleteExportRequest,
+    fetchExportRequestsByStaffId,
   };
 };
 
