@@ -8,9 +8,9 @@ import { Button, Label } from "tamagui";
 import { useDispatch, useSelector } from "react-redux";
 import { RootState } from "@/redux/store";
 import { setPaperData } from "@/redux/paperSlice";
-import { usePaperService } from "@/services/usePaperService";
 import ProductListAccordion from "@/components/ui/ProductList";
 import useImportOrderDetail from "@/services/useImportOrderDetailService";
+import usePaperService from "@/services/usePaperService";
 
 const SignReceiveScreen = () => {
   const [signature, setSignature] = useState<string | null>(null);
@@ -79,7 +79,6 @@ const SignReceiveScreen = () => {
   
     const updatePayload = products.map((p) => ({
       itemId: p.id,
-      quantity: p.expect,
       actualQuantity: p.actual ?? 0, 
     }));
   

@@ -1,11 +1,15 @@
 import { useState, useCallback } from "react";
 import axios from "axios";
 import { ImportOrderDetailType } from "../types/importOrderDetail.type";
+import useApiService from "./useApi";
+import { Beaker } from "@tamagui/lucide-icons";
 
 const BASE_URL =
   "https://warehouse-backend-jlcj5.ondigitalocean.app/import-order-detail";
 
 const useImportOrderDetail = () => {
+  const { callApi } = useApiService();
+
   const [loading, setLoading] = useState(false);
   const [importOrderDetails, setImportOrderDetails] = useState<
     ImportOrderDetailType[]
@@ -20,11 +24,11 @@ const useImportOrderDetail = () => {
 
       setLoading(true);
       try {
-        const response = await axios.get(`${BASE_URL}/page/${importOrderId}`, {
+        const response = await callApi("get", `${BASE_URL}/page/${importOrderId}`, {
           params: { page, size },
         });
 
-        const data = response.data.content;
+        const data = response.content;
 
         if (Array.isArray(data)) {
           setImportOrderDetails(data);
@@ -85,8 +89,8 @@ const useImportOrderDetail = () => {
     async (id: number, updatedData: Partial<ImportOrderDetailType>) => {
       setLoading(true);
       try {
-        const response = await axios.put(`${BASE_URL}/${id}`, updatedData);
-        return response.data;
+        const response = await callApi("put",`/${id}`, updatedData);
+        return response;
       } catch (error) {
         console.error("Lỗi khi cập nhật import order detail:", error);
         return null;
@@ -116,17 +120,17 @@ const useImportOrderDetail = () => {
       importOrderId: number,
       updateItems: {
         itemId: number;
-        quantity: number;
         actualQuantity: number;
       }[]
     ) => {
       setLoading(true);
       try {
-        const response = await axios.put(
-          `${BASE_URL}/${importOrderId}`,
+        const response = await callApi("put", `/import-order-detail/${importOrderId}`,
           updateItems
         );
-        return response.data;
+       
+        return response;
+       
       } catch (error) {
         console.error("Lỗi khi cập nhật số lượng thực tế:", error);
         return null;

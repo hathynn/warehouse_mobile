@@ -65,7 +65,7 @@ export default function ScanQrScreen() {
             scanCooldownRef.current = false;
           }, 1000);
         } else {
-          Alert.alert("❌ Sản phẩm này đã được quét.", "", [
+          Alert.alert(" Sản phẩm này đã được quét.", "", [
             {
               text: "OK",
               onPress: () => {
@@ -109,7 +109,7 @@ export default function ScanQrScreen() {
 
   const handleScanAgain = () => {
     setError(null); // Reset lỗi
-    setLastScannedProduct(null); // 👈 Ẩn sản phẩm đã quét
+    setLastScannedProduct(null); // Ẩn sản phẩm đã quét
   };
 
   const handleManualEntry = () => {

@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useState } from "react";
-import { usePaperService } from "@/services/usePaperService";
+import usePaperService from "@/services/usePaperService";
 
 export default function PaperDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -22,7 +22,7 @@ export default function PaperDetailScreen() {
   useEffect(() => {
     if (id) {
       getPaperById(id)
-        .then((data) => setPaper(data))
+        .then((data : any ) => setPaper(data))
         .finally(() => setLoading(false));
     }
   }, [id]);
