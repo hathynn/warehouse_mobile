@@ -34,11 +34,11 @@ const SignReceiveScreen = () => {
   const exportRequestDetails = useSelector(
     (state: RootState) => state.exportRequestDetail.details
   );
-  
-  
+
+
   const handleSave = (img: string) => {
     setSignature(img);
-    dispatch(setPaperData({ signProviderUrl: img })); 
+    dispatch(setPaperData({ signProviderUrl: img }));
   };
   // const base64ToBlob = (base64: string) => {
   //   const byteCharacters = atob(base64.split(",")[1]); // Bỏ "data:image/png;base64,"
@@ -56,30 +56,12 @@ const SignReceiveScreen = () => {
 
   const { createPaper } = usePaperService();
 
-  // const handleConfirm = async () => {
-  //   if (!paperData.signProviderUrl || !paperData.signWarehouseUrl) {
-  //     console.log("❌ Chưa có đủ chữ ký, vui lòng ký trước khi xác nhận.");
-  //     return;
-  //   }
-
-  //   // Trực tiếp gọi API và truyền paperData
-  //   try {
-  //     const response = await createPaper(paperData);
-  //     if (response) {
-  //       console.log("✅ Tạo paper thành công:", response);
-  //       router.push("/(tabs)/import");
-  //     }
-  //   } catch (error) {
-  //     console.error("❌ Lỗi khi tạo paper:", error);
-  //   }
-  // };
-
   const handleConfirm = async () => {
     if (!paperData.signProviderUrl || !paperData.signWarehouseUrl) {
       console.log("❌ Chưa có đủ chữ ký, vui lòng ký trước khi xác nhận.");
       return;
     }
-  
+
     try {
       for (const p of exportRequestDetails) {
         const success = await updateActualQuantity(p.id, p.actualQuantity ?? 0);
@@ -87,9 +69,11 @@ const SignReceiveScreen = () => {
           console.warn(`⚠️ Không thể cập nhật item ID: ${p.id}`);
         }
       }
-  
+
       console.log("✅ Cập nhật actualQuantity thành công");
-  
+
+      console.log("📦 Dữ liệu gửi lên API:", paperData);
+
       const paperResponse = await createPaper(paperData);
       if (paperResponse) {
         console.log("✅ Tạo paper thành công");
@@ -99,8 +83,8 @@ const SignReceiveScreen = () => {
       console.error("❌ Lỗi khi xác nhận:", error);
     }
   };
-  
-  
+
+
 
   const handleEnd = async () => {
     const img = await signatureRef.current?.readSignature();
@@ -109,16 +93,6 @@ const SignReceiveScreen = () => {
       dispatch(setPaperData({ signWarehouseUrl: img })); // Cập nhật Redux
     }
   };
-
-  // useEffect(() => {
-  //   if (paperData.signWarehouseUrl) {
-  //     handleConfirm();
-  //   }
-  // }, [paperData.signWarehouseUrl]);
-
-  // useEffect(() => {
-  //   console.log("📦 Dữ liệu paper từ Redux:", paperData.signWarehouseUrl);
-  // }, [paperData]);
 
   return (
     <SafeAreaView className="flex-1 p-2">
@@ -140,7 +114,7 @@ const SignReceiveScreen = () => {
           </View>
           <ExportProductListAccordion products={exportRequestDetails} />
           <View className="items-center">
-        
+
             {paperData.signProviderUrl && (
               <>
                 <View className=" items-center">
