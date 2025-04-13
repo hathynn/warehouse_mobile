@@ -16,7 +16,8 @@ import { useRouter } from "expo-router";
 import useAccountService from "@/services/useAccountService";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import api from "@/config/api";
-import { jwtDecode } from "jwt-decode"; 
+import { jwtDecode } from "jwt-decode";
+import { Button } from "tamagui";
 
 const LoginScreen = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -26,43 +27,35 @@ const LoginScreen = () => {
   const [password, setPassword] = useState("");
   const { loginUser } = useAccountService();
 
-
-
-
-const handleLogin = async () => {
-  if (!email || !password) {
-    Alert.alert("Vui lòng nhập đầy đủ email và mật khẩu");
-    return;
-  }
-
-  try {
-    const res = await loginUser({ email, password });
-    const { access_token, refresh_token } = res.content;
-
-    if (!access_token || !refresh_token) {
-      throw new Error("Token không hợp lệ");
+  const handleLogin = async () => {
+    if (!email || !password) {
+      Alert.alert("Vui lòng nhập đầy đủ email và mật khẩu");
+      return;
     }
 
-    await AsyncStorage.setItem("access_token", access_token);
-    await AsyncStorage.setItem("refresh_token", refresh_token);
+    try {
+      const res = await loginUser({ email, password });
+      const { access_token, refresh_token } = res.content;
 
-    api.defaults.headers.common["Authorization"] = `Bearer ${access_token}`;
-    dispatch(login({ access_token, refresh_token }));
+      if (!access_token || !refresh_token) {
+        throw new Error("Token không hợp lệ");
+      }
 
+      await AsyncStorage.setItem("access_token", access_token);
+      await AsyncStorage.setItem("refresh_token", refresh_token);
 
-    // ✅ Replace sang tab import và truyền userId
-    setTimeout(() => {
-      router.replace("/(tabs)/import")
-    }, 200);
+      api.defaults.headers.common["Authorization"] = `Bearer ${access_token}`;
+      dispatch(login({ access_token, refresh_token }));
 
-  } catch (error: any) {
-    console.error("Login error:", error?.response?.data || error.message);
-    Alert.alert("Đăng nhập thất bại", "Vui lòng kiểm tra lại thông tin");
-  }
-};
-
-  
-  
+      // ✅ Replace sang tab import và truyền userId
+      setTimeout(() => {
+        router.replace("/(tabs)/import");
+      }, 200);
+    } catch (error: any) {
+      console.error("Login error:", error?.response?.data || error.message);
+      Alert.alert("Đăng nhập thất bại", "Vui lòng kiểm tra lại thông tin");
+    }
+  };
 
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
@@ -92,12 +85,14 @@ const handleLogin = async () => {
 
         <View className="mt-6">
           <TextInput
-            className=" p-5 rounded-2xl bg-gray-100"
+            className="p-5 rounded-2xl bg-gray-100"
             placeholder="Email"
+            placeholderTextColor="#999"
             keyboardType="email-address"
             value={email}
             onChangeText={setEmail}
           />
+
           {/* <TextInput
           className=" p-3 rounded-2xl bg-gray-100"
           placeholder={selectedTab === "phone" ? "Phone Number" : "Email"}
@@ -105,40 +100,43 @@ const handleLogin = async () => {
         /> */}
           <View className="relative mt-4">
             <TextInput
-              className=" p-5 rounded-2xl bg-gray-100"
+              className="p-5 rounded-2xl bg-gray-100"
               placeholder="Password"
+              placeholderTextColor="#999"
               secureTextEntry={!showPassword}
               value={password}
               onChangeText={setPassword}
             />
             <TouchableOpacity
-              className="absolute right-3 top-3"
-              onPress={() => setShowPassword(!showPassword)}
+              className="absolute right-4  top-4"
+              onPress={() => setShowPassword(!showPassword)} // toggle đúng
             >
               <Ionicons
                 name={showPassword ? "eye" : "eye-off"}
                 size={24}
                 color="gray"
-                onPress={() => setShowPassword(showPassword)}
               />
             </TouchableOpacity>
           </View>
         </View>
 
-        <View style={{ alignItems: "flex-end", marginTop: 16 }}>
+        <View style={{ alignItems: "flex-end", marginTop: 16, marginBottom:16 }}>
           <TouchableOpacity>
             <Text style={{ color: "#D1D5DB" }}>Quên mật khẩu?</Text>
           </TouchableOpacity>
         </View>
-
-        <TouchableOpacity
+        <Button onPress={handleLogin} fontWeight={600}>
+          {" "}
+          Đăng nhập
+        </Button>
+        {/* <TouchableOpacity
           onPress={handleLogin}
           className="bg-black py-3 rounded-2xl mt-6"
         >
           <Text className="text-center text-white text-lg font-bold">
             Đăng nhập
           </Text>
-        </TouchableOpacity>
+        </TouchableOpacity> */}
 
         {/* Social Login */}
         <Text className="text-center text-gray-500 mt-6">Hoặc</Text>

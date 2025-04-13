@@ -3,7 +3,6 @@ import { ExportRequestDetailType } from "@/types/exportRequestDetail.type";
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 
 interface ExportRequestDetailState {
-  // Chúng ta có thể lưu dữ liệu export request detail dưới dạng mảng
   details: ExportRequestDetailType[];
 }
 
@@ -15,16 +14,27 @@ const exportRequestDetailSlice = createSlice({
   name: "exportRequestDetail",
   initialState,
   reducers: {
-    // Action để lưu toàn bộ danh sách exportRequestDetail
     setExportRequestDetail: (
       state,
       action: PayloadAction<ExportRequestDetailType[]>
     ) => {
       state.details = action.payload;
     },
-    // Nếu cần, bạn có thể tạo thêm các reducer để thêm, cập nhật, xoá từng đối tượng detail
+
+    updateActualQuantity: (
+      state,
+      action: PayloadAction<{ detailId: string; inventoryItemId: string }>
+    ) => {
+      const { detailId, inventoryItemId } = action.payload;
+      const item = state.details.find((item) => item.id === detailId);
+      if (item) {
+        item.actualQuantity += 1;
+        item.inventoryItemIds.push(inventoryItemId);
+      }
+    },
   },
 });
 
-export const { setExportRequestDetail } = exportRequestDetailSlice.actions;
+export const { setExportRequestDetail, updateActualQuantity } =
+  exportRequestDetailSlice.actions;
 export default exportRequestDetailSlice.reducer;

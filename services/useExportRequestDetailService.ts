@@ -56,10 +56,30 @@ const useExportRequestDetail = () => {
     }
   };
 
+  const updateActualQuantity = async (
+    exportRequestDetailId: number,
+    actualQuantity: number
+  ): Promise<boolean> => {
+    try {
+      const payload = {
+        exportRequestDetailId,
+        actualQuantity,
+      };
+  
+      await callApi("put", `${BASE_URL}/actual-quantity`, payload);
+      return true;
+    } catch (error) {
+      console.error("❌ Lỗi khi cập nhật actualQuantity:", error);
+      return false;
+    }
+  };
+  
+
   return {
     loading,
     exportRequestDetails,
     fetchExportRequestDetails,
+    updateActualQuantity,
   };
 };
 
