@@ -7,19 +7,26 @@ import {
   ActivityIndicator,
   SafeAreaView,
   Image,
+  Modal,
 } from "react-native";
 import { useEffect, useState } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import useImportOrder from "@/services/useImportOrderService";
-import { Button } from "tamagui";
+import { Button, Input, Select, XStack } from "tamagui";
 import { useDispatch, useSelector } from "react-redux";
 import { setPaperData } from "@/redux/paperSlice";
-import { usePaperService } from "@/services/usePaperService";
 import useImportOrderDetail from "@/services/useImportOrderDetailService";
 import { setProducts } from "@/redux/productSlice";
 import { RootState } from "@/redux/store";
+import usePaperService from "@/services/usePaperService";
+import { ImportOrderStatus } from "@/types/importOrder.type";
 
 export default function ReceiptDetail() {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedStatus, setSelectedStatus] =
+    useState<ImportOrderStatus | null>(null);
+  const [filterVisible, setFilterVisible] = useState(false);
+
   const userId = useSelector((state: RootState) => state.auth.user?.id);
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
@@ -33,6 +40,12 @@ export default function ReceiptDetail() {
   const [papers, setPapers] = useState<any[]>([]); // danh sách chứng từ đã fetch
   const { getPaperById } = usePaperService();
   const { fetchImportOrderDetails } = useImportOrderDetail();
+
+  const statusOptions = [
+    { label: "Đang xử lý", value: ImportOrderStatus.IN_PROGRESS },
+    { label: "Hoàn tất", value: ImportOrderStatus.COMPLETED },
+    { label: "Đã huỷ", value: ImportOrderStatus.CANCELLED },
+  ];
 
   useEffect(() => {
     const fetchOrders = async () => {
@@ -57,17 +70,31 @@ export default function ReceiptDetail() {
     fetchOrders();
   }, [userId]);
 
+  const filteredData = filteredOrders.filter((order: any) => {
+    if (order.status === ImportOrderStatus.CANCELLED) return false;
+  
+    const matchSearch = order.importOrderId
+      ?.toString()
+      .toLowerCase()
+      .includes(searchQuery.toLowerCase());
+  
+    const matchStatus = selectedStatus ? order.status === selectedStatus : true;
+  
+    return matchSearch && matchStatus;
+  });
+  
+
   const products = useSelector((state: RootState) => state.product.products);
 
   useEffect(() => {
     console.log("Redux products:", products);
   }, [products]);
 
-  useEffect(() => {
-    if (!id) return;
-    fetchImportOrders(parseInt(id)).then(setFilteredOrders);
-    console.log("ID:", id);
-  }, [id]);
+  // useEffect(() => {
+  //   if (!id) return;
+  //   fetchImportOrders(parseInt(id)).then(setFilteredOrders);
+  //   console.log("ID:", id);
+  // }, [id]);
 
   return (
     <SafeAreaView className="flex-1">
@@ -81,7 +108,7 @@ export default function ReceiptDetail() {
           </View>
 
           {/* Tabs */}
-          <View className="flex-row my-3 bg-gray-200 rounded-lg p-1">
+          <View className="flex-row my-2 bg-gray-200 rounded-lg p-1">
             {["With Button", "Without Button"].map((tab) => (
               <TouchableOpacity
                 key={tab}
@@ -103,15 +130,48 @@ export default function ReceiptDetail() {
             ))}
           </View>
 
+          <XStack alignItems="center" space="$2" marginBottom="$2">
+            {/* Ô tìm kiếm */}
+            <XStack
+              alignItems="center"
+              flex={1}
+              borderRadius="$4"
+              paddingHorizontal="$3"
+              backgroundColor="white"
+            >
+              <Ionicons name="search" size={18} color="#999" />
+              <Input
+                flex={1}
+                placeholder="Tìm theo mã đơn nhập"
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                borderWidth={0}
+                paddingHorizontal="$3"
+                backgroundColor="white"
+              />
+            </XStack>
+
+            {/* Nút phễu lọc trạng thái */}
+            <TouchableOpacity
+              onPress={() => setFilterVisible(true)}
+              style={{
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Ionicons name="filter" size={20} />
+            </TouchableOpacity>
+          </XStack>
+
           {/* Danh sách phiếu nhập */}
           {loading ? (
             <ActivityIndicator size="large" color="#0000ff" />
-          ) : filteredOrders.length === 0 ? (
+          ) : filteredData.length === 0 ? (
             <Text className="mt-5 text-center text-gray-500">
               Không có đơn nhập phù hợp.
             </Text>
           ) : (
-            filteredOrders.map((order: any) => (
+            filteredData.map((order: any) => (
               <View
                 key={order.importOrderId}
                 className="mb-4 bg-white rounded-lg p-4"
@@ -303,6 +363,56 @@ export default function ReceiptDetail() {
             ))
           )}
         </View>
+        <Modal visible={filterVisible} transparent animationType="slide">
+          <View
+            style={{
+              flex: 1,
+              justifyContent: "center",
+              backgroundColor: "#00000099",
+            }}
+          >
+            <View
+              style={{
+                margin: 20,
+                backgroundColor: "white",
+                borderRadius: 10,
+                padding: 20,
+              }}
+            >
+              <Text
+                style={{ fontWeight: "bold", fontSize: 16, marginBottom: 10 }}
+              >
+                Lọc theo trạng thái đơn nhập
+              </Text>
+              {statusOptions.map((status) => (
+                <TouchableOpacity
+                  key={status.value}
+                  onPress={() => {
+                    setSelectedStatus(status.value as ImportOrderStatus);
+                    setFilterVisible(false);
+                  }}
+                  style={{
+                    paddingVertical: 8,
+                    borderBottomWidth: 1,
+                    borderColor: "#eee",
+                  }}
+                >
+                  <Text>{status.label}</Text>
+                </TouchableOpacity>
+              ))}
+              <Button
+                marginTop="$3"
+                theme="active"
+                onPress={() => {
+                  setSelectedStatus(null); // Bỏ lọc
+                  setFilterVisible(false);
+                }}
+              >
+                Bỏ lọc
+              </Button>
+            </View>
+          </View>
+        </Modal>
       </ScrollView>
     </SafeAreaView>
   );
