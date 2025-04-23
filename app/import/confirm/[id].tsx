@@ -17,6 +17,7 @@ import { useDispatch, useSelector } from "react-redux";
 import {
   Accordion,
   Button,
+  Checkbox,
   H3,
   H4,
   Input,
@@ -31,6 +32,7 @@ const Confirm = () => {
   const [scrollEnabled, setScrollEnabled] = useState(true);
   const [searchId, setSearchId] = useState("");
   const [filtered, setFiltered] = useState(false);
+  const [isChecked, setIsChecked] = useState(false);
 
   const { id } = useLocalSearchParams<{ id: string }>();
   const products = useSelector((state: RootState) => state.product.products);
@@ -161,8 +163,9 @@ const Confirm = () => {
                     {({ open }: { open: boolean }) => (
                       <>
                         <Paragraph fontWeight="500">
-                          Mã sản phẩm: {product.id}
+                          Sản phẩm: #{product.id}
                         </Paragraph>
+
                         <Square
                           animation="quick"
                           rotate={open ? "180deg" : "0deg"}
@@ -177,7 +180,11 @@ const Confirm = () => {
                       animation="medium"
                       exitStyle={{ opacity: 0 }}
                     >
-                      <Paragraph>Số lượng: {product.actual}</Paragraph>
+                      <XStack justifyContent="space-between" width="100%">
+                        <Paragraph>Số lượng</Paragraph>
+                        <Paragraph>{product.actual}</Paragraph>
+                      </XStack>
+
                       <Button
                         marginTop="$2"
                         onPress={() => handleUpdateQuantity(product.id)}
@@ -193,16 +200,37 @@ const Confirm = () => {
         </ScrollView>
 
         {/* Nút ký xác nhận */}
-        <View className="p-5">
-          <TouchableOpacity
-            onPress={() => router.push("/import/sign/deliver-sign")}
-            className="bg-[#0d1925] px-5 py-4 rounded-full"
-          >
-            <Text className="text-white font-semibold text-sm text-center">
-              Ký xác nhận
-            </Text>
-          </TouchableOpacity>
-        </View>
+        <YStack paddingHorizontal="$4" paddingBottom="$5">
+          <XStack justify="center" alignItems="center" space="$2">
+            <Checkbox
+              size="$4"
+              checked={isChecked}
+              onCheckedChange={setIsChecked}
+            >
+              <Checkbox.Indicator>
+                <Text>✓</Text>
+              </Checkbox.Indicator>
+            </Checkbox>
+
+            <Label onPress={() => setIsChecked(!isChecked)} fontSize="$4">
+              Tôi xác nhận đã nhập đúng số lượng sản phẩm
+            </Label>
+          </XStack>
+
+          <YStack marginTop="$1">
+            <TouchableOpacity
+              disabled={!isChecked}
+              onPress={() => router.push("/import/sign/deliver-sign")}
+              className={`px-5 py-4 rounded-full ${
+                isChecked ? "bg-[#0d1925]" : "bg-gray-400"
+              }`}
+            >
+              <Text className="text-white font-semibold text-sm text-center">
+                Ký xác nhận
+              </Text>
+            </TouchableOpacity>
+          </YStack>
+        </YStack>
 
         <Modal
           animationType="slide"
