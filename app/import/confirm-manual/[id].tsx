@@ -9,6 +9,7 @@ import { useDispatch, useSelector } from "react-redux";
 import {
   Accordion,
   Button,
+  Checkbox,
   Input,
   Label,
   Paragraph,
@@ -22,6 +23,7 @@ const ConfirmManual = () => {
   const [searchId, setSearchId] = useState("");
   const [filtered, setFiltered] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
+  const [isChecked, setIsChecked] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState<number | null>(
     null
   );
@@ -175,19 +177,41 @@ const ConfirmManual = () => {
             </Accordion>
           </View>
         </ScrollView>
-
         {/* Nút xác nhận */}
-        <View className="p-5">
-          <TouchableOpacity
-            onPress={() => router.push("/import/sign/deliver-sign")}
-            className="bg-[#0d1925] px-5 py-4 rounded-full"
-          >
-            <Text className="text-white font-semibold text-sm text-center">
-              Ký xác nhận
-            </Text>
-          </TouchableOpacity>
-        </View>
+        <YStack paddingHorizontal="$4" paddingBottom="$5">
+          <XStack justify="center" alignItems="center" space="$2">
+            <Checkbox
+              size="$4"
+              checked={isChecked}
+              onCheckedChange={setIsChecked}
+            >
+              <Checkbox.Indicator>
+                <Text>✓</Text>
+              </Checkbox.Indicator>
+            </Checkbox>
 
+            <Label onPress={() => setIsChecked(!isChecked)} fontSize="$4">
+              Tôi xác nhận đã nhập đúng số lượng sản phẩm
+            </Label>
+          </XStack>
+
+          <YStack marginTop="$1">
+            <TouchableOpacity
+              disabled={!isChecked}
+              onPress={() => router.push("/import/sign/deliver-sign")}
+              style={{
+                backgroundColor: isChecked ? "#0d1925" : "#ccc",
+                borderRadius: 999,
+                paddingVertical: 12,
+                alignItems: "center",
+              }}
+            >
+              <Text style={{ color: "white", fontWeight: "600" }}>
+                Ký xác nhận
+              </Text>
+            </TouchableOpacity>
+          </YStack>
+        </YStack>
         {/* Modal nhập số lượng */}
         <Modal
           animationType="slide"

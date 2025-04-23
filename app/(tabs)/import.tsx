@@ -9,7 +9,7 @@ import {
   Image,
   Modal,
 } from "react-native";
-import { useEffect, useState } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import useImportOrder from "@/services/useImportOrderService";
 import { Button, Input, Select, XStack } from "tamagui";
@@ -20,6 +20,7 @@ import { setProducts } from "@/redux/productSlice";
 import { RootState } from "@/redux/store";
 import usePaperService from "@/services/usePaperService";
 import { ImportOrderStatus } from "@/types/importOrder.type";
+import StatusBadge from "@/components/StatusBadge";
 
 export default function ReceiptDetail() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -44,7 +45,6 @@ export default function ReceiptDetail() {
   const statusOptions = [
     { label: "Đang xử lý", value: ImportOrderStatus.IN_PROGRESS },
     { label: "Hoàn tất", value: ImportOrderStatus.COMPLETED },
-    { label: "Đã huỷ", value: ImportOrderStatus.CANCELLED },
   ];
 
   useEffect(() => {
@@ -186,10 +186,7 @@ export default function ReceiptDetail() {
                         title="Mã đơn nhập"
                         value={order.importOrderId}
                       />
-                      <InfoRow
-                        title="Trạng thái"
-                        value={order.status || "Không có trạng thái"}
-                      />
+                     
                       <InfoRow
                         title="Ngày tạo"
                         value={new Date(order.createdDate).toLocaleString(
@@ -200,6 +197,10 @@ export default function ReceiptDetail() {
                             year: "numeric",
                           }
                         )}
+                      />
+                       <InfoRow
+                        title="Trạng thái"
+                        value={<StatusBadge status={order.status} />}
                       />
                     </View>
 
@@ -243,7 +244,7 @@ export default function ReceiptDetail() {
                           }
                         }}
                       >
-                        Tạo chứng từ
+                        Kiểm đếm đơn nhập
                       </Button>
                     )}
                   </>
@@ -272,7 +273,7 @@ export default function ReceiptDetail() {
                       />
                       <InfoRow
                         title="Trạng thái"
-                        value={order.status || "Chưa cập nhật"}
+                        value={<StatusBadge status={order.status} />}
                       />
                       {/* <InfoRow title="Người tạo" value={order.createdBy} /> */}
                       {/* <InfoRow
@@ -419,15 +420,24 @@ export default function ReceiptDetail() {
 }
 
 // Component hiển thị thông tin dạng cột trái - phải
+
+
 const InfoRow = ({
   title,
   value,
 }: {
   title: string;
-  value: string | number;
+  value: ReactNode;
 }) => (
-  <View className="flex-row justify-between py-1  border-gray-200">
+  <View className="flex-row justify-between items-center py-1 border-gray-200">
     <Text className="text-gray-600 w-1/2">{title}</Text>
-    <Text className="text-black w-1/2 text-right">{value}</Text>
+    <View className="w-1/2 items-end">
+      {typeof value === 'string' || typeof value === 'number' ? (
+        <Text className="text-black text-right">{value}</Text>
+      ) : (
+        value
+      )}
+    </View>
   </View>
 );
+
