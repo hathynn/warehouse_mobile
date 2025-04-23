@@ -15,19 +15,33 @@ const usePaperService = () => {
         formData.append("importOrderId", paperData.importOrderId || "");
         formData.append("exportRequestId", paperData.exportRequestId || "");
 
-        const saveBase64ToFile = async (base64: string, filename: string) => {
-          const path = `${FileSystem.cacheDirectory}${filename}`;
-          await FileSystem.writeAsStringAsync(path, base64.split(",")[1], {
-            encoding: FileSystem.EncodingType.Base64,
-          });
-          return path;
+        // ✨ Xử lý linh hoạt cả base64 và file://
+        const processImageInput = async (input: string, filename: string) => {
+          if (!input) throw new Error("Thiếu ảnh chữ ký");
+          
+          if (input.startsWith("data:image")) {
+            // Là base64 → tách ra và ghi vào file
+            const base64 = input.split(",")[1];
+            const path = `${FileSystem.cacheDirectory}${filename}`;
+            await FileSystem.writeAsStringAsync(path, base64, {
+              encoding: FileSystem.EncodingType.Base64,
+            });
+            return path;
+          }
+
+          if (input.startsWith("file://")) {
+            // Là đường dẫn ảnh từ ImagePicker
+            return input;
+          }
+
+          throw new Error("Dữ liệu ảnh không hợp lệ");
         };
 
-        const signProviderPath = await saveBase64ToFile(
+        const signProviderPath = await processImageInput(
           paperData.signProviderUrl,
           "chuki1.jpg"
         );
-        const signWarehousePath = await saveBase64ToFile(
+        const signWarehousePath = await processImageInput(
           paperData.signWarehouseUrl,
           "chuki2.jpg"
         );
@@ -52,7 +66,6 @@ const usePaperService = () => {
 
         console.log("✅ Paper Created:", response);
         return response;
-        console.log();
       } catch (error: any) {
         console.error("❌ Lỗi tạo paper:", error.message || error);
         return null;
