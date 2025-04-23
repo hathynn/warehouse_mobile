@@ -53,7 +53,7 @@ const ExportRequestScreen: React.FC = () => {
           };
         });
 
-        console.log("📤 Lưu vào Redux (merged):", mergedDetails);
+        // console.log("📤 Lưu vào Redux (merged):", mergedDetails);
         dispatch(setExportRequestDetail(mergedDetails));
       });
     }
@@ -63,7 +63,7 @@ const ExportRequestScreen: React.FC = () => {
     (state: RootState) => state.exportRequestDetail.details
   );
 
-  console.log("🧠 Redux exportRequestDetail:", savedExportRequestDetails);
+  // console.log("🧠 Redux exportRequestDetail:", savedExportRequestDetails);
 
   if (loadingRequest || loadingDetails) {
     return (
@@ -133,36 +133,45 @@ const ExportRequestScreen: React.FC = () => {
           </View>
 
           {Array.isArray(savedExportRequestDetails) &&
-            savedExportRequestDetails.map((detail: any) => (
-              <View key={detail.id} style={styles.tableRow}>
-                <Text style={[styles.cell, styles.cellCode]}>
-                  #{detail.itemId}
-                </Text>
-                <Text style={styles.cell}>{detail.quantity}</Text>
-                <Text style={styles.cell}>{detail.actualQuantity}</Text>
-                <TouchableOpacity
-                  style={styles.scanButton}
-                  onPress={() => {
-                    router.push(
-                      `/export/scan-qr?id=${exportRequest?.exportRequestId}`
-                    );
-                  }}
-                >
-                  <Text style={styles.scanText}>Scan</Text>
-                </TouchableOpacity>
-              </View>
-            ))}
+  savedExportRequestDetails.map((detail: any) => {
+    const isDisabled = detail.quantity === detail.actualQuantity;
+
+    return (
+      <View key={detail.id} style={styles.tableRow}>
+        <Text style={[styles.cell, styles.cellCode]}>#{detail.itemId}</Text>
+        <Text style={styles.cell}>{detail.quantity}</Text>
+        <Text style={styles.cell}>{detail.actualQuantity}</Text>
+        <TouchableOpacity
+          style={[
+            styles.scanButton,
+            isDisabled && styles.scanButtonDisabled,
+          ]}
+          disabled={isDisabled}
+          onPress={() => {
+            router.push(
+              `/export/scan-qr?id=${exportRequest?.exportRequestId}`
+            );
+          }}
+        >
+          <Text style={styles.scanText}>
+            {isDisabled ? "Đã đủ" : "Scan"}
+          </Text>
+        </TouchableOpacity>
+      </View>
+    );
+  })}
+
         </View>
 
         {/* Tình trạng tồn kho */}
-        <View style={styles.card}>
+        {/* <View style={styles.card}>
           <Text style={styles.inputLabel}>Tình trạng tồn kho</Text>
           <TextInput
             placeholder="Nhập tình trạng"
             style={styles.input}
             multiline
           />
-        </View>
+        </View> */}
 
         <View className="p-5">
           <TouchableOpacity
@@ -262,6 +271,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     borderRadius: 6,
   },
+  scanButtonDisabled: {
+    backgroundColor: "#ccc",
+  },
+  
   scanText: {
     color: "white",
     fontSize: 12,
