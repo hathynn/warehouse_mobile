@@ -146,7 +146,7 @@ const ConfirmManual = () => {
                     {({ open }: { open: boolean }) => (
                       <>
                         <Paragraph fontWeight="500">
-                          Mã sản phẩm: {product.id}
+                          Sản phẩm: #{product.id}
                         </Paragraph>
                         <Square
                           animation="quick"
@@ -162,8 +162,16 @@ const ConfirmManual = () => {
                       animation="medium"
                       exitStyle={{ opacity: 0 }}
                     >
-                      <Paragraph>Số lượng yêu cầu: {product.expect}</Paragraph>
-                      <Paragraph>Số lượng thực tế: {product.actual}</Paragraph>
+                      <XStack justifyContent="space-between" width="100%">
+                        <Paragraph>Số lượng yêu cầu</Paragraph>
+                        <Paragraph>{product.expect}</Paragraph>
+                      </XStack>
+                      <XStack justifyContent="space-between" width="100%">
+                        <Paragraph>Số lượng thực tế</Paragraph>
+                        <Paragraph>{product.actual}</Paragraph>
+                      </XStack>
+                      {/* <Paragraph>Số lượng yêu cầu: {product.expect}</Paragraph>
+                      <Paragraph>Số lượng thực tế: {product.actual}</Paragraph> */}
                       <Button
                         marginTop="$2"
                         onPress={() => handleUpdateQuantity(product.id)}
