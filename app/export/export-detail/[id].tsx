@@ -17,15 +17,22 @@ import { router } from "expo-router";
 import { useDispatch, useSelector } from "react-redux";
 import { setExportRequestDetail } from "@/redux/exportRequestDetailSlice";
 import { RootState, store } from "@/redux/store";
+import { ExportRequestStatus } from "@/types/exportRequest.type";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 interface RouteParams {
   id: string;
 }
 
 const ExportRequestScreen: React.FC = () => {
+  const insets = useSafeAreaInsets();
+
+
   const route = useRoute();
   const { id } = route.params as RouteParams;
   const dispatch = useDispatch();
+  const { updateActualQuantity, confirmCountedExportRequest } =
+    useExportRequestDetail();
 
   const {
     loading: loadingRequest,
@@ -35,16 +42,18 @@ const ExportRequestScreen: React.FC = () => {
 
   const { loading: loadingDetails, fetchExportRequestDetails } =
     useExportRequestDetail();
+  const isCounted = exportRequest?.status === ExportRequestStatus.COUNTED;
 
   useEffect(() => {
     if (id) {
       const requestId = Number(id);
-      fetchExportRequestById(requestId);
+
+      // GỌI LẤY THÔNG TIN EXPORT REQUEST
+      fetchExportRequestById(requestId); // <<--- dòng này bị thiếu
 
       fetchExportRequestDetails(requestId, 1, 10).then((newData) => {
         const oldDetails = store.getState().exportRequestDetail.details;
 
-        // ✅ Merge actualQuantity
         const mergedDetails = newData.map((newItem) => {
           const oldItem = oldDetails.find((o) => o.id === newItem.id);
           return {
@@ -52,8 +61,7 @@ const ExportRequestScreen: React.FC = () => {
             actualQuantity: oldItem?.actualQuantity ?? 0,
           };
         });
-
-        // console.log("📤 Lưu vào Redux (merged):", mergedDetails);
+        console.log("🧾 exportRequest:", exportRequest);
         dispatch(setExportRequestDetail(mergedDetails));
       });
     }
@@ -74,20 +82,64 @@ const ExportRequestScreen: React.FC = () => {
     );
   }
 
+  const handleConfirm = async () => {
+    try {
+      // 1. Cập nhật actualQuantity từng dòng
+      for (const p of savedExportRequestDetails) {
+        const success = await updateActualQuantity(p.id, p.actualQuantity ?? 0);
+        if (!success) {
+          console.warn(`⚠️ Không thể cập nhật item ID: ${p.id}`);
+        }
+      }
+
+      console.log("✅ Cập nhật actualQuantity thành công");
+
+      // 2. Gọi API xác nhận đã kiểm đếm
+      const confirmSuccess = await confirmCountedExportRequest(Number(id));
+      if (confirmSuccess) {
+        console.log("✅ Đã xác nhận kiểm đếm thành công");
+        router.push("/(tabs)/export");
+      } else {
+        console.error("❌ Xác nhận kiểm đếm thất bại");
+      }
+    } catch (error) {
+      console.error("❌ Lỗi khi xác nhận tổng thể:", error);
+    }
+  };
+
   return (
-    <SafeAreaView className="flex-1">
+    <View className="flex-1">
+ <View
+        style={{
+          backgroundColor: "#1677ff",
+          paddingTop: insets.top,
+          paddingBottom: 16,
+
+          paddingHorizontal: 17,
+          flexDirection: "row",
+          justifyContent: "space-between",
+          alignItems: "center",
+        }}
+      >
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={{ paddingRight: 12, marginTop: 7 }}
+        >
+          <Ionicons name="arrow-back" size={24} color="white" />
+        </TouchableOpacity>
+        <Text
+          style={{
+            color: "white",
+            fontSize: 16,
+            fontWeight: "bold",
+            marginTop: 7,
+          }}
+        >
+         Thông tin phiếu nhập #{id}
+        </Text>
+      </View>
       <ScrollView style={styles.container}>
-        {/* Header */}
-        <View className="px-5">
-          <View className="bg-[#1677ff] px-4 py-3 flex-row justify-between items-center rounded-2xl">
-            <TouchableOpacity onPress={() => router.back()} className="p-2">
-              <Ionicons name="arrow-back" size={24} color="white" />
-            </TouchableOpacity>
-            <Text className="text-white font-bold text-lg">
-              Kiểm đếm đơn nhập <Text className="text-blue-200">#{id}</Text>
-            </Text>
-          </View>
-        </View>
+        
 
         {/* Thông tin yêu cầu */}
         <View style={styles.card}>
@@ -125,22 +177,25 @@ const ExportRequestScreen: React.FC = () => {
 
         {/* Danh sách mặt hàng */}
         <View style={styles.table}>
-          <View style={[styles.tableRow, styles.tableHeader]}>
-            <Text style={[styles.cell, styles.cellCode]}>Mã hàng</Text>
-            <Text style={styles.cell}>Cần</Text>
-            <Text style={styles.cell}>Tồn</Text>
-            <Text style={[styles.cell, { textAlign: "right" }]}></Text>
-          </View>
+        <View style={[styles.tableRow, styles.tableHeader]}>
+  <Text style={[styles.cellCode]}>Mã hàng</Text>
+  <Text style={[styles.cellAlignRight]}>Cần</Text>
+  <Text style={[styles.cellAlignRight]}>Tồn</Text>
+  {!isCounted && <Text style={styles.scanHeader}></Text>}
+</View>
 
-          {Array.isArray(savedExportRequestDetails) &&
-  savedExportRequestDetails.map((detail: any) => {
-    const isDisabled = detail.quantity === detail.actualQuantity;
 
-    return (
-      <View key={detail.id} style={styles.tableRow}>
-        <Text style={[styles.cell, styles.cellCode]}>#{detail.itemId}</Text>
-        <Text style={styles.cell}>{detail.quantity}</Text>
-        <Text style={styles.cell}>{detail.actualQuantity}</Text>
+          {savedExportRequestDetails.map((detail: any) => {
+  const isDisabled = detail.quantity === detail.actualQuantity;
+
+  return (
+    <View key={detail.id} style={styles.tableRow}>
+    <Text style={[styles.cellCode]}>#{detail.itemId}</Text>
+    <Text style={[styles.cellAlignRight]}>{detail.quantity}</Text>
+    <Text style={[styles.cellAlignRight]}>{detail.actualQuantity}</Text>
+  
+    {!isCounted && (
+      <View style={styles.scanCell}>
         <TouchableOpacity
           style={[
             styles.scanButton,
@@ -148,9 +203,7 @@ const ExportRequestScreen: React.FC = () => {
           ]}
           disabled={isDisabled}
           onPress={() => {
-            router.push(
-              `/export/scan-qr?id=${exportRequest?.exportRequestId}`
-            );
+            router.push(`/export/scan-qr?id=${exportRequest?.exportRequestId}`);
           }}
         >
           <Text style={styles.scanText}>
@@ -158,9 +211,10 @@ const ExportRequestScreen: React.FC = () => {
           </Text>
         </TouchableOpacity>
       </View>
-    );
-  })}
-
+    )}
+  </View>
+  );
+})}
         </View>
 
         {/* Tình trạng tồn kho */}
@@ -173,18 +227,20 @@ const ExportRequestScreen: React.FC = () => {
           />
         </View> */}
 
-        <View className="p-5">
-          <TouchableOpacity
-            onPress={() => router.push("/export/sign/warehouse-sign")}
-            className="bg-[#0d1925] px-5 py-4 rounded-full"
-          >
-            <Text className="text-white font-semibold text-sm text-center">
-              Ký xác nhận
-            </Text>
-          </TouchableOpacity>
-        </View>
+        {exportRequest?.status !== "COUNTED" && (
+          <View className="p-5">
+            <TouchableOpacity
+              onPress={handleConfirm}
+              className="bg-[#0d1925] px-5 py-4 rounded-full"
+            >
+              <Text className="text-white font-semibold text-sm text-center">
+                Xác nhận số lượng
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 };
 
@@ -256,15 +312,38 @@ const styles = StyleSheet.create({
     borderBottomColor: "#eee",
     alignItems: "center",
   },
+  scanHeader: {
+    width: 60,
+  },  
   cell: {
     flex: 1,
     fontSize: 13,
     textAlign: "center",
   },
+  cellAlignRight: {
+    flex: 1,
+    fontSize: 13,
+    textAlign: "center",
+  },
+  scanCell: {
+    width: 60,
+    alignItems: "flex-end",
+  },
+  
   cellCode: {
     textAlign: "left",
     flex: 2,
   },
+  cellAlignNumber: {
+    textAlign: "right",
+    paddingRight: 1, // canh đều cho đẹp mắt
+  },
+
+  alignRight: {
+    textAlign: "center",
+    paddingRight: 10,
+  },
+
   scanButton: {
     backgroundColor: "#1677ff",
     paddingVertical: 4,
@@ -274,7 +353,7 @@ const styles = StyleSheet.create({
   scanButtonDisabled: {
     backgroundColor: "#ccc",
   },
-  
+
   scanText: {
     color: "white",
     fontSize: 12,
