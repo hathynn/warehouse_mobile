@@ -25,6 +25,7 @@ import { UploadCloud } from "@tamagui/lucide-icons";
 import { createSelector } from "reselect";
 import useImportOrderDetail from "@/services/useImportOrderDetailService";
 import usePaperService from "@/services/usePaperService";
+import * as ImageManipulator from "expo-image-manipulator";
 
 const SignReceiveScreen = () => {
   const insets = useSafeAreaInsets();
@@ -66,13 +67,24 @@ const SignReceiveScreen = () => {
   const takePhoto = async () => {
     const result = await ImagePicker.launchCameraAsync({
       allowsEditing: true,
-      quality: 0,
+      quality: 0.3, // bạn có thể để 1, ta sẽ nén sau
     });
   
     if (!result.canceled && result.assets.length > 0) {
-      const imageUri = result.assets[0].uri;
-      setCapturedImage(imageUri); // ✅ Add this line
-      dispatch(setPaperData({ signWarehouseUrl: imageUri }));
+      const originalUri = result.assets[0].uri;
+  
+      // ✅ NÉN ảnh lại
+      const manipulated = await ImageManipulator.manipulateAsync(
+        originalUri,
+        [], // không resize
+        {
+          compress: 0.3, // giá trị từ 0 - 1
+          format: ImageManipulator.SaveFormat.JPEG,
+        }
+      );
+  
+      setCapturedImage(manipulated.uri);
+      dispatch(setPaperData({ signWarehouseUrl: manipulated.uri }));
     }
   };
   
