@@ -19,4 +19,5 @@ export enum ImportOrderStatus {
   IN_PROGRESS = "IN_PROGRESS",
   COMPLETED = "COMPLETED",
   CANCELLED = "CANCELLED",
+  CONFIRMED = "CONFIRMED",
 }

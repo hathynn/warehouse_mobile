@@ -27,11 +27,12 @@ export default function ScanQrScreen() {
     null
   );
 
-  // Lấy danh sách sản phẩm từ Redux
-  const importOrderId = useSelector((state: RootState) => state.paper.importOrderId);
+  const importOrderId = useSelector(
+    (state: RootState) => state.paper.importOrderId
+  );
 
   const products = useSelector((state: RootState) =>
-    state.product.products.filter(p => p.importOrderId === importOrderId)
+    state.product.products.filter((p) => p.importOrderId === importOrderId)
   );
   const dispatch = useDispatch();
   const productsScanned = products.filter((p) => p.actual > 0).length;
@@ -52,31 +53,24 @@ export default function ScanQrScreen() {
   const handleBarCodeScanned = ({ data }: { data: string }) => {
     if (scanCooldownRef.current) return;
     scanCooldownRef.current = true; // Đặt cooldown
-  
+
     try {
       const qrData = JSON.parse(decodeURIComponent(data));
       const foundProduct = products.find((product) => product.id === qrData.id);
-  
+
       if (foundProduct) {
-        if (foundProduct.actual === 0) {
-          setLastScannedProduct(foundProduct);
-          dispatch(updateProduct({ id: foundProduct.id, actual: foundProduct.expect }));
-          setTimeout(() => {
-            scanCooldownRef.current = false;
-          }, 1000);
-        } else {
-          Alert.alert(" Sản phẩm này đã được quét.", "", [
-            {
-              text: "OK",
-              onPress: () => {
-                scanCooldownRef.current = false;
-              },
-            },
-          ]);
-          setTimeout(() => {
-            scanCooldownRef.current = false;
-          }, 2500);
-        }
+        setLastScannedProduct(foundProduct);
+
+        dispatch(
+          updateProduct({
+            id: foundProduct.id,
+            actual: foundProduct.actual + 1,
+          })
+        );
+
+        setTimeout(() => {
+          scanCooldownRef.current = false;
+        }, 1000);
       } else {
         Alert.alert("⚠️ Sản phẩm không có trong đơn nhập.", "", [
           {
@@ -104,8 +98,6 @@ export default function ScanQrScreen() {
       }, 2500);
     }
   };
-  
-  
 
   const handleScanAgain = () => {
     setError(null); // Reset lỗi
@@ -113,13 +105,14 @@ export default function ScanQrScreen() {
   };
 
   const handleManualEntry = () => {
+    console.log("importOrderId", importOrderId);
     router.push(`/import/confirm-manual/${importOrderId}`);
   };
 
   const handleConfirm = () => {
     router.push(`/import/confirm/${importOrderId}`);
   };
-  
+
   if (hasPermission === null) return <Text>Đang xin quyền camera...</Text>;
   if (hasPermission === false) return <Text>Không có quyền dùng camera</Text>;
 
@@ -145,7 +138,7 @@ export default function ScanQrScreen() {
         />
 
         {/* Thanh trạng thái quét */}
-        <View
+        {/* <View
           style={[
             styles.scanStatus,
             {
@@ -156,7 +149,7 @@ export default function ScanQrScreen() {
           <Text style={styles.scanStatusText}>
             Đã quét: {productsScanned}/{totalProductsToScan}
           </Text>
-        </View>
+        </View> */}
 
         {/* Thông tin sản phẩm vừa quét */}
         {lastScannedProduct && (
@@ -171,27 +164,27 @@ export default function ScanQrScreen() {
                 </Text>
               </View>
 
-              {remainingProducts > 0 && (
-                <Button
-                  onPress={handleScanAgain}
-                  style={[styles.confirmButton, { marginLeft: 10 }]}
-                  backgroundColor="#f0f0f0"
-                >
-                  →
-                </Button>
-              )}
+           
+                <View className="flex-row">
+                  <Button
+                    onPress={handleScanAgain}
+                    style={[styles.confirmButton, { marginLeft: 10 }]}
+                    backgroundColor="#f0f0f0"
+                  >
+                    →
+                  </Button>
 
-              {remainingProducts === 0 && (
-                <Button
-                  backgroundColor="#1677ff"
-                  color="white"
-                  fontWeight="500"
-                  onPress={handleConfirm}
-                  style={[styles.confirmButton, { marginLeft: 10 }]}
-                >
-                  Xác nhận
-                </Button>
-              )}
+                  <Button
+                    backgroundColor="#1677ff"
+                    color="white"
+                    fontWeight="500"
+                    onPress={handleConfirm}
+                    style={[styles.confirmButton, { marginLeft: 10 }]}
+                  >
+                    Xác nhận
+                  </Button>
+                </View>
+            
             </View>
           </View>
         )}

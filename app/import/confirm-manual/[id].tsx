@@ -4,10 +4,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useState } from "react";
 import { Text, View, ScrollView, TouchableOpacity, Modal } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { useDispatch, useSelector } from "react-redux";
 import {
-  Accordion,
   Button,
   Checkbox,
   Input,
@@ -18,8 +16,11 @@ import {
   YStack,
 } from "tamagui";
 import { ChevronDown } from "@tamagui/lucide-icons";
-
+import { StatusBar } from "expo-status-bar";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Accordion, AccordionItem } from "@/components/ui/CustomAccordion";
 const ConfirmManual = () => {
+  const insets = useSafeAreaInsets();
   const [searchId, setSearchId] = useState("");
   const [filtered, setFiltered] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
@@ -52,208 +53,221 @@ const ConfirmManual = () => {
   };
 
   return (
-    <SafeAreaView className="flex-1">
-      <View className="flex-1 pt-2">
-        <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
-          <View className="px-5">
-            <View className="bg-[#1677ff] px-4 py-4 flex-row justify-between items-center rounded-2xl">
-              <TouchableOpacity onPress={() => router.back()} className="p-2">
-                <Ionicons name="arrow-back" size={24} color="white" />
-              </TouchableOpacity>
-              <Text className="text-white font-bold text-lg">
-                Nhập số lượng thủ công đơn nhập #{id}
-              </Text>
-            </View>
+    <View className="flex-1">
+      <StatusBar backgroundColor="#1677ff" style="light" />
 
-            {/* Tìm kiếm */}
-            <YStack alignItems="center" space="$2" marginTop="$4" width="100%">
-              <XStack
-                alignItems="center"
-                backgroundColor="white"
-                borderRadius="$4"
-                paddingHorizontal="$3"
-                flex={1}
-                height="$4.5"
-                width="100%"
-              >
-                <Ionicons name="search" size={18} color="#999" />
-                <Input
-                  flex={1}
-                  placeholder="Tìm theo ID sản phẩm"
-                  value={searchId}
-                  onChangeText={setSearchId}
-                  borderWidth={0}
-                  paddingHorizontal="$3"
-                  backgroundColor="white"
-                />
-              </XStack>
+      {/* HEADER */}
+      <View
+        style={{
+          backgroundColor: "#1677ff",
+          paddingTop: insets.top,
+          paddingBottom: 16,
+          
+       paddingHorizontal: 17,
+          flexDirection: "row",
+          justifyContent:"space-between",
+          alignItems:'center',
+          
+        }}
+      >
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={{ paddingRight: 12,  marginTop: 7, }}
+        >
+          <Ionicons name="arrow-back" size={24} color="white" />
+        </TouchableOpacity>
+        <Text
+          style={{
+            color: "white",
+            fontSize: 16,
+            fontWeight: "bold",
+            marginTop: 7,
+           
+          }}
+        >
+          Nhập số lượng thủ công đơn nhập #{id}
+        </Text>
+      </View>
 
-              <XStack width="100%" space="$2">
-                <View style={{ flex: 1 }}>
-                  <Button
-                    fontSize={14}
-                    size="$2"
-                    height={38}
-                    width="100%"
-                    onPress={() => setFiltered(true)}
-                    disabled={!searchId.trim()}
-                  >
-                    Tìm
-                  </Button>
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Button
-                    fontSize={14}
-                    size="$2"
-                    height={38}
-                    width="100%"
-                    onPress={() => {
-                      setFiltered(false);
-                      setSearchId("");
-                    }}
-                  >
-                    Tắt
-                  </Button>
-                </View>
-              </XStack>
-            </YStack>
-
-            {/* Danh sách sản phẩm */}
-            <Label
-              width="100%"
-              textAlign="center"
-              fontWeight={600}
-              fontSize={15}
-              marginTop={20}
-            >
-              Nhập số lượng thủ công
-            </Label>
-
-            <Accordion
-              overflow="hidden"
-              width="100%"
-              type="multiple"
-              borderRadius="$6"
-              marginTop={10}
-              marginBottom="$3"
-            >
-              {filteredProducts.map((product, index) => (
-                <Accordion.Item key={product.id} value={`product-${index}`}>
-                  <Accordion.Trigger
-                    flexDirection="row"
-                    justifyContent="space-between"
-                  >
-                    {({ open }: { open: boolean }) => (
-                      <>
-                        <Paragraph fontWeight="500">
-                          Sản phẩm: #{product.id}
-                        </Paragraph>
-                        <Square
-                          animation="quick"
-                          rotate={open ? "180deg" : "0deg"}
-                        >
-                          <ChevronDown size="$1" />
-                        </Square>
-                      </>
-                    )}
-                  </Accordion.Trigger>
-                  <Accordion.HeightAnimator animation="medium">
-                    <Accordion.Content
-                      animation="medium"
-                      exitStyle={{ opacity: 0 }}
-                    >
-                      <XStack justifyContent="space-between" width="100%">
-                        <Paragraph>Số lượng yêu cầu</Paragraph>
-                        <Paragraph>{product.expect}</Paragraph>
-                      </XStack>
-                      <XStack justifyContent="space-between" width="100%">
-                        <Paragraph>Số lượng thực tế</Paragraph>
-                        <Paragraph>{product.actual}</Paragraph>
-                      </XStack>
-                      {/* <Paragraph>Số lượng yêu cầu: {product.expect}</Paragraph>
-                      <Paragraph>Số lượng thực tế: {product.actual}</Paragraph> */}
-                      <Button
-                        marginTop="$2"
-                        onPress={() => handleUpdateQuantity(product.id)}
-                      >
-                        Cập nhật số lượng
-                      </Button>
-                    </Accordion.Content>
-                  </Accordion.HeightAnimator>
-                </Accordion.Item>
-              ))}
-            </Accordion>
-          </View>
-        </ScrollView>
-        {/* Nút xác nhận */}
-        <YStack paddingHorizontal="$4" paddingBottom="$5">
-          <XStack justify="center" alignItems="center" space="$2">
-            <Checkbox
-              size="$4"
-              checked={isChecked}
-              onCheckedChange={setIsChecked}
-            >
-              <Checkbox.Indicator>
-                <Text>✓</Text>
-              </Checkbox.Indicator>
-            </Checkbox>
-
-            <Label onPress={() => setIsChecked(!isChecked)} fontSize="$4">
-              Tôi xác nhận đã nhập đúng số lượng sản phẩm
-            </Label>
+      <ScrollView contentContainerStyle={{ flexGrow: 1 }} className="px-5">
+        {/* Tìm kiếm */}
+        <YStack alignItems="center" space="$2" marginTop="$3" width="100%">
+          <XStack
+            alignItems="center"
+            backgroundColor="white"
+            borderRadius="$4"
+            paddingHorizontal="$3"
+            flex={1}
+            height="$4.5"
+            width="100%"
+          >
+            <Ionicons name="search" size={18} color="#999" />
+            <Input
+              flex={1}
+              placeholder="Tìm theo ID sản phẩm"
+              value={searchId}
+              onChangeText={setSearchId}
+              borderWidth={0}
+              paddingHorizontal="$3"
+              backgroundColor="white"
+            />
           </XStack>
 
-          <YStack marginTop="$1">
-            <TouchableOpacity
-              disabled={!isChecked}
-              onPress={() => router.push("/import/sign/deliver-sign")}
-              style={{
-                backgroundColor: isChecked ? "#0d1925" : "#ccc",
-                borderRadius: 999,
-                paddingVertical: 12,
-                alignItems: "center",
-              }}
-            >
-              <Text style={{ color: "white", fontWeight: "600" }}>
-                Ký xác nhận
-              </Text>
-            </TouchableOpacity>
-          </YStack>
+          <XStack width="100%" space="$2">
+            <View style={{ flex: 1 }}>
+              <Button
+                fontSize={14}
+                size="$2"
+                height={38}
+                width="100%"
+                onPress={() => setFiltered(true)}
+                disabled={!searchId.trim()}
+              >
+                Tìm
+              </Button>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Button
+                fontSize={14}
+                size="$2"
+                height={38}
+                width="100%"
+                onPress={() => {
+                  setFiltered(false);
+                  setSearchId("");
+                }}
+              >
+                Tắt
+              </Button>
+            </View>
+          </XStack>
         </YStack>
-        {/* Modal nhập số lượng */}
-        <Modal
-          animationType="slide"
-          transparent={true}
-          visible={modalVisible}
-          onRequestClose={() => setModalVisible(false)}
+
+        {/* Danh sách sản phẩm */}
+        <Label
+          width="100%"
+          textAlign="center"
+          fontWeight={600}
+          fontSize={15}
+          marginTop={20}
         >
-          <View className="flex-1 justify-center items-center bg-black/10 px-6">
-            <View className="bg-white p-6 rounded-xl w-full">
-              <Text className="text-lg font-semibold mb-2">
-                Nhập số lượng mới
-              </Text>
-              <Input
-                value={inputValue}
-                onChangeText={setInputValue}
-                keyboardType="numeric"
-                placeholder="Nhập số lượng"
-                className="border border-gray-300 p-3 rounded-md mb-4"
-              />
-              <View className="flex-row justify-end gap-2 mt-3">
-                <Button onPress={() => setModalVisible(false)}>Hủy</Button>
-                <Button
-                  backgroundColor="#1677ff"
-                  color="white"
-                  onPress={confirmUpdate}
+          Nhập số lượng thủ công
+        </Label>
+        {filteredProducts.length > 0 ? (
+          <Accordion>
+            {filteredProducts.map((product, index) => (
+              <AccordionItem
+                key={`${product.id}-${index}`}
+                header={
+                  <View style={{ flexDirection: "row", alignItems: "center" }}>
+                    <Text style={{ fontWeight: "600" }}>
+                      Sản phẩm: #{product.id}
+                    </Text>
+                  </View>
+                }
+              >
+                <View
+                  style={{
+                    flexDirection: "row",
+                    justifyContent: "space-between",
+                    marginBottom: 10,
+                  }}
                 >
-                  Cập nhật
+                  <Text>Số lượng yêu cầu</Text>
+                  <Text>{product.expect}</Text>
+                </View>
+                <View
+                  style={{
+                    flexDirection: "row",
+                    justifyContent: "space-between",
+                    marginBottom: 10,
+                  }}
+                >
+                  <Text>Số lượng thực tế</Text>
+                  <Text>{product.actual}</Text>
+                </View>
+                <Button onPress={() => handleUpdateQuantity(product.id)}>
+                  Cập nhật số lượng
                 </Button>
-              </View>
+              </AccordionItem>
+            ))}
+          </Accordion>
+        ) : (
+          <Text style={{ textAlign: "center", marginTop: 16 }}>
+            Không có sản phẩm kiểm đếm
+          </Text>
+        )}
+      </ScrollView>
+
+      {/* Xác nhận */}
+      <YStack paddingHorizontal="$4" paddingBottom="$5">
+        <XStack justify="center" alignItems="center" space="$2">
+          <Checkbox
+            size="$4"
+            checked={isChecked}
+            onCheckedChange={setIsChecked}
+          >
+            <Checkbox.Indicator>
+              <Text>✓</Text>
+            </Checkbox.Indicator>
+          </Checkbox>
+
+          <Label onPress={() => setIsChecked(!isChecked)} fontSize="$4">
+            Tôi xác nhận đã nhập đúng số lượng sản phẩm
+          </Label>
+        </XStack>
+
+        <YStack marginTop="$1">
+          <TouchableOpacity
+            disabled={!isChecked}
+            onPress={() => router.push("/import/sign/deliver-sign")}
+            style={{
+              backgroundColor: isChecked ? "#0d1925" : "#ccc",
+              borderRadius: 999,
+              paddingVertical: 12,
+              alignItems: "center",
+            }}
+          >
+            <Text style={{ color: "white", fontWeight: "600" }}>
+              Ký xác nhận
+            </Text>
+          </TouchableOpacity>
+        </YStack>
+      </YStack>
+
+      {/* Modal nhập số lượng */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={modalVisible}
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <View className="flex-1 justify-center items-center bg-black/10 px-6">
+          <View className="bg-white p-6 rounded-xl w-full">
+            <Text className="text-lg font-semibold mb-2">
+              Nhập số lượng mới
+            </Text>
+            <Input
+              value={inputValue}
+              onChangeText={setInputValue}
+              keyboardType="numeric"
+              placeholder="Nhập số lượng"
+              className="border border-gray-300 p-3 rounded-md mb-4"
+            />
+            <View className="flex-row justify-end gap-2 mt-3">
+              <Button onPress={() => setModalVisible(false)}>Hủy</Button>
+              <Button
+                backgroundColor="#1677ff"
+                color="white"
+                onPress={confirmUpdate}
+              >
+                Cập nhật
+              </Button>
             </View>
           </View>
-        </Modal>
-      </View>
-    </SafeAreaView>
+        </View>
+      </Modal>
+    </View>
   );
 };
 

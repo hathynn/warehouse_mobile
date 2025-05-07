@@ -6,8 +6,12 @@ import {
   Text,
   ScrollView,
   ActivityIndicator,
+  StyleSheet,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import Signature, { SignatureViewRef } from "react-native-signature-canvas";
 import { Button, Label } from "tamagui";
 import { Ionicons } from "@expo/vector-icons";
@@ -23,10 +27,12 @@ import useImportOrderDetail from "@/services/useImportOrderDetailService";
 import usePaperService from "@/services/usePaperService";
 
 const SignReceiveScreen = () => {
+  const insets = useSafeAreaInsets();
   const [isLoading, setIsLoading] = useState(false);
-  const [signMethod, setSignMethod] = useState<"draw" | "upload">("draw");
   const signatureRef = useRef<SignatureViewRef>(null);
   const [scrollEnabled, setScrollEnabled] = useState(true);
+  const [signMethod, setSignMethod] = useState<"draw" | "camera">("draw");
+  const [capturedImage, setCapturedImage] = useState<string | null>(null);
 
   const dispatch = useDispatch();
   const { createPaper } = usePaperService();
@@ -57,20 +63,19 @@ const SignReceiveScreen = () => {
     signatureRef.current?.clearSignature();
   };
 
-  const pickSignatureImage = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+  const takePhoto = async () => {
+    const result = await ImagePicker.launchCameraAsync({
       allowsEditing: true,
-      base64: false,
-      quality: 1,
+      quality: 0,
     });
-
+  
     if (!result.canceled && result.assets.length > 0) {
       const imageUri = result.assets[0].uri;
+      setCapturedImage(imageUri); // ✅ Add this line
       dispatch(setPaperData({ signWarehouseUrl: imageUri }));
     }
   };
-
+  
   const handleConfirm = async () => {
     if (!paperData.signProviderUrl || !paperData.signWarehouseUrl) {
       console.log("❌ Chưa có đủ chữ ký, vui lòng ký trước khi xác nhận.");
@@ -94,7 +99,7 @@ const SignReceiveScreen = () => {
         importOrderId,
         updatePayload
       );
-
+      console.log("Cập nhật số lượng thành công");
       if (updateResponse) {
         const paperResponse = await createPaper(paperData);
         if (paperResponse) {
@@ -112,27 +117,45 @@ const SignReceiveScreen = () => {
   };
 
   return (
-    <SafeAreaView className="flex-1 p-2">
+    <View className="flex-1">
+      <View
+        style={{
+          backgroundColor: "#1677ff",
+          paddingTop: insets.top,
+          paddingBottom: 16,
+          paddingHorizontal: 17,
+          flexDirection: "row",
+          justifyContent: "space-between",
+          alignItems: "center",
+        }}
+      >
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={{ paddingRight: 12, marginTop: 7 }}
+        >
+          <Ionicons name="arrow-back" size={24} color="white" />
+        </TouchableOpacity>
+        <Text
+          style={{
+            color: "white",
+            fontSize: 16,
+            fontWeight: "bold",
+            marginTop: 7,
+          }}
+        >
+          Người nhận hàng ký
+        </Text>
+      </View>
       <ScrollView
         showsVerticalScrollIndicator={false}
         scrollEnabled={scrollEnabled}
       >
         <View className="px-3">
-          {/* Header */}
-          <View className="bg-[#1677ff] mb-2 px-4 py-4 flex-row justify-between items-center rounded-2xl">
-            <TouchableOpacity onPress={() => router.back()} className="p-2">
-              <Ionicons name="arrow-back" size={24} color="white" />
-            </TouchableOpacity>
-            <Text className="text-white font-bold text-lg">
-              Người nhận hàng ký
-            </Text>
-          </View>
-
           {/* Danh sách sản phẩm */}
-          <View className="items-center">
-            <Label>Xác nhận thông tin sản phẩm</Label>
+          <View className="mt-̀5">
+            {/* <Label>Xác nhận thông tin sản phẩm</Label> */}
+            <ProductListAccordion products={products} />
           </View>
-          <ProductListAccordion products={products} />
 
           {/* Chữ ký người giao hàng */}
           {paperData.signProviderUrl && (
@@ -149,42 +172,67 @@ const SignReceiveScreen = () => {
           )}
 
           {/* Chọn phương thức ký */}
-          <View className="items-center mt-4">
-            <Label>Chọn phương thức ký</Label>
-            <View style={{ flexDirection: "row", marginTop: 10 }}>
-              <Button
-                theme={signMethod === "draw" ? "active" : "alt1"}
-                onPress={() => setSignMethod("draw")}
+          <View style={{ alignItems: "center", marginVertical: 16 }}>
+            <Text style={styles.label}>Chọn phương thức ký</Text>
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "center",
+                marginVertical: 10,
+              }}
+            >
+              <TouchableOpacity
+                onPress={() => {
+                  setSignMethod("draw");
+                  setCapturedImage(null);
+                }}
+                style={{
+                  flex: 1,
+                  paddingVertical: 12,
+                  backgroundColor: signMethod === "draw" ? "#1677ff" : "#eee",
+                  borderRadius: 8,
+                  marginRight: 5,
+                  alignItems: "center",
+                }}
               >
-                Ký trực tiếp
-              </Button>
-              <View style={{ width: 10 }} />
-              <Button
-                theme={signMethod === "upload" ? "active" : "alt1"}
-                onPress={() => setSignMethod("upload")}
+                <Text
+                  style={{
+                    color: signMethod === "draw" ? "white" : "black",
+                  }}
+                >
+                  Ký trực tiếp
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={async () => {
+                  setSignMethod("camera");
+                  await takePhoto();
+                }}
+                style={{
+                  flex: 1,
+                  paddingVertical: 12,
+                  backgroundColor: signMethod === "camera" ? "#1677ff" : "#eee",
+                  borderRadius: 8,
+                  marginLeft: 5,
+                  alignItems: "center",
+                }}
               >
-                Tải ảnh
-              </Button>
+                <Text
+                  style={{
+                    color: signMethod === "camera" ? "white" : "black",
+                  }}
+                >
+                  Chụp ảnh chữ ký
+                </Text>
+              </TouchableOpacity>
             </View>
           </View>
 
-          {/* Ký tên */}
-          <View className="items-center mt-4">
-            <Label>Ký tên</Label>
-          </View>
+        
 
           {signMethod === "draw" ? (
-            <View
-              style={{
-                minHeight: 250,
-                maxHeight: 400,
-                borderWidth: 1,
-                borderColor: "#ccc",
-                borderRadius: 10,
-                backgroundColor: "white",
-                padding: 5,
-              }}
-            >
+            <View style={styles.signatureBox}>
               <Signature
                 ref={signatureRef}
                 onBegin={() => setScrollEnabled(false)}
@@ -200,22 +248,32 @@ const SignReceiveScreen = () => {
                 webStyle={`
                   .m-signature-pad { height: 100% !important; }
                   .m-signature-pad--body { height: 100% !important; }
-                  .m-signature-pad--footer { display: none; }
+                  .m-signature---fopadoter { display: none; }
                   body, html { height: 100%; margin: 0; padding: 0; }
                 `}
-                style={{ flex: 1 }}
+                style={{ flex: 1, height: 400 }}
               />
             </View>
           ) : (
-            <View className="items-center mt-3">
-              <Button icon={UploadCloud} onPress={pickSignatureImage}>
-                Chọn ảnh chữ ký
-              </Button>
+            <View style={{ alignItems: "center" }}>
+              <Button onPress={takePhoto}>Chụp lại 📷</Button>
+              {capturedImage && (
+                <Image
+                  source={{ uri: capturedImage }}
+                  style={{
+                    width: "100%",
+                    height: 400,
+                    marginTop: 16,
+                    borderRadius: 12,
+                  }}
+                  resizeMode="contain"
+                />
+              )}
             </View>
           )}
 
           {/* Hiển thị chữ ký */}
-          {paperData.signWarehouseUrl && (
+          {/* {paperData.signWarehouseUrl && (
             <View>
               <View className="w-full bg-white p-3 rounded-2xl mt-4 items-center">
                 <Image
@@ -225,14 +283,16 @@ const SignReceiveScreen = () => {
                 />
               </View>
             </View>
-          )}
+          )} */}
 
           {/* Nút thao tác */}
           {paperData.signWarehouseUrl && (
-            <View className="flex-row justify-center mt-5">
-              <Button onPress={handleClear}>Xóa</Button>
-              <View style={{ width: 20 }} />
-              <Button onPress={handleConfirm} disabled={isLoading}>
+            <View style={styles.actions}>
+              <Button flex={1} onPress={handleClear}>
+                Xóa
+              </Button>
+
+              <Button flex={1} onPress={handleConfirm} disabled={isLoading}>
                 {isLoading ? (
                   <ActivityIndicator color="white" />
                 ) : (
@@ -243,8 +303,36 @@ const SignReceiveScreen = () => {
           )}
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 };
+
+const styles = StyleSheet.create({
+  label: {
+    fontWeight: "600",
+    fontSize: 16,
+    marginBottom: 8,
+  },
+  signatureBox: {
+    height: 400,
+    borderWidth: 1,
+    borderColor: "#ccc",
+    borderRadius: 10,
+    overflow: "hidden",
+    backgroundColor: "white",
+  },
+  captureBtn: {
+    backgroundColor: "#1677ff",
+    padding: 12,
+    borderRadius: 10,
+  },
+  actions: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: 12,
+    marginTop: 24,
+    marginBottom: 40,
+  },
+});
 
 export default SignReceiveScreen;

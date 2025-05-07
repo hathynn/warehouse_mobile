@@ -8,6 +8,7 @@ import {
   SafeAreaView,
   Image,
   Modal,
+  StatusBar,
 } from "react-native";
 import { ReactNode, useEffect, useState } from "react";
 import { Ionicons } from "@expo/vector-icons";
@@ -21,6 +22,7 @@ import { RootState } from "@/redux/store";
 import usePaperService from "@/services/usePaperService";
 import { ImportOrderStatus } from "@/types/importOrder.type";
 import StatusBadge from "@/components/StatusBadge";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function ReceiptDetail() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -41,10 +43,11 @@ export default function ReceiptDetail() {
   const [papers, setPapers] = useState<any[]>([]); // danh sách chứng từ đã fetch
   const { getPaperById } = usePaperService();
   const { fetchImportOrderDetails } = useImportOrderDetail();
-
+  const insets = useSafeAreaInsets();
   const statusOptions = [
     { label: "Đang xử lý", value: ImportOrderStatus.IN_PROGRESS },
     { label: "Hoàn tất", value: ImportOrderStatus.COMPLETED },
+    { label: "Chờ xác nhận", value: ImportOrderStatus.CONFIRMED },
   ];
 
   useEffect(() => {
@@ -72,17 +75,16 @@ export default function ReceiptDetail() {
 
   const filteredData = filteredOrders.filter((order: any) => {
     if (order.status === ImportOrderStatus.CANCELLED) return false;
-  
+
     const matchSearch = order.importOrderId
       ?.toString()
       .toLowerCase()
       .includes(searchQuery.toLowerCase());
-  
+
     const matchStatus = selectedStatus ? order.status === selectedStatus : true;
-  
+
     return matchSearch && matchStatus;
   });
-  
 
   const products = useSelector((state: RootState) => state.product.products);
 
@@ -97,15 +99,35 @@ export default function ReceiptDetail() {
   // }, [id]);
 
   return (
-    <SafeAreaView className="flex-1">
-      <ScrollView className="p-2 flex-1">
-        <View className="px-5">
+    <View className="flex-1">
+      {/* StatusBar hiển thị trắng chữ, nền xanh */}
+      <StatusBar backgroundColor="#1677ff" style="light" />
+
+      {/* Header tràn vùng status bar */}
+      <View
+        style={{
+          backgroundColor: "#1677ff",
+          paddingTop: insets.top, // tràn đúng theo safe area
+          paddingBottom: 16,
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <Text
+          style={{
+            color: "white",
+            fontSize: 18,
+            fontWeight: "bold",
+            marginTop: 5,
+          }}
+        >
+          Danh sách đơn nhập
+        </Text>
+      </View>
+
+      <ScrollView className=" flex-1">
+        <View className="px-3">
           {/* Header */}
-          <View className="bg-[#1677ff] px-4 py-4 flex-row justify-between items-center rounded-2xl">
-            <Text className="text-white font-bold text-lg">
-              Danh sách đơn nhập
-            </Text>
-          </View>
 
           {/* Tabs */}
           <View className="flex-row my-2 bg-gray-200 rounded-lg p-1">
@@ -186,7 +208,7 @@ export default function ReceiptDetail() {
                         title="Mã đơn nhập"
                         value={order.importOrderId}
                       />
-                     
+
                       <InfoRow
                         title="Ngày tạo"
                         value={new Date(order.createdDate).toLocaleString(
@@ -198,23 +220,14 @@ export default function ReceiptDetail() {
                           }
                         )}
                       />
-                       <InfoRow
+                      <InfoRow
                         title="Trạng thái"
                         value={<StatusBadge status={order.status} />}
                       />
                     </View>
 
-                    {order.paperIds ? (
-                      <Button
-                        marginTop="10"
-                        onPress={() => {
-                          // Nếu đã có paperIds thì không cần dispatch nữa
-                          router.push(`/import/paper-detail/${order.paperIds}`);
-                        }}
-                      >
-                        Xem chứng từ
-                      </Button>
-                    ) : (
+                    {order.status === ImportOrderStatus.IN_PROGRESS ||
+                    order.status === ImportOrderStatus.NOT_STARTED ? (
                       <Button
                         marginTop="10"
                         onPress={async () => {
@@ -246,7 +259,17 @@ export default function ReceiptDetail() {
                       >
                         Kiểm đếm đơn nhập
                       </Button>
-                    )}
+                    ) : order.status === ImportOrderStatus.COMPLETED &&
+                      order.paperIds ? (
+                      <Button
+                        marginTop="10"
+                        onPress={() => {
+                          router.push(`/import/paper-detail/${order.paperIds}`);
+                        }}
+                      >
+                        Xem chứng từ
+                      </Button>
+                    ) : null}
                   </>
                 ) : (
                   <>
@@ -303,17 +326,14 @@ export default function ReceiptDetail() {
                         Thông tin chứng từ:
                       </Text>
 
-                      {order.paperIds ? ( // Nếu có paperId
+                      {order.status === ImportOrderStatus.COMPLETED &&
+                      order.paperIds ? (
                         (() => {
                           const paper = papers.find(
                             (p) => p?.id === order.paperIds
                           );
                           return paper ? (
                             <View>
-                              {/* <Text className="text-black font-semibold mb-1">
-                                #{paper.id}:{" "}
-                                {paper.description || "Không có mô tả"}
-                              </Text> */}
                               <InfoRow title="Mã chứng từ" value={paper.id} />
                               <InfoRow
                                 title="Lý do nhập"
@@ -322,7 +342,6 @@ export default function ReceiptDetail() {
                               <Button
                                 marginTop="10"
                                 onPress={() => {
-                                  // Nếu đã có paperIds thì không cần dispatch nữa
                                   router.push(
                                     `/import/paper-detail/${order.paperIds}`
                                   );
@@ -330,23 +349,6 @@ export default function ReceiptDetail() {
                               >
                                 Chi tiết chứng từ
                               </Button>
-                              {/* <Text className="text-gray-500 text-sm mb-1">
-                                Người tạo: {paper.createdBy || "Không rõ"}
-                              </Text> */}
-                              {/* <Text className="text-gray-500 text-sm mb-2">
-                                Ngày tạo:{" "}
-                                {new Date(order.createdDate).toLocaleString(
-                                  "vi-VN",
-                                  {
-                                    day: "2-digit",
-                                    month: "2-digit",
-                                    year: "numeric",
-                                    hour: "2-digit",
-                                    minute: "2-digit",
-                                    second: "2-digit",
-                                  }
-                                )}
-                              </Text> */}
                             </View>
                           ) : (
                             <Text className="text-gray-500">
@@ -355,7 +357,9 @@ export default function ReceiptDetail() {
                           );
                         })()
                       ) : (
-                        <Text className="text-gray-500">Không có chứng từ</Text>
+                        <Text className="text-gray-500">
+                          Chưa có chứng từ hoặc chưa xác nhận
+                        </Text>
                       )}
                     </View>
                   </>
@@ -415,24 +419,17 @@ export default function ReceiptDetail() {
           </View>
         </Modal>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
 // Component hiển thị thông tin dạng cột trái - phải
 
-
-const InfoRow = ({
-  title,
-  value,
-}: {
-  title: string;
-  value: ReactNode;
-}) => (
+const InfoRow = ({ title, value }: { title: string; value: ReactNode }) => (
   <View className="flex-row justify-between items-center py-1 border-gray-200">
     <Text className="text-gray-600 w-1/2">{title}</Text>
     <View className="w-1/2 items-end">
-      {typeof value === 'string' || typeof value === 'number' ? (
+      {typeof value === "string" || typeof value === "number" ? (
         <Text className="text-black text-right">{value}</Text>
       ) : (
         value
@@ -440,4 +437,3 @@ const InfoRow = ({
     </View>
   </View>
 );
-
