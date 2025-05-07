@@ -91,21 +91,18 @@ const ExportRequestScreen: React.FC = () => {
           console.warn(`⚠️ Không thể cập nhật item ID: ${p.id}`);
         }
       }
-
+  
       console.log("✅ Cập nhật actualQuantity thành công");
-
-      // 2. Gọi API xác nhận đã kiểm đếm
-      const confirmSuccess = await confirmCountedExportRequest(Number(id));
-      if (confirmSuccess) {
-        console.log("✅ Đã xác nhận kiểm đếm thành công");
-        router.push("/(tabs)/export");
-      } else {
-        console.error("❌ Xác nhận kiểm đếm thất bại");
-      }
+  
+      // ✅ Bỏ bước 2: Không gọi confirmCountedExportRequest nữa
+      // router.push hoặc thực hiện hành động tiếp theo tại đây nếu cần
+      router.push("/(tabs)/export");
+  
     } catch (error) {
       console.error("❌ Lỗi khi xác nhận tổng thể:", error);
     }
   };
+  
 
   return (
     <View className="flex-1">
