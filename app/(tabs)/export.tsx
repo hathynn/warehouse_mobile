@@ -14,7 +14,7 @@ import {
 } from "@tanstack/react-query";
 import { FontAwesome, Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import useExportRequest from "@/services/useExportRequestService";
 import {
   ExportRequestStatus,
@@ -46,23 +46,23 @@ function ExportListComponent() {
   });
 
   const filteredExports =
-    exportRequests?.filter((request: ExportRequestType) =>
-      request.id
-        .toString()
-        .toLowerCase()
-        .includes(searchQuery.toLowerCase())
-    ) || [];
+  exportRequests?.filter(
+    (request: ExportRequestType) =>
+      request?.exportRequestId &&
+      request.exportRequestId.toString().toLowerCase().includes(searchQuery.toLowerCase())
+  ) || [];
+
 
   const handleSelectExport = (request: ExportRequestType) => {
     dispatch(
       setPaperData({
-        exportRequestId: request.id,
+        exportRequestId: request.exportRequestId,
         description: request.exportReason || "Không có lý do",
       })
     );
     router.push({
       pathname: '/export/export-detail/[id]',
-      params: { id: request.id }
+      params: { id: request.exportRequestId }
     });
   };
 
@@ -114,7 +114,7 @@ function ExportListComponent() {
       ) : filteredExports.length > 0 ? (
         filteredExports.map((request: ExportRequestType) => (
           <TouchableOpacity
-            key={request.id}
+            key={request.exportRequestId}
             onPress={() => handleSelectExport(request)}
             className="flex-row items-center py-6 my-2 px-5 rounded-3xl bg-white"
           >
@@ -124,7 +124,7 @@ function ExportListComponent() {
             <View className="ml-4 flex-1">
               <Text className="text-gray-500 text-sm">Mã phiếu xuất</Text>
               <Text className="font-semibold text-black">
-                #{request.id}
+                #{request.exportRequestId}
               </Text>
             </View>
           </TouchableOpacity>

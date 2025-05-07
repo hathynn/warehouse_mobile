@@ -28,31 +28,34 @@ const useExportRequest = () => {
   }, [callApi, setIsLoading]);
 
   // Lấy danh sách export request theo staffId (có phân trang)
-const fetchExportRequestsByStaffId = useCallback(
-  async (staffId: number, page = 1, limit = 10) => {
-    setIsLoading(true);
-    try {
-      const response = await callApi(
-        "get",
-        `${BASE_URL}/staff/${staffId}`,
-        {
-          params: {
-            page,
-            limit,
-          },
-        }
-      );
-      setExportRequests(response.content); // nếu cần lưu vào state
-      return response.content;
-    } catch (error) {
-      console.error("Lỗi khi lấy export request theo staffId:", error);
-      return [];
-    } finally {
-      setIsLoading(false);
-    }
-  },
-  [callApi, setIsLoading]
-);
+  const fetchExportRequestsByStaffId = useCallback(
+    async (staffId: number, page = 1, limit = 10) => {
+      setIsLoading(true);
+      try {
+        const response = await callApi(
+          "get",
+          `${BASE_URL}/staff/${staffId}`,
+          {
+            params: {
+              page,
+              limit,
+            },
+          }
+        );
+        console.log("Full response:", response);
+        const content = response?.content || [];
+        setExportRequests(content);
+        return content;
+      } catch (error) {
+        console.error("Lỗi khi lấy export request theo staffId:", error);
+        return [];
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [callApi, setIsLoading]
+  );
+  
 
 
   
@@ -63,8 +66,7 @@ const fetchExportRequestsByStaffId = useCallback(
       setIsLoading(true);
       try {
         const response = await callApi("get", `${BASE_URL}/${id}`);
-        console.log("export request response:", response);
-        setExportRequest(response.content);
+        setExportRequest(response.content); // ✅ PHẢI có dòng này
       } catch (error) {
         console.error("Lỗi khi lấy export request:", error);
       } finally {
