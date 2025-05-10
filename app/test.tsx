@@ -1,268 +1,361 @@
-import React, { useState, useEffect } from "react";
-import { Text, View, StyleSheet, SafeAreaView, Alert } from "react-native";
-import { CameraView, Camera } from "expo-camera";
-import { useLocalSearchParams } from "expo-router";
-import { useSelector } from "react-redux";
-import { RootState } from "@/redux/store"; // update path nếu khác
-import { ScrollView } from "react-native-gesture-handler";
-import { Button } from "tamagui";
-
-export default function ScanQrScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
-  const [hasPermission, setHasPermission] = useState<boolean | null>(null);
-  const [scanned, setScanned] = useState(false);
-  const [scannedProduct, setScannedProduct] = useState<any>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  // Lấy danh sách sản phẩm từ Redux
-  const products = useSelector((state: RootState) => state.product.products);
-
-  useEffect(() => {
-    (async () => {
-      const { status } = await Camera.requestCameraPermissionsAsync();
-      setHasPermission(status === "granted");
-    })();
-  }, []);
-
-  const handleBarCodeScanned = ({ data }: { data: string }) => {
-    setScanned(true);
-    setError(null);
-
-    try {
-      // Parse dữ liệu JSON từ mã QR
-      const qrData = JSON.parse(decodeURIComponent(data));
-
-      // Kiểm tra xem sản phẩm có tồn tại trong danh sách không (so sánh số)
-      const foundProduct = products.find(
-        (product: any) => product.id === qrData.id // so sánh id là kiểu number
-      );
-
-      if (foundProduct) {
-        setScannedProduct(foundProduct);
-      } else {
-        setScannedProduct(null);
-        setError("❌ Sản phẩm không có trong đơn nhập.");
-      }
-    } catch (error) {
-      setError("❌ Mã QR không hợp lệ.");
-      setScannedProduct(null);
-    }
-  };
-
-  if (hasPermission === null) return <Text>Đang xin quyền camera...</Text>;
-  if (hasPermission === false) return <Text>Không có quyền dùng camera</Text>;
-
-  return (
-    <SafeAreaView style={{ flex: 1 }}>
-      {/* Camera view */}
-      <View style={{ flex: 3 }}>
-        <CameraView
-          barcodeScannerSettings={{
-            barcodeTypes: ["qr", "ean13", "code128"],
-          }}
-          onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
-          style={StyleSheet.absoluteFillObject}
-        />
-      </View>
-
-      {/* Action/result view */}
-      <View style={styles.bottomContainer}>
-        {scanned && (
-          <Button
-            
-            onPress={() => {
-              setScanned(false);
-              setScannedProduct(null);
-              setError(null);
-            }}
-          >
-            Quét lại
-          </Button>
-        )}
-
-        {error && <Text style={styles.errorText}>{error}</Text>}
-
-        {scannedProduct && (
-          <View style={styles.resultBox}>
-            <Text style={styles.label}>✅ Sản phẩm đã quét:</Text>
-            <Text>Mã sản phẩm: {scannedProduct.id}</Text>
-            <Text>Tên sản phẩm: {scannedProduct.name}</Text>
-            <Text>Số lượng dự kiến: {scannedProduct.expect}</Text>
-            <Text>Số lượng thực tế: {scannedProduct.actual}</Text>
-          </View>
-        )}
-      </View>
-    </SafeAreaView>
-  );
-}
-
-const styles = StyleSheet.create({
-  bottomContainer: {
-    flex: 2,
-    backgroundColor: "#fff",
-    padding: 16,
-
-    shadowColor: "#000",
-    shadowOpacity: 0.2,
-    shadowRadius: 10,
-  },
-  resultBox: {
-    marginTop: 20,
-    backgroundColor: "#e0f7fa",
-    padding: 16,
-    borderRadius: 10,
-  },
-  label: {
-    fontWeight: "bold",
-    fontSize: 16,
-    marginBottom: 10,
-    color: "#00796b",
-  },
-  errorText: {
-    color: "red",
-    marginTop: 16,
-    fontWeight: "bold",
-    fontSize: 16,
-    textAlign: "center",
-  },
-});
-
-// import { FontAwesome, Ionicons } from "@expo/vector-icons";
-// import { useRouter } from "expo-router";
-// import React, { useState, useEffect, useMemo } from "react";
+// import { useLocalSearchParams, useRouter } from "expo-router";
 // import {
-//   View,
 //   Text,
-//   TouchableOpacity,
+//   View,
 //   FlatList,
-//   SafeAreaView,
-//   Animated,
+//   TouchableOpacity,
 //   ActivityIndicator,
+//   StatusBar,
+//   RefreshControl,
+//   Image,
+//   Modal,
 // } from "react-native";
-// import Entypo from "@expo/vector-icons/Entypo";
-// import { ItemType } from "@/types/item.type";
-// import useItemService from "@/services/useItemService";
+// import { ReactNode, useEffect, useState, useCallback } from "react";
+// import { Ionicons, MaterialIcons } from "@expo/vector-icons";
+// import useImportOrder from "@/services/useImportOrderService";
+// import { Button, Input, XStack } from "tamagui";
+// import { useDispatch, useSelector } from "react-redux";
+// import { setPaperData } from "@/redux/paperSlice";
+// import useImportOrderDetail from "@/services/useImportOrderDetailService";
+// import { setProducts } from "@/redux/productSlice";
+// import { RootState } from "@/redux/store";
+// import usePaperService from "@/services/usePaperService";
+// import { ImportOrderStatus } from "@/types/importOrder.type";
+// import StatusBadge from "@/components/StatusBadge";
+// import { useSafeAreaInsets } from "react-native-safe-area-context";
+// import { LinearGradient } from "expo-linear-gradient";
 
-// export default function WarehouseLocationSelector() {
+// export default function ReceiptDetail() {
+//   const [searchQuery, setSearchQuery] = useState("");
+//   const [selectedStatus, setSelectedStatus] = useState<ImportOrderStatus | null>(null);
+//   const [filterVisible, setFilterVisible] = useState(false);
+//   const [refreshing, setRefreshing] = useState(false);
+
+//   const userId = useSelector((state: RootState) => state.auth.user?.id);
 //   const router = useRouter();
-//   const { loading, fetchItems } = useItemService();
-//   const [items, setItems] = useState<ItemType[]>([]); // Đảm bảo items luôn là array
-//   const [expandedId, setExpandedId] = useState<string | null>(null);
+//   const dispatch = useDispatch();
+
+//   const { loading, fetchImportOrders } = useImportOrder();
+//   const [orders, setOrders] = useState([]);
+//   const { getPaperById } = usePaperService();
+//   const { fetchImportOrderDetails } = useImportOrderDetail();
+//   const insets = useSafeAreaInsets();
+
+//   const statusOptions = [
+//     { label: "Chờ kiểm đếm", value: ImportOrderStatus.IN_PROGRESS, color: "#ff9800" },
+//     { label: "Hoàn tất", value: ImportOrderStatus.COMPLETED, color: "#4caf50" },
+//     { label: "Chờ xác nhận", value: ImportOrderStatus.CONFIRMED, color: "#2196f3" },
+//   ];
+
+//   const fetchOrders = useCallback(async () => {
+//     if (!userId) return;
+
+//     try {
+//       const fetchedOrders = await fetchImportOrders(parseInt(userId));
+//       const filteredOrders = fetchedOrders.filter(
+//         (order: any) => order.status !== ImportOrderStatus.CANCELLED
+//       );
+//       setOrders(filteredOrders);
+//     } catch (err) {
+//       console.error("Lỗi khi lấy đơn nhập:", err);
+//     } finally {
+//       setRefreshing(false);
+//     }
+//   }, [userId, fetchImportOrders]);
 
 //   useEffect(() => {
-//     const loadData = async () => {
-//       const data = await fetchItems();
-//       setItems(data || []); // Đảm bảo nếu data là undefined thì setItems([])
-//     };
-//     loadData();
-//   }, []);
+//     fetchOrders();
+//   }, [fetchOrders]);
 
-//   // Hiệu ứng mở rộng
-//   const animatedValues = useMemo(() => {
-//     if (!Array.isArray(items)) return {}; // Kiểm tra items có phải array không
-  
-//     return items.reduce((acc, item) => {
-//       acc[item.id] = new Animated.Value(0);
-//       return acc;
-//     }, {} as { [key: string]: Animated.Value });
-//   }, [items]);
-  
-//   const toggleExpand = (id: string) => {
-//     if (!animatedValues[id]) return;
-//     const isExpanding = expandedId !== id;
-//     setExpandedId(isExpanding ? id : null);
+//   const onRefresh = useCallback(() => {
+//     setRefreshing(true);
+//     fetchOrders();
+//   }, [fetchOrders]);
 
-//     Animated.timing(animatedValues[id], {
-//       toValue: isExpanding ? 1 : 0,
-//       duration: 300,
-//       useNativeDriver: false,
-//     }).start();
+//   const handleCreatePaper = async (order: any) => {
+//     try {
+//       const response = await fetchImportOrderDetails(order.importOrderId);
+
+//       const products = response?.map((item: any) => ({
+//         id: item.itemId,
+//         name: item.itemName,
+//         expect: item.expectQuantity,
+//         actual: item.actualQuantity || 0,
+//         importOrderId: order.importOrderId,
+//       }));
+
+//       dispatch(setProducts(products));
+//       dispatch(
+//         setPaperData({
+//           importOrderId: order.importOrderId,
+//         })
+//       );
+
+//       router.push("/import/scan-qr");
+//     } catch (error) {
+//       console.error("Lỗi khi tạo chứng từ:", error);
+//     }
+//   };
+
+//   const filteredData = orders.filter((order: any) => {
+//     const matchSearch = order.importOrderId
+//       ?.toString()
+//       .toLowerCase()
+//       .includes(searchQuery.toLowerCase());
+
+//     const matchStatus = selectedStatus ? order.status === selectedStatus : true;
+
+//     return matchSearch && matchStatus;
+//   });
+
+//   const renderItem = ({ item: order }: { item: any }) => {
+//     const statusOption = statusOptions.find((option) => option.value === order.status);
+
+//     return (
+//       <TouchableOpacity
+//         className="mb-4 bg-white rounded-2xl overflow-hidden shadow"
+//         onPress={() =>
+//           router.push({
+//             pathname: "/import/detail/[id]",
+//             params: { id: order.importOrderId.toString() },
+//           })
+//         }
+//       >
+//         <LinearGradient
+//           colors={[statusOption?.color || "#1677ff", statusOption?.color + "50" || "#1677ff50"]}
+//           start={{ x: 0, y: 0 }}
+//           end={{ x: 1, y: 0 }}
+//           className="px-3 py-2"
+//         >
+//           <XStack justifyContent="space-between" alignItems="center">
+//             <Text className="text-white font-bold text-lg">#{order.importOrderId}</Text>
+//             <StatusBadge status={order.status} />
+//           </XStack>
+//         </LinearGradient>
+
+//         <View className="p-4">
+//           <XStack justifyContent="space-between" marginBottom="$2">
+//             <View>
+//               <Text className="text-gray-500 text-sm">Mã phiếu nhập</Text>
+//               <Text className="font-semibold">{order.importRequestId}</Text>
+//             </View>
+//             <View>
+//               <Text className="text-gray-500 text-sm text-right">Ngày dự nhập</Text>
+//               <Text className="font-semibold">
+//                 {new Date(order.dateReceived).toLocaleDateString("vi-VN")}
+//               </Text>
+//             </View>
+//           </XStack>
+
+//           <XStack justifyContent="space-between" marginBottom="$2">
+//             <View>
+//               <Text className="text-gray-500 text-sm">Giờ dự nhập</Text>
+//               <Text className="font-semibold">{order.timeReceived}</Text>
+//             </View>
+//             <View>
+//               <Text className="text-gray-500 text-sm text-right">Ngày tạo</Text>
+//               <Text className="font-semibold">
+//                 {new Date(order.createdDate).toLocaleDateString("vi-VN")}
+//               </Text>
+//             </View>
+//           </XStack>
+
+//           {order.note && (
+//             <View className="bg-gray-100 p-2 rounded-lg mb-3">
+//               <Text className="text-gray-500 text-sm">Ghi chú</Text>
+//               <Text>{order.note}</Text>
+//             </View>
+//           )}
+
+//           {(order.status === ImportOrderStatus.IN_PROGRESS ||
+//             order.status === ImportOrderStatus.NOT_STARTED) && (
+//             <Button
+//               size="$4"
+//               backgroundColor={statusOption?.color}
+//               color="white"
+//               borderRadius="$4"
+//               marginTop="$2"
+//               icon={<Ionicons name="document-text-outline" size={18} color="white" />}
+//               onPress={() => handleCreatePaper(order)}
+//             >
+//               Kiểm đếm đơn nhập
+//             </Button>
+//           )}
+
+//           {order.status === ImportOrderStatus.COMPLETED && order.paperIds && (
+//             <Button
+//               size="$4"
+//               variant="outlined"
+//               borderColor={statusOption?.color}
+//               color={statusOption?.color}
+//               borderRadius="$4"
+//               marginTop="$2"
+//               icon={<Ionicons name="eye-outline" size={18} color={statusOption?.color} />}
+//               onPress={() =>
+//                 router.push({
+//                   pathname: "/import/detail/[id]",
+//                   params: { id: order.importOrderId.toString() },
+//                 })
+//               }
+//             >
+//               Xem chi tiết đơn nhập
+//             </Button>
+//           )}
+//         </View>
+//       </TouchableOpacity>
+//     );
 //   };
 
 //   return (
-//     <SafeAreaView className="flex-1 bg-gray-100 p-2">
-//       <View className="flex-1 bg-gray-100 px-5">
-//         {/* Header */}
-//         <View className="bg-[#1677ff] px-4 py-4 flex-row justify-between items-center rounded-2xl">
-//           <TouchableOpacity onPress={() => router.back()} className="p-2">
-//             <Ionicons name="arrow-back" size={24} color="white" />
-//           </TouchableOpacity>
-//           <Text className="text-white font-bold text-lg">Sản Phẩm</Text>
+//     <View className="flex-1 bg-gray-100">
+//       <StatusBar barStyle="light-content" />
+
+//       {/* Header */}
+//       <LinearGradient
+//         colors={["#1677ff", "#0056d6"]}
+//         style={{
+//           paddingTop: insets.top,
+//           paddingBottom: 16,
+//         }}
+//       >
+//         <View className="px-4 pt-2 pb-4">
+//           <Text className="text-white text-xl font-bold text-center mb-2">
+//             Danh sách đơn nhập
+//           </Text>
+
+//           <XStack space="$2" alignItems="center">
+//             <View className="flex-1 bg-white/20 rounded-full overflow-hidden flex-row items-center pl-3 pr-1">
+//               <Ionicons name="search" size={18} color="white" />
+//               <Input
+//                 flex={1}
+//                 placeholder="Tìm theo mã đơn nhập"
+//                 placeholderTextColor="rgba(255,255,255,0.7)"
+//                 value={searchQuery}
+//                 onChangeText={setSearchQuery}
+//                 borderWidth={0}
+//                 color="white"
+//                 backgroundColor="transparent"
+//               />
+//               {searchQuery ? (
+//                 <TouchableOpacity
+//                   className="p-2"
+//                   onPress={() => setSearchQuery("")}
+//                 >
+//                   <Ionicons name="close-circle" size={18} color="white" />
+//                 </TouchableOpacity>
+//               ) : null}
+//             </View>
+
+//             <TouchableOpacity
+//               className="bg-white/20 p-2 rounded-full"
+//               onPress={() => setFilterVisible(true)}
+//             >
+//               <Ionicons name="filter" size={22} color="white" />
+//             </TouchableOpacity>
+//           </XStack>
 //         </View>
+//       </LinearGradient>
 
-//         {/* Loading */}
-//         {loading ? (
-//           <View className="flex-1 justify-center items-center">
-//             <ActivityIndicator size="large" color="black" />
-//             <Text className="mt-2 text-gray-500">Đang tải sản phẩm...</Text>
-//           </View>
-//         ) : items.length === 0 ? (
-//           <Text className="text-center text-gray-500 mt-10">Không có sản phẩm nào</Text>
-//         ) : (
-//           <FlatList
-//             data={items}
-//             className="mt-4"
-//             keyExtractor={(item) => item.id.toString()}
-//             renderItem={({ item }) => {
-//               const rotate = animatedValues[item.id]?.interpolate({
-//                 inputRange: [0, 1],
-//                 outputRange: ["0deg", "180deg"],
-//               });
-
-//               return (
-//                 <View>
-//                   {/* Mục chính */}
-//                   <TouchableOpacity
-//                     className="bg-white p-3 rounded-t-3xl flex-row justify-between"
-//                     onPress={() => toggleExpand(String(item.id))}
-//                   >
-//                     <View className="flex-row gap-4 items-center">
-//                       <View className="w-12 h-12 rounded-full flex items-center justify-center bg-gray-400">
-//                         <FontAwesome name="archive" size={20} color="white" />
-//                       </View>
-//                       <View>
-//                         <Text className="text-xs text-gray-400">Tên sản phẩm</Text>
-//                         <Text className="font-semibold">{item.name} - {item.totalMeasurementValue}{item.measurementUnit}</Text>
-//                       </View>
-//                     </View>
-//                     <Animated.View style={{ transform: [{ rotate }] }}>
-//                       <Entypo name="chevron-down" size={14} color="black" />
-//                     </Animated.View>
-//                   </TouchableOpacity>
-
-//                   {/* Chi tiết sản phẩm (dropdown) */}
-//                   <Animated.View
-//                     style={{
-//                       maxHeight: animatedValues[item.id]?.interpolate({
-//                         inputRange: [0, 1],
-//                         outputRange: [0, 150],
-//                       }),
-//                       overflow: "hidden",
-//                     }}
-//                     className="bg-white px-4 mb-2 rounded-b-3xl"
-//                   >
-//                     <View className="border-b border-gray-100 pb-3">
-//                       <Text className="text-sm">Mã sản phẩm: {item.id}</Text>
-                     
-
-//                       <View className="flex-row justify-end mt-2">
-//                         <TouchableOpacity
-//                           onPress={() => console.log("Chọn:", item)}
-//                           className="bg-black px-4 py-2 rounded-full"
-//                         >
-//                           <Text className="text-white font-semibold text-sm">
-//                             Chọn sản phẩm này
-//                           </Text>
-//                         </TouchableOpacity>
-//                       </View>
-//                     </View>
-//                   </Animated.View>
-//                 </View>
-//               );
-//             }}
+//       {/* Main Content */}
+//       {loading && !refreshing ? (
+//         <View className="flex-1 justify-center items-center">
+//           <ActivityIndicator size="large" color="#1677ff" />
+//         </View>
+//       ) : filteredData.length === 0 ? (
+//         <View className="flex-1 justify-center items-center p-5">
+//           <Image
+//             source={require("@/assets/images/empty-box.png")}
+//             style={{ width: 150, height: 150, opacity: 0.5 }}
+//             resizeMode="contain"
 //           />
-//         )}
-//       </View>
-//     </SafeAreaView>
+//           <Text className="text-gray-500 text-lg mt-4 text-center">
+//             {searchQuery || selectedStatus
+//               ? "Không có đơn nhập phù hợp với bộ lọc"
+//               : "Chưa có đơn nhập nào"}
+//           </Text>
+//           <Button
+//             size="$3"
+//             marginTop="$4"
+//             icon={<Ionicons name="refresh" size={16} color="#1677ff" />}
+//             variant="outlined"
+//             onPress={onRefresh}
+//           >
+//             Làm mới
+//           </Button>
+//         </View>
+//       ) : (
+//         <FlatList
+//           data={filteredData}
+//           renderItem={renderItem}
+//           keyExtractor={(item) => item.importOrderId.toString()}
+//           contentContainerStyle={{ padding: 16 }}
+//           showsVerticalScrollIndicator={false}
+//           refreshControl={
+//             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#1677ff"]} />
+//           }
+//         />
+//       )}
+
+//       {/* Status Filter Modal */}
+//       <Modal visible={filterVisible} transparent animationType="slide">
+//         <View className="flex-1 justify-end bg-black/50">
+//           <View className="bg-white rounded-t-3xl p-5">
+//             <View className="items-center mb-2">
+//               <View className="w-10 h-1 bg-gray-300 rounded-full mb-4" />
+//               <Text className="text-xl font-bold mb-4">Lọc theo trạng thái</Text>
+//             </View>
+
+//             {statusOptions.map((status) => (
+//               <TouchableOpacity
+//                 key={status.value}
+//                 className={`flex-row items-center p-4 mb-2 rounded-xl ${
+//                   selectedStatus === status.value ? "bg-blue-50" : "bg-gray-50"
+//                 }`}
+//                 onPress={() => {
+//                   setSelectedStatus(status.value as ImportOrderStatus);
+//                   setFilterVisible(false);
+//                 }}
+//               >
+//                 <View
+//                   style={{
+//                     width: 16,
+//                     height: 16,
+//                     borderRadius: 8,
+//                     backgroundColor: status.color,
+//                     marginRight: 12,
+//                   }}
+//                 />
+//                 <Text className="flex-1 font-medium">{status.label}</Text>
+//                 {selectedStatus === status.value && (
+//                   <Ionicons name="checkmark-circle" size={22} color="#1677ff" />
+//                 )}
+//               </TouchableOpacity>
+//             ))}
+
+//             <XStack space="$3" marginTop="$4">
+//               <Button
+//                 flex={1}
+//                 size="$4"
+//                 variant="outlined"
+//                 onPress={() => setFilterVisible(false)}
+//               >
+//                 Hủy
+//               </Button>
+//               <Button
+//                 flex={1}
+//                 size="$4"
+//                 backgroundColor="#1677ff"
+//                 onPress={() => {
+//                   setSelectedStatus(null);
+//                   setFilterVisible(false);
+//                 }}
+//               >
+//                 Bỏ lọc
+//               </Button>
+//             </XStack>
+//           </View>
+//         </View>
+//       </Modal>
+//     </View>
 //   );
 // }
