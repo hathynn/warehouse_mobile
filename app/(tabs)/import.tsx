@@ -45,7 +45,7 @@ export default function ReceiptDetail() {
   const { fetchImportOrderDetails } = useImportOrderDetail();
   const insets = useSafeAreaInsets();
   const statusOptions = [
-    { label: "Đang xử lý", value: ImportOrderStatus.IN_PROGRESS },
+    { label: "Chờ kiểm đếm", value: ImportOrderStatus.IN_PROGRESS },
     { label: "Hoàn tất", value: ImportOrderStatus.COMPLETED },
     { label: "Chờ xác nhận", value: ImportOrderStatus.CONFIRMED },
   ];
@@ -146,7 +146,7 @@ export default function ReceiptDetail() {
                     activeTab === tab ? "text-black" : "text-gray-500"
                   }`}
                 >
-                  {tab === "With Button" ? "Tạo chứng từ" : "Xem phiếu nhập"}
+                  {tab === "With Button" ? "Tạo chứng từ" : "Xem đơn nhập"}
                 </Text>
               </TouchableOpacity>
             ))}
@@ -194,9 +194,15 @@ export default function ReceiptDetail() {
             </Text>
           ) : (
             filteredData.map((order: any) => (
-              <View
+              <TouchableOpacity
                 key={order.importOrderId}
                 className="mb-4 bg-white rounded-lg p-4"
+                onPress={() =>
+                  router.push({
+                    pathname: "/import/detail/[id]",
+                    params: { id: order.importOrderId.toString() },
+                  })
+                }
               >
                 {activeTab === "With Button" ? (
                   <>
@@ -204,14 +210,11 @@ export default function ReceiptDetail() {
                       Đơn nhập số {order.importOrderId}
                     </Text>
                     <View className="border-t border-gray-300 pt-2">
-                      <InfoRow
-                        title="Mã đơn nhập"
-                        value={order.importOrderId}
-                      />
+                     
 
                       <InfoRow
-                        title="Ngày tạo"
-                        value={new Date(order.createdDate).toLocaleString(
+                        title="Ngày dự nhập"
+                        value={new Date(order.dateReceived).toLocaleString(
                           "vi-VN",
                           {
                             day: "2-digit",
@@ -263,11 +266,14 @@ export default function ReceiptDetail() {
                       order.paperIds ? (
                       <Button
                         marginTop="10"
-                        onPress={() => {
-                          router.push(`/import/paper-detail/${order.paperIds}`);
-                        }}
+                        onPress={() =>
+                          router.push({
+                            pathname: "/import/detail/[id]",
+                            params: { id: order.importOrderId.toString() },
+                          })
+                        }
                       >
-                        Xem chứng từ
+                        Xem chi tiết đơn nhập
                       </Button>
                     ) : null}
                   </>
@@ -287,9 +293,27 @@ export default function ReceiptDetail() {
                       />
                       <InfoRow
                         title="Ngày tạo đơn"
-                        value={order.dateReceived}
+                        value={new Date(order.createdDate).toLocaleString(
+                          "vi-VN",
+                          {
+                            day: "2-digit",
+                            month: "2-digit",
+                            year: "numeric",
+                          }
+                        )}
                       />
-                      <InfoRow title="Giờ tạo đơn" value={order.timeReceived} />
+                      <InfoRow
+                        title="Ngày dự nhập"
+                        value={new Date(order.dateReceived).toLocaleString(
+                          "vi-VN",
+                          {
+                            day: "2-digit",
+                            month: "2-digit",
+                            year: "numeric",
+                          }
+                        )}
+                      />
+                      <InfoRow title="Giờ dự nhập" value={order.timeReceived} />
                       <InfoRow
                         title="Ghi chú"
                         value={order.note || "Không có ghi chú"}
@@ -308,10 +332,6 @@ export default function ReceiptDetail() {
                         value={order.importOrderDetailIds.join(", ")}
                       /> */}
 
-                      <InfoRow
-                        title="Thủ kho phụ trách"
-                        value={order.assignedWareHouseKeeperId}
-                      />
                       {/* <InfoRow
                         title="Danh sách chứng từ"
                         value={
@@ -364,7 +384,7 @@ export default function ReceiptDetail() {
                     </View>
                   </>
                 )}
-              </View>
+              </TouchableOpacity>
             ))
           )}
         </View>

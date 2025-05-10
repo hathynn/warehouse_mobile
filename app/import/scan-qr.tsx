@@ -21,6 +21,8 @@ export default function ScanQrScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const scanCooldownRef = useRef(false);
+  const [isScanning, setIsScanning] = useState(true);
+
   const [scannedProducts, setScannedProducts] = useState<any[]>([]); // Lưu các sản phẩm đã quét
   const [error, setError] = useState<string | null>(null);
   const [lastScannedProduct, setLastScannedProduct] = useState<any | null>(
@@ -51,68 +53,57 @@ export default function ScanQrScreen() {
   }, []);
 
   const handleBarCodeScanned = ({ data }: { data: string }) => {
-    if (scanCooldownRef.current) return;
-    scanCooldownRef.current = true; // Đặt cooldown
-
+    if (!isScanning) return;
+    setIsScanning(false); // chặn quét tiếp
+  
     try {
       const qrData = JSON.parse(decodeURIComponent(data));
       const foundProduct = products.find((product) => product.id === qrData.id);
-
+  
       if (foundProduct) {
         setLastScannedProduct(foundProduct);
-
+  
         dispatch(
           updateProduct({
             id: foundProduct.id,
             actual: foundProduct.actual + 1,
           })
         );
-
-        setTimeout(() => {
-          scanCooldownRef.current = false;
-        }, 1000);
       } else {
         Alert.alert("⚠️ Sản phẩm không có trong đơn nhập.", "", [
-          {
-            text: "OK",
-            onPress: () => {
-              scanCooldownRef.current = false;
-            },
-          },
+          { text: "OK", onPress: () => setIsScanning(true) },
         ]);
-        setTimeout(() => {
-          scanCooldownRef.current = false;
-        }, 2500);
       }
     } catch (error) {
       Alert.alert("❌ Mã QR không hợp lệ.", "", [
-        {
-          text: "OK",
-          onPress: () => {
-            scanCooldownRef.current = false;
-          },
-        },
+        { text: "OK", onPress: () => setIsScanning(true) },
       ]);
-      setTimeout(() => {
-        scanCooldownRef.current = false;
-      }, 2500);
     }
   };
-
+  
+  // Bấm tiếp tục
   const handleScanAgain = () => {
-    setError(null); // Reset lỗi
-    setLastScannedProduct(null); // Ẩn sản phẩm đã quét
+    setError(null);
+    setLastScannedProduct(null);
+    setIsScanning(true); // Cho phép scan lại
   };
-
   const handleManualEntry = () => {
     console.log("importOrderId", importOrderId);
     router.push(`/import/confirm-manual/${importOrderId}`);
   };
 
   const handleConfirm = () => {
-    router.push(`/import/confirm/${importOrderId}`);
+    if (lastScannedProduct?.id) {
+      router.push({
+        pathname: "/import/detail-product/[id]",
+        params: { id: lastScannedProduct.id.toString() },
+      });
+    } else {
+      Alert.alert("Không thể điều hướng", "Không tìm thấy mã sản phẩm.");
+    }
   };
-
+  
+  
   if (hasPermission === null) return <Text>Đang xin quyền camera...</Text>;
   if (hasPermission === false) return <Text>Không có quyền dùng camera</Text>;
 
