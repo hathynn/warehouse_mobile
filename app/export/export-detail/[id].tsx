@@ -162,7 +162,7 @@ const ExportRequestScreen: React.FC = () => {
           <View style={styles.row}>
             <Text style={styles.label}>Ngày mong muốn xuất</Text>
             <Text style={styles.value}>
-              {exportRequest?.expectedReturnDate}
+              {exportRequest?.exportDate}
             </Text>
           </View>
 

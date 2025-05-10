@@ -40,8 +40,8 @@ const useImportOrder = () => {
       setIsLoading(true);
       try {
         const response = await callApi("get", `${BASE_URL}/${id}`);
-        setImportOrder(response);
-        return response;
+        setImportOrder(response.content);
+        return response.content;
       } catch (error) {
         console.error("Lỗi khi lấy chi tiết import order:", error);
         return null;

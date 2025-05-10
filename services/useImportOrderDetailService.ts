@@ -1,23 +1,45 @@
 import { useState, useCallback } from "react";
 import axios from "axios";
-import { ImportOrderDetailType } from "../types/importOrderDetail.type";
+import { ImportOrderDetailType } from "@/types/importOrderDetail.type";
+import { InventoryItemType } from "@/types/inventoryItem.types";
 import useApiService from "./useApi";
-import { Beaker } from "@tamagui/lucide-icons";
 
-const BASE_URL =
-  "https://warehouse-backend-jlcj5.ondigitalocean.app/import-order-detail";
+const BASE_URL = "https://warehouse-backend-jlcj5.ondigitalocean.app/import-order-detail";
+const INVENTORY_URL = "https://warehouse-backend-jlcj5.ondigitalocean.app/inventory-item/import-order-detail";
 
 const useImportOrderDetail = () => {
-  const { callApi } = useApiService();
+  const { callApi, setIsLoading } = useApiService();
 
   const [loading, setLoading] = useState(false);
-  const [importOrderDetails, setImportOrderDetails] = useState<
-    ImportOrderDetailType[]
-  >([]);
-  const [importOrderDetail, setImportOrderDetail] =
-    useState<ImportOrderDetailType | null>(null);
+  const [importOrderDetails, setImportOrderDetails] = useState<ImportOrderDetailType[]>([]);
+  const [importOrderDetail, setImportOrderDetail] = useState<ImportOrderDetailType | null>(null);
+  const [inventoryItems, setInventoryItems] = useState<InventoryItemType[]>([]);
 
-  // Fetch danh sách import order details theo importOrderId
+  // ✅ NEW: fetch inventory items by importOrderDetailId
+  const fetchInventoryItemsByImportOrderDetailId = useCallback(
+    async (importOrderDetailId: number, page = 1, limit = 10) => {
+      if (!importOrderDetailId) return [];
+
+      setIsLoading(true);
+      try {
+        const response = await callApi(
+          "get",
+          `${INVENTORY_URL}/${importOrderDetailId}`,
+          { params: { page, limit } }
+        );
+        setInventoryItems(response.content || []);
+        return response.content || [];
+      } catch (error) {
+        console.error("Lỗi khi lấy inventory items:", error);
+        return [];
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [callApi, setIsLoading]
+  );
+
+  // ✅ Lấy danh sách detail theo orderId
   const fetchImportOrderDetails = useCallback(
     async (importOrderId: number, page = 1, size = 10) => {
       if (!importOrderId) return [];
@@ -47,27 +69,29 @@ const useImportOrderDetail = () => {
         setLoading(false);
       }
     },
-    []
+    [callApi]
   );
 
-  // Fetch chi tiết import order detail theo ID
-  const fetchImportOrderDetailById = useCallback(async (id: number) => {
-    if (!id) return null;
-
-    setLoading(true);
-    try {
-      const response = await axios.get(`${BASE_URL}/${id}`);
-      setImportOrderDetail(response.data);
-      return response.data;
-    } catch (error) {
-      console.error("Lỗi khi lấy chi tiết import order detail:", error);
-      return null;
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  // Tạo mới import order detail
+  // ✅ Lấy chi tiết 1 dòng
+  const fetchImportOrderDetailById = useCallback(
+    async (id: number) => {
+      if (!id) return null;
+  
+      setLoading(true);
+      try {
+        const response = await callApi("get", `${BASE_URL}/${id}`);
+        setImportOrderDetail(response.content);
+        return response.content;
+      } catch (error) {
+        console.error("Lỗi khi lấy chi tiết import order detail:", error);
+        return null;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [callApi]
+  );
+  
   const createImportOrderDetail = useCallback(
     async (newDetail: Omit<ImportOrderDetailType, "importOrderDetailId">) => {
       setLoading(true);
@@ -84,12 +108,11 @@ const useImportOrderDetail = () => {
     []
   );
 
-  // Cập nhật import order detail
   const updateImportOrderDetail = useCallback(
     async (id: number, updatedData: Partial<ImportOrderDetailType>) => {
       setLoading(true);
       try {
-        const response = await callApi("put",`/${id}`, updatedData);
+        const response = await callApi("put", `${BASE_URL}/${id}`, updatedData);
         return response;
       } catch (error) {
         console.error("Lỗi khi cập nhật import order detail:", error);
@@ -98,10 +121,9 @@ const useImportOrderDetail = () => {
         setLoading(false);
       }
     },
-    []
+    [callApi]
   );
 
-  // Xóa import order detail
   const deleteImportOrderDetail = useCallback(async (id: number) => {
     setLoading(true);
     try {
@@ -125,12 +147,12 @@ const useImportOrderDetail = () => {
     ) => {
       setLoading(true);
       try {
-        const response = await callApi("put", `/import-order-detail/${importOrderId}`,
+        const response = await callApi(
+          "put",
+          `${BASE_URL}/${importOrderId}`,
           updateItems
         );
-       
         return response;
-       
       } catch (error) {
         console.error("Lỗi khi cập nhật số lượng thực tế:", error);
         return null;
@@ -138,15 +160,17 @@ const useImportOrderDetail = () => {
         setLoading(false);
       }
     },
-    []
+    [callApi]
   );
 
   return {
     loading,
+    inventoryItems,
     importOrderDetails,
     importOrderDetail,
     fetchImportOrderDetails,
     fetchImportOrderDetailById,
+    fetchInventoryItemsByImportOrderDetailId,
     createImportOrderDetail,
     updateImportOrderDetail,
     deleteImportOrderDetail,

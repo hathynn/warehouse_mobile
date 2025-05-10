@@ -1,3 +1,4 @@
+// types/importOrderDetail.type.ts
 export interface ImportOrderDetailType {
   importOrderDetailId: number;
   importOrderId: number;
@@ -5,7 +6,7 @@ export interface ImportOrderDetailType {
   itemName: string;
   expectQuantity: number;
   actualQuantity: number;
-  status: ImportOrderDetailStatus | null;
+  status: ImportOrderDetailStatus;
 }
 
 export enum ImportOrderDetailStatus {
