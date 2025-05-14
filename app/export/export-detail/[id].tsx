@@ -19,6 +19,7 @@ import { setExportRequestDetail } from "@/redux/exportRequestDetailSlice";
 import { RootState, store } from "@/redux/store";
 import { ExportRequestStatus } from "@/types/exportRequest.type";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import StyledButton from "@/components/ui/StyledButton";
 
 interface RouteParams {
   id: string;
@@ -26,7 +27,6 @@ interface RouteParams {
 
 const ExportRequestScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
-
 
   const route = useRoute();
   const { id } = route.params as RouteParams;
@@ -91,22 +91,20 @@ const ExportRequestScreen: React.FC = () => {
           console.warn(`⚠️ Không thể cập nhật item ID: ${p.id}`);
         }
       }
-  
+
       console.log("✅ Cập nhật actualQuantity thành công");
-  
+
       // ✅ Bỏ bước 2: Không gọi confirmCountedExportRequest nữa
       // router.push hoặc thực hiện hành động tiếp theo tại đây nếu cần
       router.push("/(tabs)/export");
-  
     } catch (error) {
       console.error("❌ Lỗi khi xác nhận tổng thể:", error);
     }
   };
-  
 
   return (
     <View className="flex-1">
- <View
+      <View
         style={{
           backgroundColor: "#1677ff",
           paddingTop: insets.top,
@@ -132,12 +130,10 @@ const ExportRequestScreen: React.FC = () => {
             marginTop: 7,
           }}
         >
-         Thông tin phiếu nhập #{id}
+          Thông tin phiếu nhập #{id}
         </Text>
       </View>
       <ScrollView style={styles.container}>
-        
-
         {/* Thông tin yêu cầu */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Thông tin chi tiết yêu cầu</Text>
@@ -145,7 +141,7 @@ const ExportRequestScreen: React.FC = () => {
           <View style={styles.row}>
             <Text style={styles.label}>Mã đơn hàng</Text>
             <Text style={styles.valueBlue}>
-              #{exportRequest?.exportRequestId}
+              {exportRequest?.exportRequestId}
             </Text>
           </View>
 
@@ -161,9 +157,7 @@ const ExportRequestScreen: React.FC = () => {
 
           <View style={styles.row}>
             <Text style={styles.label}>Ngày mong muốn xuất</Text>
-            <Text style={styles.value}>
-              {exportRequest?.exportDate}
-            </Text>
+            <Text style={styles.value}>{exportRequest?.exportDate}</Text>
           </View>
 
           <View style={styles.row}>
@@ -174,44 +168,47 @@ const ExportRequestScreen: React.FC = () => {
 
         {/* Danh sách mặt hàng */}
         <View style={styles.table}>
-        <View style={[styles.tableRow, styles.tableHeader]}>
-  <Text style={[styles.cellCode]}>Mã hàng</Text>
-  <Text style={[styles.cellAlignRight]}>Cần</Text>
-  <Text style={[styles.cellAlignRight]}>Tồn</Text>
-  {!isCounted && <Text style={styles.scanHeader}></Text>}
-</View>
-
+          <View style={[styles.tableRow, styles.tableHeader]}>
+            <Text style={[styles.cellCode]}>Mã hàng</Text>
+            <Text style={[styles.cellAlignRight]}>Cần</Text>
+            <Text style={[styles.cellAlignRight]}>Tồn</Text>
+            {!isCounted && <Text style={styles.scanHeader}></Text>}
+          </View>
 
           {savedExportRequestDetails.map((detail: any) => {
-  const isDisabled = detail.quantity === detail.actualQuantity;
+            const isDisabled = detail.quantity === detail.actualQuantity;
 
-  return (
-    <View key={detail.id} style={styles.tableRow}>
-    <Text style={[styles.cellCode]}>#{detail.itemId}</Text>
-    <Text style={[styles.cellAlignRight]}>{detail.quantity}</Text>
-    <Text style={[styles.cellAlignRight]}>{detail.actualQuantity}</Text>
-  
-    {!isCounted && (
-      <View style={styles.scanCell}>
-        <TouchableOpacity
-          style={[
-            styles.scanButton,
-            isDisabled && styles.scanButtonDisabled,
-          ]}
-          disabled={isDisabled}
-          onPress={() => {
-            router.push(`/export/scan-qr?id=${exportRequest?.exportRequestId}`);
-          }}
-        >
-          <Text style={styles.scanText}>
-            {isDisabled ? "Đã đủ" : "Scan"}
-          </Text>
-        </TouchableOpacity>
-      </View>
-    )}
-  </View>
-  );
-})}
+            return (
+              <View key={detail.id} style={styles.tableRow}>
+                <Text style={[styles.cellCode]}>{detail.itemId}</Text>
+                <Text style={[styles.cellAlignRight]}>{detail.quantity}</Text>
+                <Text style={[styles.cellAlignRight]}>
+                  {detail.actualQuantity}
+                </Text>
+
+                {!isCounted && (
+                  <View style={styles.scanCell}>
+                    <TouchableOpacity
+                      style={[
+                        styles.scanButton,
+                        isDisabled && styles.scanButtonDisabled,
+                      ]}
+                      disabled={isDisabled}
+                      onPress={() => {
+                        router.push(
+                          `/export/scan-qr?id=${exportRequest?.exportRequestId}`
+                        );
+                      }}
+                    >
+                      <Text style={styles.scanText}>
+                        {isDisabled ? "Đã đủ" : "Scan"}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </View>
+            );
+          })}
         </View>
 
         {/* Tình trạng tồn kho */}
@@ -226,14 +223,20 @@ const ExportRequestScreen: React.FC = () => {
 
         {exportRequest?.status !== "COUNTED" && (
           <View className="p-5">
-            <TouchableOpacity
+            {/* <TouchableOpacity
               onPress={handleConfirm}
               className="bg-[#0d1925] px-5 py-4 rounded-full"
             >
               <Text className="text-white font-semibold text-sm text-center">
                 Xác nhận số lượng
               </Text>
-            </TouchableOpacity>
+            </TouchableOpacity> */}
+
+            <StyledButton
+              title="Xác nhận số lượng"
+              onPress={handleConfirm}
+              style={{ marginTop: 12 }}
+            />
           </View>
         )}
       </ScrollView>
@@ -311,7 +314,7 @@ const styles = StyleSheet.create({
   },
   scanHeader: {
     width: 60,
-  },  
+  },
   cell: {
     flex: 1,
     fontSize: 13,
@@ -326,7 +329,7 @@ const styles = StyleSheet.create({
     width: 60,
     alignItems: "flex-end",
   },
-  
+
   cellCode: {
     textAlign: "left",
     flex: 2,

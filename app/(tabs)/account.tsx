@@ -102,6 +102,7 @@ const AccountScreen = () => {
           <View style={styles.infoItem}>
             <Ionicons name="mail" size={18} color="#1677ff" />
             <Text style={styles.infoText}>{user.email}</Text>
+            
           </View>
 
           <View style={styles.infoItem}>

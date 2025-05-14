@@ -10,37 +10,37 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 
 interface ImportOrderDetailItem {
-    id: string;
-    productName: string;
-    sku: string;
-    expectedQuantity: number;
-    countedQuantity: number;
-    products: {
-      id: string;
-      serialNumber: string;
-      location: {
-        zone: string;
-        floor: string;
-        row: string;
-        batch: string;
-      };
-    }[];
-  }
+  id: number;
+  productName: string;
+  sku: string;
+  expectedQuantity: number;
+  countedQuantity: number;
+  products: {
+    id: number;
+    serialNumber: string;
+    location: {
+      zone: string;
+      floor: string;
+      row: string;
+      batch: string;
+    };
+  }[];
+}
 
-  interface ImportOrderDetailsTableProps {
-    importOrderDetails: ImportOrderDetailItem[];
-  }
-  
-  
-  const ImportOrderDetailsTable: React.FC<ImportOrderDetailsTableProps> = ({ importOrderDetails }) => {
+interface ImportOrderDetailsTableProps {
+  importOrderDetails: ImportOrderDetailItem[];
+}
 
-    const [expandedItems, setExpandedItems] = useState<number[]>([]);
+const ImportOrderDetailsTable: React.FC<ImportOrderDetailsTableProps> = ({
+  importOrderDetails,
+}) => {
+  const [expandedItems, setExpandedItems] = useState<number[]>([]);
 
   // Toggle expanded state for a detail item
-  const toggleExpand = (detailId : number) => {
-    setExpandedItems(prev => {
+  const toggleExpand = (detailId: number) => {
+    setExpandedItems((prev) => {
       if (prev.includes(detailId)) {
-        return prev.filter(id => id !== detailId);
+        return prev.filter((id) => id !== detailId);
       } else {
         return [...prev, detailId];
       }
@@ -48,70 +48,80 @@ interface ImportOrderDetailItem {
   };
 
   // Render a single product item within a detail item
-  const renderProductItem = ({ item, index }) => (
-    <View style={styles.productItem}>
-      <View style={styles.productHeader}>
-        <Text style={styles.productId}>{item.id}</Text>
-        <Text style={styles.serialNumber}>{item.serialNumber}</Text>
-      </View>
-      <View style={styles.locationSection}>
-        <View style={styles.locationRow}>
-          <View style={styles.locationItem}>
-            <Ionicons name="location" size={14} color="#1677ff" />
-            <Text style={styles.locationLabel}>Zone</Text>
-            <Text style={styles.locationValue}>{item.location.zone}</Text>
-          </View>
-          <View style={styles.locationItem}>
-            <Ionicons name="layers" size={14} color="#1677ff" />
-            <Text style={styles.locationLabel}>Floor</Text>
-            <Text style={styles.locationValue}>{item.location.floor}</Text>
-          </View>
-        </View>
-        <View style={styles.locationRow}>
-          <View style={styles.locationItem}>
-            <Ionicons name="reorder-four" size={14} color="#1677ff" />
-            <Text style={styles.locationLabel}>Row</Text>
-            <Text style={styles.locationValue}>{item.location.row}</Text>
-          </View>
-          <View style={styles.locationItem}>
-            <Ionicons name="cube" size={14} color="#1677ff" />
-            <Text style={styles.locationLabel}>Batch</Text>
-            <Text style={styles.locationValue}>{item.location.batch}</Text>
-          </View>
-        </View>
-      </View>
-    </View>
-  );
+  // const renderProductItem = ({ item, index }) => (
+  //   <View style={styles.productItem}>
+  //     <View style={styles.productHeader}>
+  //       <Text style={styles.productId}>{item.id}</Text>
+  //       <Text style={styles.serialNumber}>{item.serialNumber}</Text>
+  //     </View>
+  //     <View style={styles.locationSection}>
+  //       <View style={styles.locationRow}>
+  //         <View style={styles.locationItem}>
+  //           <Ionicons name="location" size={14} color="#1677ff" />
+  //           <Text style={styles.locationLabel}>Zone</Text>
+  //           <Text style={styles.locationValue}>{item.location.zone}</Text>
+  //         </View>
+  //         <View style={styles.locationItem}>
+  //           <Ionicons name="layers" size={14} color="#1677ff" />
+  //           <Text style={styles.locationLabel}>Floor</Text>
+  //           <Text style={styles.locationValue}>{item.location.floor}</Text>
+  //         </View>
+  //       </View>
+  //       <View style={styles.locationRow}>
+  //         <View style={styles.locationItem}>
+  //           <Ionicons name="reorder-four" size={14} color="#1677ff" />
+  //           <Text style={styles.locationLabel}>Row</Text>
+  //           <Text style={styles.locationValue}>{item.location.row}</Text>
+  //         </View>
+  //         <View style={styles.locationItem}>
+  //           <Ionicons name="cube" size={14} color="#1677ff" />
+  //           <Text style={styles.locationLabel}>Batch</Text>
+  //           <Text style={styles.locationValue}>{item.location.batch}</Text>
+  //         </View>
+  //       </View>
+  //     </View>
+  //   </View>
+  // );
 
   // Render a detail item with its products
-  const renderDetailItem = ({ item }) => {
+  const renderDetailItem = ({ item }: { item: ImportOrderDetailItem }) => {
     const isExpanded = expandedItems.includes(item.id);
-    const progressPercentage = Math.min(Math.round((item.countedQuantity / item.expectedQuantity) * 100), 100);
-    const progressColor = progressPercentage < 100 ? '#e63946' : '#2ecc71';
-    
+    const progressPercentage = Math.min(
+      Math.round((item.countedQuantity / item.expectedQuantity) * 100),
+      100
+    );
+    const progressColor = progressPercentage < 100 ? "#e63946" : "#2ecc71";
+
     return (
       <View style={styles.detailCard}>
-        <TouchableOpacity onPress={() => toggleExpand(item.id)} style={styles.detailHeader}>
+        <TouchableOpacity
+          onPress={() => toggleExpand(item.id)}
+          style={styles.detailHeader}
+        >
           <View style={styles.detailHeaderLeft}>
             <View style={styles.detailIdContainer}>
               <Text style={styles.detailId}>{item.id}</Text>
             </View>
             <View style={styles.detailInfo}>
-              <Text style={styles.detailName} numberOfLines={1} ellipsizeMode="tail">
+              <Text
+                style={styles.detailName}
+                numberOfLines={1}
+                ellipsizeMode="tail"
+              >
                 {item.productName}
               </Text>
               <Text style={styles.detailSku}>{item.sku}</Text>
             </View>
           </View>
           <View style={styles.expandIconContainer}>
-            <Ionicons 
-              name={isExpanded ? "chevron-up" : "chevron-down"} 
-              size={20} 
-              color="#666" 
+            <Ionicons
+              name={isExpanded ? "chevron-up" : "chevron-down"}
+              size={20}
+              color="#666"
             />
           </View>
         </TouchableOpacity>
-        
+
         <View style={styles.quantitySection}>
           <View style={styles.quantityRow}>
             <View style={styles.quantityItem}>
@@ -120,45 +130,93 @@ interface ImportOrderDetailItem {
             </View>
             <View style={styles.quantityItem}>
               <Text style={styles.quantityLabel}>Đã kiểm đếm:</Text>
-              <Text 
+              <Text
                 style={[
-                  styles.quantityValue, 
-                  item.countedQuantity < item.expectedQuantity ? styles.incompleteQuantity : styles.completeQuantity
+                  styles.quantityValue,
+                  item.countedQuantity < item.expectedQuantity
+                    ? styles.incompleteQuantity
+                    : styles.completeQuantity,
                 ]}
               >
                 {item.countedQuantity}
               </Text>
             </View>
           </View>
-          
+
           <View style={styles.progressContainer}>
             <View style={styles.progressBackground}>
-              <View 
+              <View
                 style={[
-                  styles.progressBar, 
-                  { width: `${progressPercentage}%`, backgroundColor: progressColor }
-                ]} 
+                  styles.progressBar,
+                  {
+                    width: `${progressPercentage}%`,
+                    backgroundColor: progressColor,
+                  },
+                ]}
               />
             </View>
             <Text style={styles.progressText}>{progressPercentage}%</Text>
           </View>
         </View>
-        
+
         {isExpanded && (
           <View style={styles.productsContainer}>
             <View style={styles.productsHeader}>
               <Text style={styles.productsTitle}>
-                Danh sách sản phẩm ({item.products.length})
+                Vị trí sản phẩm
               </Text>
             </View>
-            <FlatList
-              data={item.products}
-              renderItem={renderProductItem}
-              keyExtractor={(product) => product.id}
-              ItemSeparatorComponent={() => <View style={styles.productSeparator} />}
-              scrollEnabled={false}
-              contentContainerStyle={styles.productsList}
-            />
+
+            {Object.entries(
+              item.products.reduce((acc, product) => {
+                const locKey = `${product.location.zone}|${product.location.floor}|${product.location.row}|${product.location.batch}`;
+                if (!acc[locKey]) acc[locKey] = [];
+                acc[locKey].push(product);
+                return acc;
+              }, {} as Record<string, ImportOrderDetailItem["products"]>)
+            ).map(([key, products]) => {
+              const [zone, floor, row, batch] = key.split("|");
+
+              return (
+                <View key={key} style={styles.productItem}>
+                  <View style={styles.locationSection}>
+                    <View style={styles.locationRow}>
+                      <View style={styles.locationItem}>
+                        <Ionicons name="location" size={14} color="#1677ff" />
+                        <Text style={styles.locationLabel}>Zone</Text>
+                        <Text style={styles.locationValue}>{zone}</Text>
+                      </View>
+                      <View style={styles.locationItem}>
+                        <Ionicons name="layers" size={14} color="#1677ff" />
+                        <Text style={styles.locationLabel}>Floor</Text>
+                        <Text style={styles.locationValue}>{floor}</Text>
+                      </View>
+                    </View>
+                    <View style={styles.locationRow}>
+                      <View style={styles.locationItem}>
+                        <Ionicons
+                          name="reorder-four"
+                          size={14}
+                          color="#1677ff"
+                        />
+                        <Text style={styles.locationLabel}>Row</Text>
+                        <Text style={styles.locationValue}>{row}</Text>
+                      </View>
+                      <View style={styles.locationItem}>
+                        <Ionicons name="cube" size={14} color="#1677ff" />
+                        <Text style={styles.locationLabel}>Batch</Text>
+                        <Text style={styles.locationValue}>{batch}</Text>
+                      </View>
+                    </View>
+                    <Text
+                      style={{ marginTop: 8, fontWeight: "600", fontSize: 13 }}
+                    >
+                      Số lượng: {products.length} sản phẩm
+                    </Text>
+                  </View>
+                </View>
+              );
+            })}
           </View>
         )}
       </View>
@@ -170,10 +228,12 @@ interface ImportOrderDetailItem {
       <View style={styles.detailsHeaderContainer}>
         <Text style={styles.cardTitle}>Chi tiết đơn nhập</Text>
         <View style={styles.detailsCountContainer}>
-          <Text style={styles.detailsCountText}>{importOrderDetails.length}</Text>
+          <Text style={styles.detailsCountText}>
+            {importOrderDetails.length}
+          </Text>
         </View>
       </View>
-      
+
       <View style={styles.searchFilterRow}>
         <View style={styles.searchBox}>
           <Ionicons name="search" size={18} color="#999" />
@@ -183,11 +243,11 @@ interface ImportOrderDetailItem {
           <Ionicons name="filter" size={18} color="#1677ff" />
         </TouchableOpacity>
       </View>
-      
+
       <FlatList
         data={importOrderDetails}
         renderItem={renderDetailItem}
-        keyExtractor={item => item.id}
+        keyExtractor={(item) => item.id.toString()}
         scrollEnabled={false}
         ItemSeparatorComponent={() => <View style={styles.detailSeparator} />}
         contentContainerStyle={styles.detailsList}
@@ -204,10 +264,10 @@ const styles = StyleSheet.create({
     padding: 16,
     elevation: 2,
   },
-  cardTitle: { 
-    fontSize: 16, 
-    fontWeight: "600", 
-    marginBottom: 12 
+  cardTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    marginBottom: 12,
   },
   // Header of details section
   detailsHeaderContainer: {
@@ -260,7 +320,7 @@ const styles = StyleSheet.create({
   detailsList: {
     paddingTop: 8,
   },
-  
+
   // Detail item styles
   detailCard: {
     backgroundColor: "white",
@@ -315,7 +375,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  
+
   // Quantity section
   quantitySection: {
     marginBottom: 12,
@@ -365,7 +425,7 @@ const styles = StyleSheet.create({
     width: 40,
     textAlign: "right",
   },
-  
+
   // Products container (expanded)
   productsContainer: {
     marginTop: 12,
@@ -385,7 +445,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     overflow: "hidden",
   },
-  
+
   // Individual product
   productItem: {
     backgroundColor: "#f9f9f9",
@@ -434,7 +494,7 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     color: "#333",
   },
-  
+
   // Separators
   detailSeparator: {
     height: 8,
@@ -443,7 +503,7 @@ const styles = StyleSheet.create({
   productSeparator: {
     height: 4,
     backgroundColor: "transparent",
-  }
+  },
 });
 
 export default ImportOrderDetailsTable;

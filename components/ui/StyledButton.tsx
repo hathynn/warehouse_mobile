@@ -19,7 +19,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#1677ff",       // màu xanh giống Tamagui theme="active"
     paddingVertical: 12,
     paddingHorizontal: 24,
-    borderRadius: 999,                // bo tròn max giống borderRadius="$10"
+    borderRadius: 12,                // bo tròn max giống borderRadius="$10"
     alignItems: "center",
     justifyContent: "center",
     shadowColor: "#000",
