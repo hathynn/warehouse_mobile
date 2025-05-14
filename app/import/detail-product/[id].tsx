@@ -34,6 +34,14 @@ export default function SuccessPage() {
 
   const [quantity, setQuantity] = useState(product?.actual?.toString() || "1");
 
+  // useEffect(() => {
+  //   if (!isNaN(Number(quantity))) {
+  //     dispatch(
+  //       updateProductActual({ productId: id, actual: Number(quantity) })
+  //     );
+  //   }
+  // }, [quantity]);
+
   const [fadeAnim] = useState(new Animated.Value(0));
   const [translateY] = useState(new Animated.Value(20));
 
@@ -117,7 +125,7 @@ export default function SuccessPage() {
                     </View>
 
                     <View style={styles.row}>
-                      <Text style={styles.label}>Số lượng đã quét được</Text>
+                      <Text style={styles.label}>Số lượng thực tế</Text>
                       <Text style={styles.value}>{product.actual}</Text>
                     </View>
                   </>
@@ -132,7 +140,13 @@ export default function SuccessPage() {
                       style={styles.quantityButton}
                       onPress={() => {
                         const current = parseInt(quantity) || 0;
-                        if (current > 1) setQuantity((current - 1).toString());
+                        if (current > 1) {
+                          const newQty = current - 1;
+                          setQuantity(newQty.toString());
+                          dispatch(
+                            updateProductActual({ productId, actual: newQty })
+                          );
+                        }
                       }}
                     >
                       <Ionicons name="remove" size={22} color="#1677ff" />
@@ -141,9 +155,17 @@ export default function SuccessPage() {
                     <TextInput
                       style={styles.input}
                       value={quantity}
-                      onChangeText={(text) =>
-                        setQuantity(text.replace(/[^0-9]/g, ""))
-                      }
+                      onChangeText={(text) => {
+                        const numericText = text.replace(/[^0-9]/g, "");
+                        setQuantity(numericText);
+
+                        const parsed = parseInt(numericText);
+                        if (!isNaN(parsed)) {
+                          dispatch(
+                            updateProductActual({ productId, actual: parsed })
+                          );
+                        }
+                      }}
                       keyboardType="numeric"
                       textAlign="center"
                     />
@@ -152,7 +174,11 @@ export default function SuccessPage() {
                       style={styles.quantityButton}
                       onPress={() => {
                         const current = parseInt(quantity) || 0;
-                        setQuantity((current + 1).toString());
+                        const newQty = current + 1;
+                        setQuantity(newQty.toString());
+                        dispatch(
+                          updateProductActual({ productId, actual: newQty })
+                        );
                       }}
                     >
                       <Ionicons name="add" size={22} color="#1677ff" />

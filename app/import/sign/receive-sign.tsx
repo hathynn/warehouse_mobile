@@ -69,10 +69,10 @@ const SignReceiveScreen = () => {
       allowsEditing: true,
       quality: 0.3, // bạn có thể để 1, ta sẽ nén sau
     });
-  
+
     if (!result.canceled && result.assets.length > 0) {
       const originalUri = result.assets[0].uri;
-  
+
       // ✅ NÉN ảnh lại
       const manipulated = await ImageManipulator.manipulateAsync(
         originalUri,
@@ -82,12 +82,12 @@ const SignReceiveScreen = () => {
           format: ImageManipulator.SaveFormat.JPEG,
         }
       );
-  
+
       setCapturedImage(manipulated.uri);
       dispatch(setPaperData({ signWarehouseUrl: manipulated.uri }));
     }
   };
-  
+
   const handleConfirm = async () => {
     if (!paperData.signProviderUrl || !paperData.signWarehouseUrl) {
       console.log("❌ Chưa có đủ chữ ký, vui lòng ký trước khi xác nhận.");
@@ -113,6 +113,7 @@ const SignReceiveScreen = () => {
       );
       console.log("Cập nhật số lượng thành công");
       if (updateResponse) {
+        console.log("Paper:", paperData)
         const paperResponse = await createPaper(paperData);
         if (paperResponse) {
           console.log("✅ Tạo paper thành công");
@@ -158,30 +159,16 @@ const SignReceiveScreen = () => {
           Người nhận hàng ký
         </Text>
       </View>
+      <View style={{padding:16}}>
+        {/* <Label>Xác nhận thông tin sản phẩm</Label> */}
+        <ProductListAccordion products={products} />
+      </View>
       <ScrollView
         showsVerticalScrollIndicator={false}
         scrollEnabled={scrollEnabled}
       >
         <View className="px-3">
           {/* Danh sách sản phẩm */}
-          <View className="mt-̀5">
-            {/* <Label>Xác nhận thông tin sản phẩm</Label> */}
-            <ProductListAccordion products={products} />
-          </View>
-
-          {/* Chữ ký người giao hàng */}
-          {paperData.signProviderUrl && (
-            <View className="items-center mt-4">
-              <Label>Chữ ký người giao hàng</Label>
-              <View className="w-full bg-white p-3 rounded-2xl mt-3 items-center">
-                <Image
-                  source={{ uri: paperData.signProviderUrl }}
-                  className="w-full h-64 rounded-md"
-                  resizeMode="contain"
-                />
-              </View>
-            </View>
-          )}
 
           {/* Chọn phương thức ký */}
           <View style={{ alignItems: "center", marginVertical: 16 }}>
@@ -240,8 +227,6 @@ const SignReceiveScreen = () => {
               </TouchableOpacity>
             </View>
           </View>
-
-        
 
           {signMethod === "draw" ? (
             <View style={styles.signatureBox}>

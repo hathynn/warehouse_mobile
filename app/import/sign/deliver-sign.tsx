@@ -18,6 +18,7 @@ import { router } from "expo-router";
 import { createSelector } from "reselect";
 import ProductListAccordion from "@/components/ui/ProductList";
 import { Button } from "tamagui";
+import * as ImageManipulator from "expo-image-manipulator";
 
 const SignDeliverScreen = () => {
   const insets = useSafeAreaInsets();
@@ -36,18 +37,30 @@ const SignDeliverScreen = () => {
   );
   const products = useSelector(selectProductsByImportOrderId);
 
-  const takePhoto = async () => {
-    const result = await ImagePicker.launchCameraAsync({
-      allowsEditing: true,
-      quality: 1,
-    });
+const takePhoto = async () => {
+  const result = await ImagePicker.launchCameraAsync({
+    allowsEditing: true,
+    quality: 1, // chụp full trước
+  });
 
-    if (!result.canceled && result.assets.length > 0) {
-      const uri = result.assets[0].uri;
-      setCapturedImage(uri);
-      dispatch(setPaperData({ signProviderUrl: uri }));
-    }
-  };
+  if (!result.canceled && result.assets.length > 0) {
+    const originalUri = result.assets[0].uri;
+
+    // ✅ NÉN ảnh lại
+    const manipulated = await ImageManipulator.manipulateAsync(
+      originalUri,
+      [], // không resize
+      {
+        compress: 0.3, // từ 0 - 1, càng nhỏ thì càng nén nhiều
+        format: ImageManipulator.SaveFormat.JPEG,
+      }
+    );
+
+    setCapturedImage(manipulated.uri);
+    dispatch(setPaperData({ signProviderUrl: manipulated.uri }));
+  }
+};
+
 
   const handleClear = () => {
     if (signMethod === "camera") {
@@ -97,11 +110,11 @@ const SignDeliverScreen = () => {
           Người giao hàng ký
         </Text>
       </View>
-
+      <View style={{ padding: 16 }}>
+        <ProductListAccordion products={products} />
+      </View>
       <ScrollView scrollEnabled={scrollEnabled}>
         <View style={{ padding: 16 }}>
-          <ProductListAccordion products={products} />
-
           {/* Chọn phương thức ký */}
           <View style={{ alignItems: "center", marginVertical: 16 }}>
             <Text style={styles.label}>Chọn phương thức ký</Text>
@@ -129,7 +142,6 @@ const SignDeliverScreen = () => {
                 <Text
                   style={{
                     color: signMethod === "draw" ? "white" : "black",
-                  
                   }}
                 >
                   Ký trực tiếp
@@ -144,8 +156,7 @@ const SignDeliverScreen = () => {
                 style={{
                   flex: 1,
                   paddingVertical: 12,
-                  backgroundColor:
-                    signMethod === "camera" ? "#1677ff" : "#eee",
+                  backgroundColor: signMethod === "camera" ? "#1677ff" : "#eee",
                   borderRadius: 8,
                   marginLeft: 5,
                   alignItems: "center",
@@ -154,7 +165,6 @@ const SignDeliverScreen = () => {
                 <Text
                   style={{
                     color: signMethod === "camera" ? "white" : "black",
-                    
                   }}
                 >
                   Chụp ảnh chữ ký
@@ -202,13 +212,11 @@ const SignDeliverScreen = () => {
                   resizeMode="contain"
                 />
               )}
-             
             </View>
           )}
 
           {/* Hành động */}
           <View style={styles.actions}>
-          
             <Button onPress={handleClear} flex={1}>
               Xóa
             </Button>
@@ -249,6 +257,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     gap: 12,
     marginTop: 24,
+    marginBottom:24
   },
 });
 

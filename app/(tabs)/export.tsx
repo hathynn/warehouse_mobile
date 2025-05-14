@@ -3,18 +3,19 @@ import {
   Text,
   TouchableOpacity,
   ScrollView,
-  SafeAreaView,
   ActivityIndicator,
   StatusBar,
+  TextInput,
+  StyleSheet,
 } from "react-native";
 import {
   useQuery,
   QueryClient,
   QueryClientProvider,
 } from "@tanstack/react-query";
-import { FontAwesome, Ionicons } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { useEffect, useState } from "react";
+import { useEffect, useState, ReactNode } from "react";
 import useExportRequest from "@/services/useExportRequestService";
 import {
   ExportRequestStatus,
@@ -22,16 +23,75 @@ import {
 } from "@/types/exportRequest.type";
 import { useDispatch, useSelector } from "react-redux";
 import { setPaperData } from "@/redux/paperSlice";
-import { Button, Input, XStack, YStack } from "tamagui";
 import { RootState } from "@/redux/store";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const queryClient = new QueryClient();
 
+// Component hiển thị thông tin với icon (giống như trang đơn nhập)
+const InfoRow = ({
+  icon,
+  title,
+  value,
+}: {
+  icon?: string;
+  title: string;
+  value: ReactNode;
+}) => (
+  <View style={styles.infoRow}>
+    {icon && (
+      <Ionicons name={icon} size={16} color="#666" style={styles.infoIcon} />
+    )}
+    <Text style={styles.infoLabel}>{title}</Text>
+    <View style={styles.infoValue}>
+      {typeof value === "string" || typeof value === "number" ? (
+        <Text style={styles.infoValueText}>{value}</Text>
+      ) : (
+        value
+      )}
+    </View>
+  </View>
+);
+
+// Component Status Badge (tương tự như trong trang đơn nhập)
+const StatusBadge = ({ status }: { status: ExportRequestStatus }) => {
+  const getStatusInfo = () => {
+    switch (status) {
+      case ExportRequestStatus.PROCESSING:
+        return { label: "Chờ xử lý", color: "#FFC107", bgColor: "#FFF8E1" };
+      case ExportRequestStatus.COUNTED:
+        return { label: "Kiểm đếm thành công", color: "#4CAF50", bgColor: "#E8F5E9" };
+      case ExportRequestStatus.CANCELLED:
+        return { label: "Từ chối", color: "#F44336", bgColor: "#FFEBEE" };
+      case ExportRequestStatus.COMPLETED:
+        return { label: "Hoàn thành", color: "#2196F3", bgColor: "#E3F2FD" };
+      default:
+        return { label: "Không xác định", color: "#757575", bgColor: "#F5F5F5" };
+    }
+  };
+
+  const statusInfo = getStatusInfo();
+
+  return (
+    <View
+      style={[
+        styles.statusBadge,
+        { backgroundColor: statusInfo.bgColor },
+      ]}
+    >
+      <Text style={[styles.statusText, { color: statusInfo.color }]}>
+        {statusInfo.label}
+      </Text>
+    </View>
+  );
+};
+
 function ExportListComponent() {
   const userId = useSelector((state: RootState) => state.auth.user?.id);
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedStatus, setSelectedStatus] = useState<ExportRequestStatus | null>(null);
+  const [filterVisible, setFilterVisible] = useState(false);
   const dispatch = useDispatch();
   const insets = useSafeAreaInsets();
 
@@ -45,13 +105,47 @@ function ExportListComponent() {
     enabled: !!userId,
   });
 
-  const filteredExports =
-  exportRequests?.filter(
-    (request: ExportRequestType) =>
-      request?.exportRequestId &&
-      request.exportRequestId.toString().toLowerCase().includes(searchQuery.toLowerCase())
-  ) || [];
+  const statusOptions = [
+    { label: "Chờ xử lý", value: ExportRequestStatus.PROCESSING },
+    { label: "Đã duyệt", value: ExportRequestStatus.COUNTED },
+    { label: "Hoàn thành", value: ExportRequestStatus.COMPLETED },
+  ];
 
+  // Render chip thể hiện trạng thái lọc hiện tại
+  const renderStatusChip = () => {
+    if (!selectedStatus) return null;
+
+    const statusInfo = statusOptions.find(
+      (opt) => opt.value === selectedStatus
+    );
+    if (!statusInfo) return null;
+
+    return (
+      <TouchableOpacity
+        style={styles.statusChip}
+        onPress={() => setSelectedStatus(null)}
+      >
+        <Text style={styles.statusChipText}>{statusInfo.label}</Text>
+        <Ionicons
+          name="close-circle"
+          size={16}
+          color="#FFFFFF"
+          style={{ marginLeft: 4 }}
+        />
+      </TouchableOpacity>
+    );
+  };
+
+  const filteredExports = exportRequests?.filter(
+    (request: ExportRequestType) => {
+      const matchSearch = request?.exportRequestId &&
+        request.exportRequestId.toString().toLowerCase().includes(searchQuery.toLowerCase());
+      
+      const matchStatus = selectedStatus ? request.status === selectedStatus : true;
+      
+      return matchSearch && matchStatus;
+    }
+  ) || [];
 
   const handleSelectExport = (request: ExportRequestType) => {
     dispatch(
@@ -67,77 +161,455 @@ function ExportListComponent() {
   };
 
   return (
-    <View className="flex-1">
-    <StatusBar backgroundColor="#1677ff" style="light" />
+    <View style={styles.container}>
+      <StatusBar backgroundColor="#1677ff" barStyle="light-content" />
 
-    {/* Header */}
-    <View
-        style={{
-          backgroundColor: "#1677ff",
-          paddingTop: insets.top, // tràn đúng theo safe area
-          paddingBottom: 16,
-          alignItems: "center",
-          justifyContent: "center",
-        }}
+      {/* Header */}
+      <View
+        style={[
+          styles.header,
+          { paddingTop: insets.top + 10 }
+        ]}
       >
-        <Text style={{ color: "white", fontSize: 18, fontWeight: "bold", marginTop:5 }}>
-          Danh sách phiếu xuất
-        </Text>
+        <Text style={styles.headerTitle}>Danh sách phiếu xuất</Text>
       </View>
 
-    {/* Search */}
-    <XStack
-      alignItems="center"
-      backgroundColor="white"
-      borderRadius="$4"
-      paddingHorizontal="$3"
-      marginHorizontal="$3"
-      marginVertical="$2"
-      height="$4.5"
-    >
-      <Ionicons name="search" size={18} color="#999" />
-      <Input
-        flex={1}
-        placeholder="Tìm theo mã phiếu xuất"
-        value={searchQuery}
-        onChangeText={setSearchQuery}
-        borderWidth={0}
-        paddingHorizontal="$3"
-        backgroundColor="white"
-      />
-    </XStack>
+      <ScrollView style={styles.content}>
+        {/* Thanh tìm kiếm */}
+        <View style={styles.searchContainer}>
+          <View style={styles.searchInputContainer}>
+            <Ionicons
+              name="search"
+              size={18}
+              color="#999"
+              style={styles.searchIcon}
+            />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Tìm kiếm theo mã phiếu xuất"
+              placeholderTextColor="#999"
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
+          </View>
 
-    {/* List */}
-    <ScrollView className="px-5 flex-1">
-      {isLoading ? (
-        <ActivityIndicator size="large" color="black" className="my-5" />
-      ) : filteredExports.length > 0 ? (
-        filteredExports.map((request: ExportRequestType) => (
           <TouchableOpacity
-            key={request.exportRequestId}
-            onPress={() => handleSelectExport(request)}
-            className="flex-row items-center py-6 my-2 px-5 rounded-3xl bg-white"
+            onPress={() => setFilterVisible(true)}
+            style={styles.filterButton}
           >
-            <View className="w-12 h-12 rounded-2xl flex items-center justify-center bg-gray-400">
-              <FontAwesome name="spinner" size={20} color="white" />
-            </View>
-            <View className="ml-4 flex-1">
-              <Text className="text-gray-500 text-sm">Mã phiếu xuất</Text>
-              <Text className="font-semibold text-black">
-                #{request.exportRequestId}
-              </Text>
-            </View>
+            <Ionicons name="filter" size={22} color="#1677ff" />
           </TouchableOpacity>
-        ))
-      ) : (
-        <Text className="text-center text-gray-500 mt-5">
-          Không có phiếu xuất
-        </Text>
-      )}
-    </ScrollView>
-  </View>
+        </View>
+
+        {/* Hiển thị trạng thái lọc */}
+        {renderStatusChip()}
+
+        {/* Danh sách phiếu xuất */}
+        {isLoading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#1677ff" />
+          </View>
+        ) : filteredExports.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Ionicons name="document-text-outline" size={60} color="#BDBDBD" />
+            <Text style={styles.emptyText}>Không có phiếu xuất phù hợp</Text>
+          </View>
+        ) : (
+          <View style={styles.ordersList}>
+            {filteredExports.map((request: ExportRequestType) => (
+              <TouchableOpacity
+                key={request.exportRequestId}
+                style={styles.orderCard}
+                onPress={() => handleSelectExport(request)}
+                activeOpacity={0.7}
+              >
+                {/* Header phiếu xuất */}
+                <View style={styles.orderHeader}>
+                  <View style={styles.orderIdContainer}>
+                    <Ionicons name="document-text-outline" size={20} color="#1677ff" />
+                    <Text style={styles.orderId}>
+                      Phiếu xuất {request.exportRequestId}
+                    </Text>
+                  </View>
+                  <StatusBadge status={request.status} />
+                </View>
+
+                {/* Nội dung phiếu xuất */}
+                <View style={styles.orderContent}>
+                  {/* {request.exportReason && (
+                    <InfoRow
+                      icon="information-circle-outline"
+                      title="Lý do xuất"
+                      value={request.exportReason}
+                    />
+                  )} */}
+                  {request.exportDate && (
+                    <InfoRow
+                      icon="calendar-outline"
+                      title="Ngày dự xuất"
+                      value={new Date(request.exportDate).toLocaleDateString(
+                        "vi-VN",
+                        {
+                          day: "2-digit",
+                          month: "2-digit",
+                          year: "numeric",
+                        }
+                      )}
+                    />
+                  )}
+                </View>
+
+                {/* Footer phiếu xuất */}
+                <TouchableOpacity
+                  style={[
+                    styles.actionButton,
+                    request.status === ExportRequestStatus.COUNTED ? styles.viewButton : 
+                    request.status === ExportRequestStatus.COMPLETED ? styles.viewButton2 : {}
+                  ]}
+                  onPress={() => handleSelectExport(request)}
+                >
+                  <Ionicons
+                    name="eye-outline"
+                    size={18}
+                    color="#FFFFFF"
+                    style={styles.buttonIcon}
+                  />
+                  <Text style={styles.buttonText}>Xem chi tiết phiếu xuất</Text>
+                </TouchableOpacity>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+      </ScrollView>
+
+      {/* Modal lọc */}
+      <Modal visible={filterVisible} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Lọc theo trạng thái</Text>
+              <TouchableOpacity onPress={() => setFilterVisible(false)}>
+                <Ionicons name="close" size={24} color="#333" />
+              </TouchableOpacity>
+            </View>
+
+            {statusOptions.map((status) => (
+              <TouchableOpacity
+                key={status.value}
+                style={[
+                  styles.statusOption,
+                  selectedStatus === status.value && styles.selectedOption,
+                ]}
+                onPress={() => {
+                  setSelectedStatus(status.value);
+                  setFilterVisible(false);
+                }}
+              >
+                <Text
+                  style={[
+                    styles.statusOptionText,
+                    selectedStatus === status.value &&
+                      styles.selectedOptionText,
+                  ]}
+                >
+                  {status.label}
+                </Text>
+                {selectedStatus === status.value && (
+                  <Ionicons name="checkmark" size={20} color="#1677ff" />
+                )}
+              </TouchableOpacity>
+            ))}
+
+            <TouchableOpacity
+              style={styles.resetButton}
+              onPress={() => {
+                setSelectedStatus(null);
+                setFilterVisible(false);
+              }}
+            >
+              <Text style={styles.resetButtonText}>Bỏ lọc</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    </View>
   );
 }
+
+// Thêm component Modal để hiển thị
+const Modal = ({
+  visible,
+  transparent,
+  animationType,
+  children,
+}: {
+  visible: boolean;
+  transparent: boolean;
+  animationType: "slide" | "none" | "fade";
+  children: React.ReactNode;
+}) => {
+  if (!visible) return null;
+  
+  return (
+    <View 
+      style={{
+        position: 'absolute',
+        top: 0, 
+        left: 0, 
+        right: 0, 
+        bottom: 0,
+        backgroundColor: transparent ? 'transparent' : 'white',
+        zIndex: 1000,
+      }}
+    >
+      {children}
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#F5F7FA",
+  },
+  header: {
+    backgroundColor: "#1677ff",
+    paddingBottom: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    elevation: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+  },
+  headerTitle: {
+    color: "white",
+    fontSize: 18,
+    fontWeight: "700",
+  },
+  content: {
+    flex: 1,
+  },
+  searchContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  searchInputContainer: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "white",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    height: 44,
+    borderWidth: 1,
+    borderColor: "#E0E0E0",
+  },
+  searchIcon: {
+    marginRight: 8,
+  },
+  searchInput: {
+    flex: 1,
+    height: 44,
+    fontSize: 15,
+    color: "#333",
+  },
+  filterButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 8,
+    backgroundColor: "#FFFFFF",
+    marginLeft: 12,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#E0E0E0",
+  },
+  statusChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#1677ff",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    marginLeft: 16,
+    marginBottom: 12,
+    alignSelf: "flex-start",
+  },
+  statusChipText: {
+    color: "white",
+    fontSize: 14,
+    fontWeight: "500",
+  },
+  loadingContainer: {
+    padding: 40,
+    alignItems: "center",
+  },
+  emptyContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 60,
+  },
+  emptyText: {
+    color: "#757575",
+    fontSize: 16,
+    marginTop: 16,
+  },
+  ordersList: {
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+  },
+  orderCard: {
+    borderRadius: 12,
+    marginBottom: 16,
+    backgroundColor: "white",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2.5,
+    elevation: 2,
+    overflow: "hidden",
+  },
+  orderHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(0,0,0,0.06)",
+  },
+  orderIdContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  orderId: {
+    marginLeft: 8,
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#333",
+  },
+  orderContent: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  infoRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 6,
+  },
+  infoIcon: {
+    marginRight: 8,
+  },
+  infoLabel: {
+    fontSize: 14,
+    color: "#666",
+    flex: 1,
+  },
+  infoValue: {
+    flex: 1,
+    alignItems: "flex-end",
+  },
+  infoValueText: {
+    fontSize: 14,
+    color: "#333",
+    fontWeight: "500",
+    flexWrap: "wrap",
+    textAlign: "right",
+  },
+  actionButton: {
+    backgroundColor: "#1677ff",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 12,
+    borderBottomLeftRadius: 12,
+    borderBottomRightRadius: 12,
+  },
+  viewButton: {
+    backgroundColor: "#4CAF50",
+  },
+  viewButton2: {
+    backgroundColor: "#213448",
+  },
+  buttonIcon: {
+    marginRight: 8,
+  },
+  buttonText: {
+    color: "white",
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  statusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  statusText: {
+    fontSize: 12,
+    fontWeight: "500",
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "flex-end",
+  },
+  modalContent: {
+    backgroundColor: "white",
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    paddingBottom: 30,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#EEEEEE",
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#333",
+  },
+  statusOption: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F5F5F5",
+  },
+  selectedOption: {
+    backgroundColor: "#F0F7FF",
+  },
+  statusOptionText: {
+    fontSize: 16,
+    color: "#333",
+  },
+  selectedOptionText: {
+    color: "#1677ff",
+    fontWeight: "500",
+  },
+  resetButton: {
+    marginTop: 16,
+    marginHorizontal: 20,
+    paddingVertical: 14,
+    backgroundColor: "#F5F5F5",
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  resetButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#333",
+  },
+});
 
 export default function ExportList() {
   return (
