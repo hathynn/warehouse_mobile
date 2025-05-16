@@ -57,28 +57,70 @@ const InfoRow = ({
 const StatusBadge = ({ status }: { status: ExportRequestStatus }) => {
   const getStatusInfo = () => {
     switch (status) {
-      case ExportRequestStatus.PROCESSING:
-        return { label: "Chờ xử lý", color: "#FFC107", bgColor: "#FFF8E1" };
+      case ExportRequestStatus.IN_PROGRESS:
+        return {
+          label: "Đang xử lý",
+          color: "#FFF",
+          bgColor: "#1677ff",
+          buttonColor: "#1677ff",
+        };
       case ExportRequestStatus.COUNTED:
-        return { label: "Kiểm đếm thành công", color: "#4CAF50", bgColor: "#E8F5E9" };
-      case ExportRequestStatus.CANCELLED:
-        return { label: "Từ chối", color: "#F44336", bgColor: "#FFEBEE" };
+        return {
+          label: "Chờ xác nhận",
+          color: "#E1F5FE",
+          bgColor: "#03A9F4",
+          buttonColor: "#03A9F4",
+        };
+      case ExportRequestStatus.COUNT_CONFIRMED:
+        return {
+          label: "Đã xác nhận kiểm đếm",
+          color: "#fff",
+          bgColor: "#213448",
+          buttonColor: "#4CAF50",
+        };
+      case ExportRequestStatus.WAITING_EXPORT:
+        return {
+          label: "Chờ xuất kho",
+          color: "#fffbe6",
+          bgColor: "#faad14",
+          buttonColor: "#faad14",
+        };
+case ExportRequestStatus.CONFIRMED:
+  return {
+    label: "Đã xuất kho",
+    color: "#1890ff",       // xanh nhẹ
+    bgColor: "#e6f7ff",     // nền xanh nhạt
+    buttonColor: "#1890ff", // nút xanh
+  };
+
       case ExportRequestStatus.COMPLETED:
-        return { label: "Hoàn thành", color: "#2196F3", bgColor: "#E3F2FD" };
+        return {
+          label: "Hoàn tất",
+          color: "#2196F3",
+          bgColor: "#E3F2FD",
+          buttonColor: "#2196F3",
+        };
+      case ExportRequestStatus.CANCELLED:
+        return {
+          label: "Đã hủy",
+          color: "#F44336",
+          bgColor: "#FFEBEE",
+          buttonColor: "#F44336",
+        };
       default:
-        return { label: "Không xác định", color: "#757575", bgColor: "#F5F5F5" };
+        return {
+          label: "Không xác định",
+          color: "#757575",
+          bgColor: "#F5F5F5",
+          buttonColor: "#757575",
+        };
     }
   };
 
   const statusInfo = getStatusInfo();
 
   return (
-    <View
-      style={[
-        styles.statusBadge,
-        { backgroundColor: statusInfo.bgColor },
-      ]}
-    >
+    <View style={[styles.statusBadge, { backgroundColor: statusInfo.bgColor }]}>
       <Text style={[styles.statusText, { color: statusInfo.color }]}>
         {statusInfo.label}
       </Text>
@@ -90,7 +132,8 @@ function ExportListComponent() {
   const userId = useSelector((state: RootState) => state.auth.user?.id);
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedStatus, setSelectedStatus] = useState<ExportRequestStatus | null>(null);
+  const [selectedStatus, setSelectedStatus] =
+    useState<ExportRequestStatus | null>(null);
   const [filterVisible, setFilterVisible] = useState(false);
   const dispatch = useDispatch();
   const insets = useSafeAreaInsets();
@@ -106,9 +149,16 @@ function ExportListComponent() {
   });
 
   const statusOptions = [
-    { label: "Chờ xử lý", value: ExportRequestStatus.PROCESSING },
-    { label: "Đã duyệt", value: ExportRequestStatus.COUNTED },
-    { label: "Hoàn thành", value: ExportRequestStatus.COMPLETED },
+    { label: "Chưa bắt đầu", value: ExportRequestStatus.NOT_STARTED },
+    { label: "Đang xử lý", value: ExportRequestStatus.IN_PROGRESS },
+    { label: "Chờ xác nhận", value: ExportRequestStatus.COUNTED },
+    {
+      label: "Đã xác nhận kiểm đếm",
+      value: ExportRequestStatus.COUNT_CONFIRMED,
+    },
+    { label: "Chờ xuất kho", value: ExportRequestStatus.WAITING_EXPORT },
+    { label: "Hoàn tất", value: ExportRequestStatus.COMPLETED },
+    { label: "Đã hủy", value: ExportRequestStatus.CANCELLED },
   ];
 
   // Render chip thể hiện trạng thái lọc hiện tại
@@ -136,16 +186,21 @@ function ExportListComponent() {
     );
   };
 
-  const filteredExports = exportRequests?.filter(
-    (request: ExportRequestType) => {
-      const matchSearch = request?.exportRequestId &&
-        request.exportRequestId.toString().toLowerCase().includes(searchQuery.toLowerCase());
-      
-      const matchStatus = selectedStatus ? request.status === selectedStatus : true;
-      
+  const filteredExports =
+    exportRequests?.filter((request: ExportRequestType) => {
+      const matchSearch =
+        request?.exportRequestId &&
+        request.exportRequestId
+          .toString()
+          .toLowerCase()
+          .includes(searchQuery.toLowerCase());
+
+      const matchStatus = selectedStatus
+        ? request.status === selectedStatus
+        : true;
+
       return matchSearch && matchStatus;
-    }
-  ) || [];
+    }) || [];
 
   const handleSelectExport = (request: ExportRequestType) => {
     dispatch(
@@ -155,8 +210,8 @@ function ExportListComponent() {
       })
     );
     router.push({
-      pathname: '/export/export-detail/[id]',
-      params: { id: request.exportRequestId }
+      pathname: "/export/export-detail/[id]",
+      params: { id: request.exportRequestId },
     });
   };
 
@@ -165,12 +220,7 @@ function ExportListComponent() {
       <StatusBar backgroundColor="#1677ff" barStyle="light-content" />
 
       {/* Header */}
-      <View
-        style={[
-          styles.header,
-          { paddingTop: insets.top + 10 }
-        ]}
-      >
+      <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
         <Text style={styles.headerTitle}>Danh sách phiếu xuất</Text>
       </View>
 
@@ -226,7 +276,11 @@ function ExportListComponent() {
                 {/* Header phiếu xuất */}
                 <View style={styles.orderHeader}>
                   <View style={styles.orderIdContainer}>
-                    <Ionicons name="document-text-outline" size={20} color="#1677ff" />
+                    <Ionicons
+                      name="document-text-outline"
+                      size={20}
+                      color="#1677ff"
+                    />
                     <Text style={styles.orderId}>
                       Phiếu xuất {request.exportRequestId}
                     </Text>
@@ -243,6 +297,7 @@ function ExportListComponent() {
                       value={request.exportReason}
                     />
                   )} */}
+
                   {request.exportDate && (
                     <InfoRow
                       icon="calendar-outline"
@@ -260,22 +315,65 @@ function ExportListComponent() {
                 </View>
 
                 {/* Footer phiếu xuất */}
-                <TouchableOpacity
-                  style={[
-                    styles.actionButton,
-                    request.status === ExportRequestStatus.COUNTED ? styles.viewButton : 
-                    request.status === ExportRequestStatus.COMPLETED ? styles.viewButton2 : {}
-                  ]}
-                  onPress={() => handleSelectExport(request)}
-                >
-                  <Ionicons
-                    name="eye-outline"
-                    size={18}
-                    color="#FFFFFF"
-                    style={styles.buttonIcon}
-                  />
-                  <Text style={styles.buttonText}>Xem chi tiết phiếu xuất</Text>
-                </TouchableOpacity>
+                {(() => {
+                  let buttonLabel = "Xem chi tiết phiếu xuất";
+                  let backgroundColor = "#757575";
+                  let icon = "eye-outline";
+
+                  switch (request.status) {
+                    case ExportRequestStatus.IN_PROGRESS:
+                      buttonLabel = "Kiểm đếm phiếu xuất";
+                      backgroundColor = "#1677ff";
+                      icon = "clipboard-outline";
+                      break;
+                    case ExportRequestStatus.COUNT_CONFIRMED:
+                      buttonLabel = "Tạo chứng từ";
+                      backgroundColor = "#213448";
+                      icon = "document-outline";
+                      break;
+                    case ExportRequestStatus.COUNTED:
+                      backgroundColor = "#03A9F4";
+                      break;
+                    case ExportRequestStatus.WAITING_EXPORT:
+                      backgroundColor = "#faad14";
+                      break;
+                    case ExportRequestStatus.CONFIRMED:
+                      backgroundColor = "#e6f7ff";
+                      break;
+                    case ExportRequestStatus.COMPLETED:
+                      backgroundColor = "#E3F2FD";
+                      break;
+                    case ExportRequestStatus.CANCELLED:
+                      backgroundColor = "#FFEBEE";
+                      break;
+                  }
+
+                  return (
+                    <TouchableOpacity
+                      style={[styles.actionButton, { backgroundColor }]}
+                      onPress={() => {
+                        if (
+                          request.status === ExportRequestStatus.COUNT_CONFIRMED
+                        ) {
+                          router.push({
+                            pathname: "/export/sign/warehouse-sign",
+                            params: { id: request.exportRequestId },
+                          });
+                        } else {
+                          handleSelectExport(request);
+                        }
+                      }}
+                    >
+                      <Ionicons
+                        name={icon}
+                        size={18}
+                        color="#FFFFFF"
+                        style={styles.buttonIcon}
+                      />
+                      <Text style={styles.buttonText}>{buttonLabel}</Text>
+                    </TouchableOpacity>
+                  );
+                })()}
               </TouchableOpacity>
             ))}
           </View>
@@ -349,16 +447,16 @@ const Modal = ({
   children: React.ReactNode;
 }) => {
   if (!visible) return null;
-  
+
   return (
-    <View 
+    <View
       style={{
-        position: 'absolute',
-        top: 0, 
-        left: 0, 
-        right: 0, 
+        position: "absolute",
+        top: 0,
+        left: 0,
+        right: 0,
         bottom: 0,
-        backgroundColor: transparent ? 'transparent' : 'white',
+        backgroundColor: transparent ? "transparent" : "white",
         zIndex: 1000,
       }}
     >

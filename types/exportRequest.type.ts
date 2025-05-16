@@ -9,15 +9,17 @@ export enum ExportRequestTypeEnum {
 
 // types/exportRequest.type.ts
 export enum ExportRequestStatus {
-  NOT_STARTED = "NOT_STARTED", // Chưa bắt đầu
-  PROCESSING = "PROCESSING", // Đang xử lý
-  CHECKING = "CHECKING", // Đang kiểm kho
-  CHECKED = "CHECKED", // Đã kiểm kho
-  WAITING_EXPORT = "WAITING_EXPORT", // Chờ xuất hàng
-  COMPLETED = "COMPLETED", // Đã hoàn thành
-  CANCELLED = "CANCELLED", // Đã hủy
-  COUNTED = "COUNTED"
+  NOT_STARTED = "NOT_STARTED",        // Chưa bắt đầu
+  IN_PROGRESS = "IN_PROGRESS",        // Đang xử lý (sau khi đã assign nhân viên kiểm kho)
+  COUNTED = "COUNTED",                // Đã kiểm đếm (do nhân viên kiểm kho xác nhận xong)
+  COUNT_CONFIRMED = "COUNT_CONFIRMED",
+  // Đã xác nhận kiểm đếm (trưởng kho xác nhận)
+  CONFIRMED = "CONFIRMED",
+  WAITING_EXPORT = "WAITING_EXPORT",  // Chờ xuất kho (phòng ban xác nhận ngày khách đến lấy)
+  COMPLETED = "COMPLETED",            // Đã hoàn tất
+  CANCELLED = "CANCELLED"             // Đã hủy
 }
+
 
 // export interface ExportRequestType {
 //   exportRequestId: number;

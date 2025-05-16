@@ -139,7 +139,7 @@ const LoginScreen = () => {
         </TouchableOpacity> */}
 
         {/* Social Login */}
-        <Text className="text-center text-gray-500 mt-6">Hoặc</Text>
+        {/* <Text className="text-center text-gray-500 mt-6">Hoặc</Text>
         <View className=" flex items-center  mt-4 ">
           <TouchableOpacity className="bg-gray-100  flex-row  items-center p-3 rounded-2xl  gap-2">
             <Image
@@ -150,7 +150,7 @@ const LoginScreen = () => {
             />
             <Text>Đăng nhập với Google</Text>
           </TouchableOpacity>
-        </View>
+        </View> */}
       </View>
     </TouchableWithoutFeedback>
   );

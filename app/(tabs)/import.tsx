@@ -43,7 +43,7 @@ export default function ReceiptDetail() {
   const statusOptions = [
     { label: "Chờ kiểm đếm", value: ImportOrderStatus.IN_PROGRESS },
     { label: "Hoàn tất", value: ImportOrderStatus.COMPLETED },
-    { label: "Chờ xác nhận", value: ImportOrderStatus.CONFIRMED },
+    { label: "Chờ xác nhận", value: ImportOrderStatus.COUNTED },
   ];
 
   useEffect(() => {
@@ -115,7 +115,7 @@ export default function ReceiptDetail() {
         return "#E3F2FD"; // Nền xanh nhạt
       case ImportOrderStatus.COMPLETED:
         return "#E8F5E9"; // Nền xanh lá nhạt
-      case ImportOrderStatus.CONFIRMED:
+      case ImportOrderStatus.COUNTED:
         return "#FFF8E1"; // Nền vàng nhạt
       default:
         return "#FFFFFF";

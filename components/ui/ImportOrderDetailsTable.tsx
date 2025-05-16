@@ -165,6 +165,7 @@ const ImportOrderDetailsTable: React.FC<ImportOrderDetailsTableProps> = ({
               <Text style={styles.productsTitle}>
                 Vị trí sản phẩm
               </Text>
+              
             </View>
 
             {Object.entries(

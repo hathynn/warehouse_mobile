@@ -179,7 +179,7 @@ const Confirm = () => {
                 header={
                   <View style={{ flexDirection: "row", alignItems: "center" }}>
                     <Text style={{ fontWeight: "600" }}>
-                      Sản phẩm: #{product.id}
+                      Sản phẩm: {product.name}
                     </Text>
                   </View>
                 }

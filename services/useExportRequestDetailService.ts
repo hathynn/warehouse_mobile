@@ -11,21 +11,19 @@ const useExportRequestDetail = () => {
     ExportRequestDetailType[]
   >([]);
 
-
   const fetchExportRequestDetails = async (
     exportRequestId: number,
     page = 1,
-    limit = 10
+    limit = 100
   ): Promise<ExportRequestDetailType[]> => {
     try {
       const response = await callApi(
         "get",
         `/export-request-detail/${exportRequestId}`,
-        {
-          params: { page, limit },
-        }
+        undefined,
+        { params: { page, limit } } // config → query string
       );
-      return response.content; // 👈 trả về mảng dữ liệu
+      return response.content || [];
     } catch (error) {
       console.error("❌ Lỗi khi lấy chi tiết đơn xuất:", error);
       return [];
@@ -41,27 +39,29 @@ const useExportRequestDetail = () => {
         exportRequestDetailId,
         actualQuantity,
       };
-  
-      await callApi("put", `${BASE_URL}/actual-quantity`, payload);
+
+      await callApi("put", `/export-request-detail/actual-quantity`, payload);
       return true;
     } catch (error) {
       console.error("❌ Lỗi khi cập nhật actualQuantity:", error);
       return false;
     }
   };
-  
+
   const confirmCountedExportRequest = async (
     exportRequestId: number
   ): Promise<boolean> => {
     try {
-      await callApi("post", `/export-request/confirm-counted/${exportRequestId}`);
+      await callApi(
+        "post",
+        `/export-request/confirm-counted/${exportRequestId}`
+      );
       return true;
     } catch (error) {
       console.error("❌ Lỗi khi xác nhận kiểm đếm:", error);
       return false;
     }
   };
-  
 
   return {
     loading,
