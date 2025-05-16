@@ -14,10 +14,12 @@ const useInventoryService = () => {
         const res = await callApi(
           "get",
           `${BASE_URL}/inventory-item/import-order-detail/${importOrderDetailId}`,
-          {
-            params: { page, limit },
-          }
+          undefined, // không có body cho GET
+          { params: { page, limit } } // → đây mới là config được truyền xuống axios
         );
+
+        console.log("📦 API trả về:", res.metaDataDTO);
+
         return res.content || [];
       } catch (err) {
         console.error("Lỗi khi gọi inventory items:", err);

@@ -1,187 +1,246 @@
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
-import { View, Image, TouchableOpacity, Text, ScrollView } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  View,
+  Image,
+  TouchableOpacity,
+  Text,
+  ScrollView,
+  StyleSheet,
+  ActivityIndicator,
+} from "react-native";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import Signature, { SignatureViewRef } from "react-native-signature-canvas";
-import { Button, Label } from "tamagui";
+import { Button } from "tamagui";
 import { useDispatch, useSelector } from "react-redux";
 import { RootState } from "@/redux/store";
 import { setPaperData } from "@/redux/paperSlice";
-import useImportOrderDetail from "@/services/useImportOrderDetailService";
-import usePaperService from "@/services/usePaperService";
 import useExportRequestDetail from "@/services/useExportRequestDetailService";
-import ExportProductListAccordion from "@/components/ui/ExportProductList";
+import usePaperService from "@/services/usePaperService";
+import SimpleProductList from "@/components/ui/ProductList";
+import { ExportRequestDetailType } from "@/types/exportRequestDetail.type";
+import useExportRequest from "@/services/useExportRequestService";
 
 const SignReceiveScreen = () => {
-  const [signature, setSignature] = useState<string | null>(null);
-  const signatureRef = useRef<SignatureViewRef>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const insets = useSafeAreaInsets();
   const dispatch = useDispatch();
-  const paperData = useSelector((state: RootState) => state.paper); // Lấy dữ liệu từ Redux
-  const { updateActualQuantity } = useExportRequestDetail();
-
-  const importOrderId = useSelector(
-    (state: RootState) => state.paper.importOrderId
-  );
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const exportRequestId = Number(id);
+  const signatureRef = useRef<SignatureViewRef>(null);
+  const [signature, setSignature] = useState<string | null>(null);
   const [scrollEnabled, setScrollEnabled] = useState(true);
-
-  const products = useSelector((state: RootState) =>
-    state.product.products.filter((p) => p.importOrderId === importOrderId)
+  const [exportDetails, setExportDetails] = useState<ExportRequestDetailType[]>(
+    []
   );
+  const { updateExportRequestStatus } = useExportRequest();
 
-  const { updateImportOrderDetailsByOrderId } = useImportOrderDetail();
+  const { fetchExportRequestDetails, updateActualQuantity } =
+    useExportRequestDetail();
+  const { createPaper } = usePaperService();
+  const paperData = useSelector((state: RootState) => state.paper);
 
-  const exportRequestDetails = useSelector(
-    (state: RootState) => state.exportRequestDetail.details
-  );
-
-
-  const handleSave = (img: string) => {
-    setSignature(img);
-    dispatch(setPaperData({ signProviderUrl: img }));
-  };
-  // const base64ToBlob = (base64: string) => {
-  //   const byteCharacters = atob(base64.split(",")[1]); // Bỏ "data:image/png;base64,"
-  //   const byteNumbers = new Array(byteCharacters.length)
-  //     .fill(0)
-  //     .map((_, i) => byteCharacters.charCodeAt(i));
-  //   const byteArray = new Uint8Array(byteNumbers);
-  //   return new Blob([byteArray], { type: "image/png" });
-  // };
+  useEffect(() => {
+    const fetchData = async () => {
+      if (exportRequestId) {
+        const data = await fetchExportRequestDetails(exportRequestId, 1, 100);
+        setExportDetails(data);
+      }
+    };
+    fetchData();
+  }, [exportRequestId]);
 
   const handleClear = () => {
     setSignature(null);
     signatureRef.current?.clearSignature();
+    dispatch(setPaperData({ signWarehouseUrl: null }));
   };
-
-  const { createPaper } = usePaperService();
-
-  const handleConfirm = async () => {
-    if (!paperData.signProviderUrl || !paperData.signWarehouseUrl) {
-      console.log("❌ Chưa có đủ chữ ký, vui lòng ký trước khi xác nhận.");
-      return;
-    }
-
-    try {
-      for (const p of exportRequestDetails) {
-        const success = await updateActualQuantity(p.id, p.actualQuantity ?? 0);
-        if (!success) {
-          console.warn(`⚠️ Không thể cập nhật item ID: ${p.id}`);
-        }
-      }
-
-      console.log("✅ Cập nhật actualQuantity thành công");
-
-      console.log("📦 Dữ liệu gửi lên API:", paperData);
-
-      const paperResponse = await createPaper(paperData);
-      if (paperResponse) {
-        console.log("✅ Tạo paper thành công");
-        router.push("/(tabs)/export");
-      }
-    } catch (error) {
-      console.error("❌ Lỗi khi xác nhận:", error);
-    }
-  };
-
-
 
   const handleEnd = async () => {
     const img = await signatureRef.current?.readSignature();
     if (img) {
       setSignature(img);
-      dispatch(setPaperData({ signWarehouseUrl: img })); // Cập nhật Redux
+      dispatch(setPaperData({ signWarehouseUrl: img }));
     }
   };
 
-  return (
-    <SafeAreaView className="flex-1 p-2">
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        scrollEnabled={scrollEnabled}
-      >
-        <View className="px-3">
-          <View className="bg-[#1677ff] mb-2 px-4 py-4 flex-row justify-between items-center rounded-2xl">
-            <TouchableOpacity onPress={() => router.back()} className="p-2">
-              <Ionicons name="arrow-back" size={24} color="white" />
-            </TouchableOpacity>
-            <Text className="text-white font-bold text-lg">
-              Người nhận hàng ký
-            </Text>
-          </View>
-          <View className="items-center">
-            <Label>Xác nhận thông tin sản phẩm</Label>
-          </View>
-          <ExportProductListAccordion products={exportRequestDetails} />
-          <View className="items-center">
+  const handleConfirm = async () => {
+    if (!paperData.signProviderUrl || !paperData.signWarehouseUrl) {
+      console.warn("❌ Cần đủ 2 chữ ký trước khi xác nhận.");
+      return;
+    }
 
-            {paperData.signProviderUrl && (
-              <>
-                <View className=" items-center">
-                  <Label>Chữ ký người giao hàng</Label>
-                </View>
-                <View className="w-full bg-white p-3 rounded-2xl mt-3 items-center">
-                  <Image
-                    source={{ uri: paperData.signProviderUrl }}
-                    className="w-full h-64  rounded-md"
-                    resizeMode="contain"
-                  />
-                </View>
-              </>
-            )}
-          </View>
-          <View className="items-center">
-            <Label>Ký tên</Label>
-          </View>
-          <View
-            style={{
-              height: 710,
-              borderWidth: 1,
-              borderColor: "#ccc",
-              borderRadius: 10,
-              backgroundColor: "white",
-              padding: 5,
-            }}
-          >
+    try {
+      setIsLoading(true);
+
+      const response = await createPaper(paperData);
+      if (response) {
+        console.log("✅ Tạo phiếu thành công");
+
+        const statusUpdated = await updateExportRequestStatus(
+          exportRequestId,
+          "CONFIRMED"
+        );
+        if (statusUpdated) {
+          console.log("✅ Đã cập nhật trạng thái CONFIRMED");
+        } else {
+          console.warn("⚠️ Không thể cập nhật trạng thái");
+        }
+
+        router.push("/(tabs)/export");
+      }
+    } catch (err) {
+      console.error("❌ Lỗi khi tạo phiếu:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const mappedProducts = exportDetails.map((item) => ({
+    id: item.id,
+    name: `Sản phẩm #${item.itemId}`,
+    actual: item.actualQuantity ?? 0,
+    expect: item.quantity ?? 0,
+  }));
+
+  return (
+    <View style={{ flex: 1 }}>
+      {/* Header */}
+      <View
+        style={{
+          backgroundColor: "#1677ff",
+          paddingTop: insets.top,
+          paddingBottom: 16,
+          paddingHorizontal: 17,
+          flexDirection: "row",
+          justifyContent: "space-between",
+          alignItems: "center",
+        }}
+      >
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={{ marginTop: 7 }}
+        >
+          <Ionicons name="arrow-back" size={24} color="white" />
+        </TouchableOpacity>
+        <Text
+          style={{
+            color: "white",
+            fontSize: 16,
+            fontWeight: "bold",
+            marginTop: 7,
+          }}
+        >
+          Người nhận hàng ký
+        </Text>
+      </View>
+
+      <ScrollView scrollEnabled={scrollEnabled}>
+        <View style={{ padding: 16 }}>
+          {/* Danh sách sản phẩm */}
+          <Text style={styles.label}>Xác nhận thông tin sản phẩm</Text>
+          <SimpleProductList products={mappedProducts} />
+
+          {/* Chữ ký người giao hàng */}
+          {paperData.signProviderUrl && (
+            <>
+              <Text style={[styles.label, { marginTop: 24 }]}>
+                Chữ ký người giao hàng
+              </Text>
+              <View
+                style={{
+                  backgroundColor: "#fff",
+                  padding: 12,
+                  borderRadius: 10,
+                }}
+              >
+                <Image
+                  source={{ uri: paperData.signProviderUrl }}
+                  style={{
+                    width: "100%",
+                    height: 220,
+                    borderRadius: 10,
+                  }}
+                  resizeMode="contain"
+                />
+              </View>
+            </>
+          )}
+
+          {/* Ký tên */}
+          <Text style={[styles.label, { marginTop: 24 }]}>
+            Người nhận ký tên
+          </Text>
+          <View style={styles.signatureBox}>
             <Signature
               ref={signatureRef}
               onBegin={() => setScrollEnabled(false)}
-              onOK={(signature) => {
-                dispatch(setPaperData({ signWarehouseUrl: signature }));
-              }}
+              onOK={(img) => dispatch(setPaperData({ signWarehouseUrl: img }))}
               onEnd={() => {
-                setScrollEnabled(true); // Bật lại scroll sau khi ký
-                handleEnd(); // Xử lý ảnh
+                setScrollEnabled(true);
+                handleEnd();
               }}
               descriptionText="Ký tên tại đây"
               imageType="image/png"
               webStyle={`
-          .m-signature-pad { height: 100% !important; }
-          .m-signature-pad--body { height: 100% !important; }
-          .m-signature-pad--footer { display: none; }
-          body, html { height: 100%; margin: 0; padding: 0; }
-        `}
-              style={{ flex: 1, height: 710 }} // Đảm bảo WebView Signature có đúng chiều cao
+                .m-signature-pad { height: 100% !important; }
+                .m-signature-pad--body { height: 100% !important; }
+                .m-signature-pad--footer { display: none; }
+                body, html { height: 100%; margin: 0; padding: 0; }
+              `}
+              style={{ flex: 1, height: 300 }}
             />
           </View>
 
-          <View className="flex-row justify-center mt-4">
-            <Button onPress={handleClear}>Xóa</Button>
-            <View style={{ width: 20 }} />
-            <Button onPress={handleConfirm}>Xác nhận</Button>
-          </View>
+          {paperData.signWarehouseUrl && (
+            <View style={styles.actions}>
+              <Button flex={1} onPress={handleClear}>
+                Xóa
+              </Button>
 
-          {signature && (
-            <Image
-              source={{ uri: signature }}
-              className="w-full h-32 mt-4 border"
-              resizeMode="contain"
-            />
+              <Button flex={1} onPress={handleConfirm} disabled={isLoading}>
+                {isLoading ? (
+                  <ActivityIndicator color="white" />
+                ) : (
+                  "Tạo chứng từ"
+                )}
+              </Button>
+            </View>
           )}
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 };
+
+const styles = StyleSheet.create({
+  label: {
+    fontWeight: "600",
+    fontSize: 16,
+    marginBottom: 8,
+    textAlign: "center",
+    marginTop: 16,
+  },
+  signatureBox: {
+    height: 300,
+    borderWidth: 1,
+    borderColor: "#ccc",
+    borderRadius: 10,
+    overflow: "hidden",
+    backgroundColor: "white",
+    marginTop: 8,
+  },
+  actions: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: 12,
+    marginTop: 24,
+    marginBottom: 24,
+  },
+});
 
 export default SignReceiveScreen;

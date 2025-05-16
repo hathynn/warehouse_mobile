@@ -1,6 +1,7 @@
 import React from "react";
-import { Accordion, Paragraph, Square, YStack } from "tamagui";
-import { ChevronDown } from "@tamagui/lucide-icons";
+import { Text, View } from "react-native";
+import { Accordion, AccordionItem } from "./CustomAccordion";
+
 
 type ExportRequestDetail = {
   id: number;
@@ -15,37 +16,21 @@ type Props = {
 
 const ExportProductListAccordion: React.FC<Props> = ({ products }) => {
   return (
-    <Accordion
-      overflow="hidden"
-      width="100%"
-      type="multiple"
-      marginBottom="$3"
-      borderRadius="$6"
-      marginTop={10}
-    >
+    <Accordion>
       {products.map((product, index) => (
-        <Accordion.Item key={product.id} value={`product-${index}`}>
-          <Accordion.Trigger flexDirection="row" justifyContent="space-between">
-            {({ open }: { open: boolean }) => (
-              <>
-                <Paragraph fontWeight="500">
-                  Mã sản phẩm: #{product.itemId}
-                </Paragraph>
-                <Square animation="quick" rotate={open ? "180deg" : "0deg"}>
-                  <ChevronDown size="$1" />
-                </Square>
-              </>
-            )}
-          </Accordion.Trigger>
-          <Accordion.HeightAnimator animation="medium">
-            <Accordion.Content animation="medium" exitStyle={{ opacity: 0 }}>
-              <YStack padding="$3" gap="$2">
-                <Paragraph>Số lượng yêu cầu: {product.quantity}</Paragraph>
-                <Paragraph>Số lượng thực tế: {product.actualQuantity}</Paragraph>
-              </YStack>
-            </Accordion.Content>
-          </Accordion.HeightAnimator>
-        </Accordion.Item>
+        <AccordionItem
+          key={product.id}
+          header={
+            <Text style={{ fontWeight: "600", fontSize: 16 }}>
+              Mã sản phẩm: #{product.itemId}
+            </Text>
+          }
+        >
+          <View style={{ gap: 8 }}>
+            <Text>Số lượng yêu cầu: {product.quantity}</Text>
+            <Text>Số lượng thực tế: {product.actualQuantity}</Text>
+          </View>
+        </AccordionItem>
       ))}
     </Accordion>
   );

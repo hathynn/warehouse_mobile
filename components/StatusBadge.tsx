@@ -9,8 +9,8 @@ const getStatusStyle = (status: ImportOrderStatus) => {
     case ImportOrderStatus.COMPLETED:
       return { backgroundColor: "#52c41a", textColor: "#fff", label: "Hoàn tất" };
     case ImportOrderStatus.CANCELLED:
-      return { backgroundColor: "#ff4d4f", textColor: "#fff", label: "Đã huỷ" };
-    case ImportOrderStatus.CONFIRMED:
+      return { backgroundColor: "#FFEBEE", textColor: "#F44336", label: "Đã huỷ" };
+    case ImportOrderStatus.COUNTED:
       return { backgroundColor: "#213448", textColor: "#fff", label: "Chờ xác nhận" };
     default:
       return { backgroundColor: "#d9d9d9", textColor: "#000", label: "Không rõ" };
