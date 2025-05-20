@@ -139,7 +139,8 @@ const ExportRequestScreen: React.FC = () => {
         return (
           <StyledButton
             title="Xem chữ ký chứng từ"
-            onPress={() => router.push(`/export/sign/receiver-sign?id=${id}`)}
+            // onPress={() => router.push(`/export/sign/receiver-sign?id=${id}`)}
+            onPress={() => console.log("Chưa có làm")}
             style={{ marginTop: 12 }}
           />
         );

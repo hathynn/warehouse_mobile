@@ -20,4 +20,5 @@ export enum ImportOrderStatus {
   COMPLETED = "COMPLETED",
   CANCELLED = "CANCELLED",
   COUNTED = "COUNTED",
+  CONFIRMED="CONFIRMED"
 }

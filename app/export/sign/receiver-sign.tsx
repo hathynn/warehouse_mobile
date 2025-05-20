@@ -30,19 +30,23 @@ const SignReceiveScreen = () => {
   const insets = useSafeAreaInsets();
   const dispatch = useDispatch();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const exportRequestId = Number(id);
   const signatureRef = useRef<SignatureViewRef>(null);
   const [signature, setSignature] = useState<string | null>(null);
   const [scrollEnabled, setScrollEnabled] = useState(true);
   const [exportDetails, setExportDetails] = useState<ExportRequestDetailType[]>(
     []
   );
-  const { updateExportRequestStatus } = useExportRequest();
 
   const { fetchExportRequestDetails, updateActualQuantity } =
     useExportRequestDetail();
   const { createPaper } = usePaperService();
   const paperData = useSelector((state: RootState) => state.paper);
+  const { updateExportRequestStatus } = useExportRequest();
+  const exportRequestId = paperData.exportRequestId;
+
+  // useEffect(() => {
+  //   console.log("EXPORT ID ", exportRequestId);
+  // }, [exportRequestId]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -70,7 +74,12 @@ const SignReceiveScreen = () => {
 
   const handleConfirm = async () => {
     if (!paperData.signProviderUrl || !paperData.signWarehouseUrl) {
-      console.warn("❌ Cần đủ 2 chữ ký trước khi xác nhận.");
+      console.warn("Cần đủ 2 chữ ký trước khi xác nhận.");
+      return;
+    }
+
+    if (!exportRequestId) {
+      console.warn("Thiếu exportRequestId");
       return;
     }
 
@@ -85,6 +94,7 @@ const SignReceiveScreen = () => {
           exportRequestId,
           "CONFIRMED"
         );
+        console.log("2", statusUpdated);
         if (statusUpdated) {
           console.log("✅ Đã cập nhật trạng thái CONFIRMED");
         } else {
@@ -94,7 +104,7 @@ const SignReceiveScreen = () => {
         router.push("/(tabs)/export");
       }
     } catch (err) {
-      console.error("❌ Lỗi khi tạo phiếu:", err);
+      console.error("Lỗi khi tạo phiếu:", err);
     } finally {
       setIsLoading(false);
     }
@@ -115,7 +125,7 @@ const SignReceiveScreen = () => {
           backgroundColor: "#1677ff",
           paddingTop: insets.top,
           paddingBottom: 16,
-          paddingHorizontal: 17,
+
           flexDirection: "row",
           justifyContent: "space-between",
           alignItems: "center",
@@ -139,13 +149,22 @@ const SignReceiveScreen = () => {
         </Text>
       </View>
 
+      <View style={{ padding: 16, height: 415 }}>
+        <SimpleProductList
+          products={exportDetails.map((item) => ({
+            id: item.id,
+            name: `Sản phẩm #${item.itemId}`,
+            actual: item.actualQuantity,
+            expect: item.quantity,
+          }))}
+        />
+      </View>
+
       <ScrollView scrollEnabled={scrollEnabled}>
         <View style={{ padding: 16 }}>
           {/* Danh sách sản phẩm */}
-          <Text style={styles.label}>Xác nhận thông tin sản phẩm</Text>
-          <SimpleProductList products={mappedProducts} />
 
-          {/* Chữ ký người giao hàng */}
+          {/* Chữ ký người giao hàng
           {paperData.signProviderUrl && (
             <>
               <Text style={[styles.label, { marginTop: 24 }]}>
@@ -169,7 +188,7 @@ const SignReceiveScreen = () => {
                 />
               </View>
             </>
-          )}
+          )} */}
 
           {/* Ký tên */}
           <Text style={[styles.label, { marginTop: 24 }]}>
