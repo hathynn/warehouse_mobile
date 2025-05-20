@@ -36,6 +36,7 @@ const SignWarehouseScreen = () => {
   const { fetchExportRequestDetails } = useExportRequestDetail();
 
   useEffect(() => {
+      dispatch(setPaperData({ exportRequestId }));
     const fetchData = async () => {
       if (exportRequestId) {
         const data = await fetchExportRequestDetails(exportRequestId, 1, 100);

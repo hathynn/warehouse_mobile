@@ -34,7 +34,8 @@ const useExportRequest = () => {
       try {
         const response = await callApi(
           "get",
-          `${BASE_URL}/staff/${staffId}`, undefined,
+          `${BASE_URL}/staff/${staffId}`,
+          undefined,
           {
             params: {
               page,
@@ -55,32 +56,33 @@ const useExportRequest = () => {
     },
     [callApi, setIsLoading]
   );
-  
-const updateExportRequestStatus = useCallback(
-  async (exportRequestId: number, status: string) => {
-    if (!exportRequestId || !status) return false;
-    setIsLoading(true);
-    try {
-      const response = await callApi(
-        "post",
-        `${BASE_URL}/update-status/${exportRequestId}`,
-        undefined,
-        {
-          params: { status },
-        }
-      );
-      return response;
-    } catch (error) {
-      console.error("❌ Lỗi khi cập nhật trạng thái export request:", error);
-      return false;
-    } finally {
-      setIsLoading(false);
-    }
-  },
-  [callApi, setIsLoading]
-);
 
-  
+  const updateExportRequestStatus = useCallback(
+    async (exportRequestId: number, status: string) => {
+      console.log("ID API:", exportRequestId)
+      if (!exportRequestId || !status) return false;
+      setIsLoading(true);
+      try {
+        const response = await callApi(
+          "post",
+          `${BASE_URL}/update-status/${exportRequestId}`,
+          undefined,
+          {
+            params: { status },
+          }
+        );
+        // console.log("1", response);
+        return response;
+      } catch (error) {
+        console.error("❌ Lỗi khi cập nhật trạng thái export request:", error);
+        return false;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [callApi, setIsLoading]
+  );
+
   // Lấy chi tiết Export Request theo ID
   const fetchExportRequestById = useCallback(
     async (id: number) => {
@@ -120,7 +122,7 @@ const updateExportRequestStatus = useCallback(
     async (id: number, updatedData: Partial<ExportRequestType>) => {
       setIsLoading(true);
       try {
-        console.log("Hello")
+        console.log("Hello");
         const response = await callApi("put", `${BASE_URL}/${id}`, updatedData);
         return response;
       } catch (error) {
@@ -160,7 +162,7 @@ const updateExportRequestStatus = useCallback(
     updateExportRequest,
     deleteExportRequest,
     fetchExportRequestsByStaffId,
-    updateExportRequestStatus
+    updateExportRequestStatus,
   };
 };
 

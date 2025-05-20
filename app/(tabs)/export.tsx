@@ -66,7 +66,7 @@ const StatusBadge = ({ status }: { status: ExportRequestStatus }) => {
         };
       case ExportRequestStatus.COUNTED:
         return {
-          label: "Chờ xác nhận",
+          label: "Đã kiểm đếm",
           color: "#E1F5FE",
           bgColor: "#03A9F4",
           buttonColor: "#03A9F4",
@@ -85,13 +85,13 @@ const StatusBadge = ({ status }: { status: ExportRequestStatus }) => {
           bgColor: "#faad14",
           buttonColor: "#faad14",
         };
-case ExportRequestStatus.CONFIRMED:
-  return {
-    label: "Đã xuất kho",
-    color: "#1890ff",       // xanh nhẹ
-    bgColor: "#e6f7ff",     // nền xanh nhạt
-    buttonColor: "#1890ff", // nút xanh
-  };
+      case ExportRequestStatus.CONFIRMED:
+        return {
+          label: "Đã xuất kho",
+          color: "#ECFAE5", // xanh nhẹ
+          bgColor: "#B0DB9C", // nền xanh nhạt
+          buttonColor: "#ECFAE5", // nút xanh
+        };
 
       case ExportRequestStatus.COMPLETED:
         return {
@@ -338,7 +338,7 @@ function ExportListComponent() {
                       backgroundColor = "#faad14";
                       break;
                     case ExportRequestStatus.CONFIRMED:
-                      backgroundColor = "#e6f7ff";
+                      backgroundColor = "#B0DB9C";
                       break;
                     case ExportRequestStatus.COMPLETED:
                       backgroundColor = "#E3F2FD";
