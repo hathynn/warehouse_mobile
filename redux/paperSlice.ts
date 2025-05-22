@@ -1,9 +1,9 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 
 interface PaperState {
-    importRequestId: number | null;
-    importOrderId: number | null;
-    exportRequestId: number | null;
+    importRequestId?: number | null;
+    importOrderId: string | null;
+    exportRequestId: string | null;
     signProviderUrl: string | null; // Lưu Base64 string
     signWarehouseUrl: string | null; // Lưu Base64 string
     description: string;

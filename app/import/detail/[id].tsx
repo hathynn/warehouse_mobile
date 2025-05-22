@@ -61,7 +61,7 @@ const ImportOrderScreen: React.FC = () => {
   useEffect(() => {
     const loadData = async () => {
       if (!id) return;
-      const orderId = Number(id);
+      const orderId = id;
 
       // 1. Lấy thông tin đơn nhập
       const order = await fetchImportOrderById(orderId);
@@ -135,7 +135,7 @@ const ImportOrderScreen: React.FC = () => {
             marginTop: 7,
           }}
         >
-          Thông tin đơn nhập #{id}
+         {id}
         </Text>
       </View>
 

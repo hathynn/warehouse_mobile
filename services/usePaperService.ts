@@ -12,13 +12,17 @@ const usePaperService = () => {
 
         formData.append("id", paperData.id || "");
         formData.append("description", paperData.description || "");
-        formData.append("importOrderId", paperData.importOrderId || "");
-        formData.append("exportRequestId", paperData.exportRequestId || "");
+        if (paperData.importOrderId) {
+          formData.append("importOrderId", paperData.importOrderId);
+        }
+        if (paperData.exportRequestId) {
+          formData.append("exportRequestId", paperData.exportRequestId);
+        }
 
         // ✨ Xử lý linh hoạt cả base64 và file://
         const processImageInput = async (input: string, filename: string) => {
           if (!input) throw new Error("Thiếu ảnh chữ ký");
-          
+
           if (input.startsWith("data:image")) {
             // Là base64 → tách ra và ghi vào file
             const base64 = input.split(",")[1];
@@ -64,7 +68,7 @@ const usePaperService = () => {
           },
         });
 
-        console.log("✅ Paper Created:", response);
+        // console.log("✅ Paper Created:", response);
         return response;
       } catch (error: any) {
         console.error("❌ Lỗi tạo paper:", error.message || error);

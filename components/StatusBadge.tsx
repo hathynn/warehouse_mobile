@@ -2,23 +2,34 @@ import React from "react";
 import { View, Text } from "react-native";
 import { ImportOrderStatus } from "@/types/importOrder.type";
 
-const getStatusStyle = (status: ImportOrderStatus) => {
+const getStatusStyle = (status: string) => {
   switch (status) {
-    case ImportOrderStatus.IN_PROGRESS:
-      return { backgroundColor: "#faad14", textColor: "#fff", label: "Chờ kiểm đếm" };
-    case ImportOrderStatus.COMPLETED:
-      return { backgroundColor: "#52c41a", textColor: "#fff", label: "Hoàn tất" };
-    case ImportOrderStatus.CANCELLED:
-      return { backgroundColor: "#FFEBEE", textColor: "#F44336", label: "Đã huỷ" };
-    case ImportOrderStatus.COUNTED:
+    // 📦 IMPORT STATUS
+    case "IN_PROGRESS":
+      return { backgroundColor: "#1677ff", textColor: "#fff", label: "Cần kiểm đếm" };
+    case "COUNTED":
       return { backgroundColor: "#213448", textColor: "#fff", label: "Chờ xác nhận" };
+    case "COMPLETED":
+      return { backgroundColor: "#52c41a", textColor: "#fff", label: "Hoàn tất" };
+    case "CANCELLED":
+      return { backgroundColor: "#FFEBEE", textColor: "#F44336", label: "Đã huỷ" };
+
+    // 🚚 EXPORT STATUS
+    case "COUNT_CONFIRMED":
+      return { backgroundColor: "#1890ff", textColor: "#fff", label: "Đã xác nhận kiểm đếm" };
+    case "CONFIRMED":
+      return { backgroundColor: "#722ed1", textColor: "#fff", label: "Đã xác nhận" };
+    case "WAITING_EXPORT":
+      return { backgroundColor: "#eb2f96", textColor: "#fff", label: "Chờ xuất kho" };
+
     default:
       return { backgroundColor: "#d9d9d9", textColor: "#000", label: "Không rõ" };
   }
 };
 
+
 interface Props {
-  status: ImportOrderStatus;
+  status: string;
 }
 
 const StatusBadge: React.FC<Props> = ({ status }) => {
@@ -28,13 +39,13 @@ const StatusBadge: React.FC<Props> = ({ status }) => {
     <View
     style={{
         backgroundColor,
-        paddingHorizontal: 10,
-        paddingVertical: 6,
-        borderRadius: 12,
+      paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
       
       }}
     >
-      <Text style={{ color: textColor, fontWeight: "bold", fontSize: 12 }}>
+      <Text style={{ color: textColor, fontSize: 12 }}>
         {label}
       </Text>
     </View>

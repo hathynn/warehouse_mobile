@@ -45,7 +45,7 @@ const SignReceiveScreen = () => {
   const selectProductsByImportOrderId = createSelector(
     [selectProducts, selectImportOrderId],
     (products, importOrderId) =>
-      products.filter((p) => p.importOrderId === importOrderId)
+      products.filter((p) => String(p.importOrderId) === importOrderId)
   );
 
   const importOrderId = useSelector(selectImportOrderId);
@@ -73,7 +73,7 @@ const SignReceiveScreen = () => {
     if (!result.canceled && result.assets.length > 0) {
       const originalUri = result.assets[0].uri;
 
-      // ✅ NÉN ảnh lại
+      // NÉN ảnh lại
       const manipulated = await ImageManipulator.manipulateAsync(
         originalUri,
         [], // không resize
@@ -113,7 +113,7 @@ const SignReceiveScreen = () => {
       );
       console.log("Cập nhật số lượng thành công");
       if (updateResponse) {
-        console.log("Paper:", paperData)
+        // console.log("🔍 paperData gửi lên:", paperData);
         const paperResponse = await createPaper(paperData);
         if (paperResponse) {
           console.log("✅ Tạo paper thành công");
@@ -159,7 +159,7 @@ const SignReceiveScreen = () => {
           Người nhận hàng ký
         </Text>
       </View>
-      <View style={{padding:16}}>
+      <View style={{ padding: 16 }}>
         {/* <Label>Xác nhận thông tin sản phẩm</Label> */}
         <ProductListAccordion products={products} />
       </View>
@@ -200,29 +200,6 @@ const SignReceiveScreen = () => {
                   }}
                 >
                   Ký trực tiếp
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={async () => {
-                  setSignMethod("camera");
-                  await takePhoto();
-                }}
-                style={{
-                  flex: 1,
-                  paddingVertical: 12,
-                  backgroundColor: signMethod === "camera" ? "#1677ff" : "#eee",
-                  borderRadius: 8,
-                  marginLeft: 5,
-                  alignItems: "center",
-                }}
-              >
-                <Text
-                  style={{
-                    color: signMethod === "camera" ? "white" : "black",
-                  }}
-                >
-                  Chụp ảnh chữ ký
                 </Text>
               </TouchableOpacity>
             </View>

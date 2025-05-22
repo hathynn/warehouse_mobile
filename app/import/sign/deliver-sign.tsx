@@ -33,7 +33,7 @@ const SignDeliverScreen = () => {
   const selectProductsByImportOrderId = createSelector(
     [selectProducts, selectImportOrderId],
     (products, importOrderId) =>
-      products.filter((p) => p.importOrderId === importOrderId)
+      products.filter((p) => String(p.importOrderId) === importOrderId)
   );
   const products = useSelector(selectProductsByImportOrderId);
 

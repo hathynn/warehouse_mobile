@@ -20,6 +20,7 @@ import { RootState, store } from "@/redux/store";
 import { ExportRequestStatus } from "@/types/exportRequest.type";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import StyledButton from "@/components/ui/StyledButton";
+import StatusBadge from "@/components/StatusBadge";
 
 interface RouteParams {
   id: string;
@@ -45,7 +46,7 @@ const ExportRequestScreen: React.FC = () => {
 
   useEffect(() => {
     if (id) {
-      const requestId = Number(id);
+      const requestId = id;
 
       fetchExportRequestById(requestId);
 
@@ -184,15 +185,17 @@ const ExportRequestScreen: React.FC = () => {
           <Text style={styles.cardTitle}>Thông tin chi tiết yêu cầu</Text>
 
           <View style={styles.row}>
-            <Text style={styles.label}>Mã đơn hàng</Text>
+            {/* <Text style={styles.label}>Mã phiếu xuất</Text>
             <Text style={styles.valueBlue}>
               {exportRequest?.exportRequestId}
-            </Text>
-          </View>
-
-          <View style={styles.row}>
-            <Text style={styles.label}>Tình trạng yêu cầu</Text>
-            <Text style={styles.valueRed}>{exportRequest?.status}</Text>
+            </Text> */}
+            <Text style={styles.label}>Mã phiếu</Text>
+            <View style={styles.badgeBlue}>
+              <Text style={styles.badgeText}>
+                {" "}
+                {exportRequest?.exportRequestId}
+              </Text>
+            </View>
           </View>
 
           <View style={styles.row}>
@@ -208,6 +211,13 @@ const ExportRequestScreen: React.FC = () => {
           <View style={styles.row}>
             <Text style={styles.label}>Loại xuất</Text>
             <Text style={styles.value}>{exportRequest?.type}</Text>
+          </View>
+
+          <View style={styles.row}>
+            <Text style={styles.label}>Tình trạng yêu cầu</Text>
+            <Text style={styles.valueRed}>
+              <StatusBadge status={exportRequest?.status || "UNKNOWN"} />
+            </Text>
           </View>
         </View>
 
@@ -308,6 +318,18 @@ const styles = StyleSheet.create({
   value: {
     fontSize: 14,
     color: "#333",
+  },
+  badgeBlue: {
+    backgroundColor: "#1677ff",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
+    alignSelf: "flex-start",
+  },
+  badgeText: {
+    color: "white",
+    fontSize: 13,
+    fontWeight: "bold",
   },
   valueBlue: {
     fontSize: 14,

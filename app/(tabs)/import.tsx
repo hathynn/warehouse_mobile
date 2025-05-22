@@ -5,10 +5,10 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
-  Modal,
   StatusBar,
   TextInput,
   StyleSheet,
+  FlatList,
 } from "react-native";
 import { ReactNode, useEffect, useState } from "react";
 import { Ionicons } from "@expo/vector-icons";
@@ -23,11 +23,16 @@ import { ImportOrderStatus } from "@/types/importOrder.type";
 import StatusBadge from "@/components/StatusBadge";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+interface StatusTab {
+  key: string;
+  title: string;
+  status: ImportOrderStatus | 'ALL';
+  count: number;
+}
+
 export default function ReceiptDetail() {
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedStatus, setSelectedStatus] =
-    useState<ImportOrderStatus | null>(null);
-  const [filterVisible, setFilterVisible] = useState(false);
+  const [activeTab, setActiveTab] = useState<string>('ALL');
 
   const userId = useSelector((state: RootState) => state.auth.user?.id);
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -35,16 +40,67 @@ export default function ReceiptDetail() {
   const dispatch = useDispatch();
 
   const { loading, fetchImportOrders } = useImportOrder();
-  const [filteredOrders, setFilteredOrders] = useState([]);
-  const [papers, setPapers] = useState<any[]>([]); // danh sách chứng từ đã fetch
+  const [allOrders, setAllOrders] = useState([]);
+  const [papers, setPapers] = useState<any[]>([]);
   const { getPaperById } = usePaperService();
   const { fetchImportOrderDetails } = useImportOrderDetail();
   const insets = useSafeAreaInsets();
-  const statusOptions = [
-    { label: "Chờ kiểm đếm", value: ImportOrderStatus.IN_PROGRESS },
-    { label: "Hoàn tất", value: ImportOrderStatus.COMPLETED },
-    { label: "Chờ xác nhận", value: ImportOrderStatus.COUNTED },
-  ];
+
+  // Định nghĩa các tab status
+  const getStatusTabs = (): StatusTab[] => {
+    const validOrders = allOrders.filter((order: any) => 
+      order.status !== ImportOrderStatus.CANCELLED
+    );
+
+    return [
+      {
+        key: 'ALL',
+        title: 'Tất cả',
+        status: 'ALL',
+        count: validOrders.length,
+      },
+      {
+        key: 'IN_PROGRESS',
+        title: 'Cần kiểm đếm',
+        status: ImportOrderStatus.IN_PROGRESS,
+        count: validOrders.filter((order: any) => 
+          order.status === ImportOrderStatus.IN_PROGRESS
+        ).length,
+      },
+      {
+        key: 'COUNTED',
+        title: 'Chờ xác nhận',
+        status: ImportOrderStatus.COUNTED,
+        count: validOrders.filter((order: any) => 
+          order.status === ImportOrderStatus.COUNTED
+        ).length,
+      },
+      {
+        key: 'CONFIRMED',
+        title: 'Đã xác nhận',
+        status: ImportOrderStatus.CONFIRMED,
+        count: validOrders.filter((order: any) => 
+          order.status === ImportOrderStatus.CONFIRMED
+        ).length,
+      },
+      {
+        key: 'COMPLETED',
+        title: 'Hoàn tất',
+        status: ImportOrderStatus.COMPLETED,
+        count: validOrders.filter((order: any) => 
+          order.status === ImportOrderStatus.COMPLETED
+        ).length,
+      },
+      {
+        key: 'CANCELLED',
+        title: 'Đã hủy',
+        status: ImportOrderStatus.COMPLETED,
+        count: validOrders.filter((order: any) => 
+          order.status === ImportOrderStatus.COMPLETED
+        ).length,
+      },
+    ];
+  };
 
   useEffect(() => {
     const fetchOrders = async () => {
@@ -52,7 +108,7 @@ export default function ReceiptDetail() {
 
       try {
         const orders = await fetchImportOrders(parseInt(userId));
-        setFilteredOrders(orders);
+        setAllOrders(orders);
 
         const paperIds = orders
           .map((order: any) => order.paperIds)
@@ -69,57 +125,25 @@ export default function ReceiptDetail() {
     fetchOrders();
   }, [userId]);
 
-  const filteredData = filteredOrders.filter((order: any) => {
-    if (order.status === ImportOrderStatus.CANCELLED) return false;
+  // Lọc dữ liệu theo tab active và search
+  const getFilteredData = () => {
+    let filtered = allOrders.filter((order: any) => {
+      // Loại bỏ đơn hàng đã hủy
+      if (order.status === ImportOrderStatus.CANCELLED) return false;
 
-    const matchSearch = order.importOrderId
-      ?.toString()
-      .toLowerCase()
-      .includes(searchQuery.toLowerCase());
+      // Lọc theo tab
+      if (activeTab !== 'ALL' && order.status !== activeTab) return false;
 
-    const matchStatus = selectedStatus ? order.status === selectedStatus : true;
+      // Lọc theo search query
+      const matchSearch = order.importOrderId
+        ?.toString()
+        .toLowerCase()
+        .includes(searchQuery.toLowerCase());
 
-    return matchSearch && matchStatus;
-  });
+      return matchSearch;
+    });
 
-  const products = useSelector((state: RootState) => state.product.products);
-
-  // Hàm render chip thể hiện trạng thái lọc hiện tại
-  const renderStatusChip = () => {
-    if (!selectedStatus) return null;
-
-    const statusInfo = statusOptions.find(
-      (opt) => opt.value === selectedStatus
-    );
-    if (!statusInfo) return null;
-
-    return (
-      <TouchableOpacity
-        style={styles.statusChip}
-        onPress={() => setSelectedStatus(null)}
-      >
-        <Text style={styles.statusChipText}>{statusInfo.label}</Text>
-        <Ionicons
-          name="close-circle"
-          size={16}
-          color="#FFFFFF"
-          style={{ marginLeft: 4 }}
-        />
-      </TouchableOpacity>
-    );
-  };
-
-  const getStatusColor = (status: ImportOrderStatus) => {
-    switch (status) {
-      case ImportOrderStatus.IN_PROGRESS:
-        return "#E3F2FD"; // Nền xanh nhạt
-      case ImportOrderStatus.COMPLETED:
-        return "#E8F5E9"; // Nền xanh lá nhạt
-      case ImportOrderStatus.COUNTED:
-        return "#FFF8E1"; // Nền vàng nhạt
-      default:
-        return "#FFFFFF";
-    }
+    return filtered;
   };
 
   const handleImportCount = async (order: any) => {
@@ -147,6 +171,148 @@ export default function ReceiptDetail() {
     }
   };
 
+  // Render tab item
+  const renderTabItem = (tab: StatusTab) => {
+    const isActive = activeTab === tab.key;
+    
+    return (
+      <TouchableOpacity
+        key={tab.key}
+        style={[styles.tabItem, isActive && styles.activeTabItem]}
+        onPress={() => setActiveTab(tab.key)}
+        activeOpacity={0.7}
+      >
+        <Text style={[styles.tabTitle, isActive && styles.activeTabTitle]}>
+          {tab.title}
+        </Text>
+        {tab.count > 0 && (
+          <View style={[styles.tabBadge, isActive && styles.activeTabBadge]}>
+            <Text style={[styles.tabBadgeText, isActive && styles.activeTabBadgeText]}>
+              {tab.count}
+            </Text>
+          </View>
+        )}
+      </TouchableOpacity>
+    );
+  };
+
+  // Render order item
+  const renderOrderItem = ({ item: order }: { item: any }) => (
+    <TouchableOpacity
+      style={styles.orderCard}
+      onPress={() =>
+        router.push({
+          pathname: "/import/detail/[id]",
+          params: { id: order.importOrderId.toString() },
+        })
+      }
+      activeOpacity={0.7}
+    >
+      {/* Header đơn nhập */}
+      <View style={styles.orderHeader}>
+        <View style={styles.orderIdContainer}>
+          <Ionicons name="cube-outline" size={20} color="#1677ff" />
+          <Text style={styles.orderId}>
+            {order.importOrderId}
+          </Text>
+        </View>
+        <StatusBadge status={order.status} />
+      </View>
+
+      {/* Nội dung đơn nhập */}
+      <View style={styles.orderContent}>
+        <InfoRow
+          icon="calendar-outline"
+          title="Ngày dự nhập"
+          value={new Date(order.dateReceived).toLocaleDateString(
+            "vi-VN",
+            {
+              day: "2-digit",
+              month: "2-digit",
+              year: "numeric",
+            }
+          )}
+        />
+      </View>
+
+      {/* Footer đơn nhập */}
+      {order.status === ImportOrderStatus.IN_PROGRESS ||
+      order.status === ImportOrderStatus.NOT_STARTED ? (
+        <TouchableOpacity
+          style={styles.actionButton}
+          onPress={() => handleImportCount(order)}
+        >
+          <Ionicons
+            name="scan-outline"
+            size={18}
+            color="#FFFFFF"
+            style={styles.buttonIcon}
+          />
+          <Text style={styles.buttonText}>Kiểm đếm đơn nhập</Text>
+        </TouchableOpacity>
+      ) : order.status === ImportOrderStatus.COMPLETED &&
+        order.paperIds ? (
+        <TouchableOpacity
+          style={[styles.actionButton, styles.viewButton]}
+          onPress={() =>
+            router.push({
+              pathname: "/import/detail/[id]",
+              params: { id: order.importOrderId.toString() },
+            })
+          }
+        >
+          <Ionicons
+            name="eye-outline"
+            size={18}
+            color="#FFFFFF"
+            style={styles.buttonIcon}
+          />
+          <Text style={styles.buttonText}>Xem chi tiết đơn nhập</Text>
+        </TouchableOpacity>
+      ) : order.status === ImportOrderStatus.CONFIRMED &&
+        order.paperIds ? (
+        <TouchableOpacity
+          style={[styles.actionButton, styles.viewButton2]}
+          onPress={() =>
+            router.push({
+              pathname: "/import/detail/[id]",
+              params: { id: order.importOrderId.toString() },
+            })
+          }
+        >
+          <Ionicons
+            name="eye-outline"
+            size={18}
+            color="#FFFFFF"
+            style={styles.buttonIcon}
+          />
+          <Text style={styles.buttonText}>Xem chi tiết đơn nhập</Text>
+        </TouchableOpacity>
+      ) : (
+        <TouchableOpacity
+          style={[styles.actionButton, { backgroundColor: '#FF6B35' }]}
+          onPress={() =>
+            router.push({
+              pathname: "/import/detail/[id]",
+              params: { id: order.importOrderId.toString() },
+            })
+          }
+        >
+          <Ionicons
+            name="timeline-outline"
+            size={18}
+            color="#FFFFFF"
+            style={styles.buttonIcon}
+          />
+          <Text style={styles.buttonText}>Xem tiến độ</Text>
+        </TouchableOpacity>
+      )}
+    </TouchableOpacity>
+  );
+
+  const filteredData = getFilteredData();
+  const statusTabs = getStatusTabs();
+
   return (
     <View style={styles.container}>
       {/* StatusBar */}
@@ -157,197 +323,60 @@ export default function ReceiptDetail() {
         <Text style={styles.headerTitle}>Danh sách đơn nhập</Text>
       </View>
 
-      <ScrollView style={styles.content}>
-        {/* Thanh tìm kiếm */}
-        <View style={styles.searchContainer}>
-          <View style={styles.searchInputContainer}>
-            <Ionicons
-              name="search"
-              size={18}
-              color="#999"
-              style={styles.searchIcon}
-            />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Tìm kiếm theo mã đơn nhập"
-              placeholderTextColor="#999"
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-            />
-          </View>
-
-          <TouchableOpacity
-            onPress={() => setFilterVisible(true)}
-            style={styles.filterButton}
-          >
-            <Ionicons name="filter" size={22} color="#1677ff" />
-          </TouchableOpacity>
+      {/* Search Bar */}
+      <View style={styles.searchContainer}>
+        <View style={styles.searchInputContainer}>
+          <Ionicons
+            name="search"
+            size={18}
+            color="#999"
+            style={styles.searchIcon}
+          />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Tìm kiếm theo mã đơn nhập"
+            placeholderTextColor="#999"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
         </View>
+      </View>
 
-        {/* Hiển thị trạng thái lọc */}
-        {renderStatusChip()}
+      {/* Status Tabs */}
+      <View style={styles.tabsContainer}>
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.tabsScrollContent}
+        >
+          {statusTabs.map(renderTabItem)}
+        </ScrollView>
+      </View>
 
-        {/* Danh sách đơn nhập */}
-        {loading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#1677ff" />
-          </View>
-        ) : filteredData.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <Ionicons name="document-text-outline" size={60} color="#BDBDBD" />
-            <Text style={styles.emptyText}>Không có đơn nhập phù hợp</Text>
-          </View>
-        ) : (
-          <View style={styles.ordersList}>
-            {filteredData.map((order: any) => (
-              <TouchableOpacity
-                key={order.importOrderId}
-                style={styles.orderCard}
-                onPress={() =>
-                  router.push({
-                    pathname: "/import/detail/[id]",
-                    params: { id: order.importOrderId.toString() },
-                  })
-                }
-                activeOpacity={0.7}
-              >
-                {/* Header đơn nhập */}
-                <View style={styles.orderHeader}>
-                  <View style={styles.orderIdContainer}>
-                    <Ionicons name="cube-outline" size={20} color="#1677ff" />
-                    <Text style={styles.orderId}>
-                      Đơn nhập số {order.importOrderId}
-                    </Text>
-                  </View>
-                  <StatusBadge status={order.status} />
-                </View>
-
-                {/* Nội dung đơn nhập */}
-                <View style={styles.orderContent}>
-                  <InfoRow
-                    icon="calendar-outline"
-                    title="Ngày dự nhập"
-                    value={new Date(order.dateReceived).toLocaleDateString(
-                      "vi-VN",
-                      {
-                        day: "2-digit",
-                        month: "2-digit",
-                        year: "numeric",
-                      }
-                    )}
-                  />
-                </View>
-
-                {/* Footer đơn nhập */}
-                {order.status === ImportOrderStatus.IN_PROGRESS ||
-                order.status === ImportOrderStatus.NOT_STARTED ? (
-                  <TouchableOpacity
-                    style={styles.actionButton}
-                    onPress={() => handleImportCount(order)}
-                  >
-                    <Ionicons
-                      name="scan-outline"
-                      size={18}
-                      color="#FFFFFF"
-                      style={styles.buttonIcon}
-                    />
-                    <Text style={styles.buttonText}>Kiểm đếm đơn nhập</Text>
-                  </TouchableOpacity>
-                ) :  order.status === ImportOrderStatus.COMPLETED &&
-                  order.paperIds ? (
-                  <TouchableOpacity
-                    style={[styles.actionButton, styles.viewButton]}
-                    onPress={() =>
-                      router.push({
-                        pathname: "/import/detail/[id]",
-                        params: { id: order.importOrderId.toString() },
-                      })
-                    }
-                  >
-                    <Ionicons
-                      name="eye-outline"
-                      size={18}
-                      color="#FFFFFF"
-                      style={styles.buttonIcon}
-                    />
-                    <Text style={styles.buttonText}>Xem chi tiết đơn nhập</Text>
-                  </TouchableOpacity>
-                ) :  order.status === ImportOrderStatus.CONFIRMED &&
-                  order.paperIds ? (
-                  <TouchableOpacity
-                    style={[styles.actionButton, styles.viewButton2]}
-                    onPress={() =>
-                      router.push({
-                        pathname: "/import/detail/[id]",
-                        params: { id: order.importOrderId.toString() },
-                      })
-                    }
-                  >
-                    <Ionicons
-                      name="eye-outline"
-                      size={18}
-                      color="#FFFFFF"
-                      style={styles.buttonIcon}
-                    />
-                    <Text style={styles.buttonText}>Xem chi tiết đơn nhập</Text>
-                  </TouchableOpacity>
-                ) : null}
-              </TouchableOpacity>
-            ))}
-          </View>
-        )}
-      </ScrollView>
-
-      {/* Modal lọc */}
-      <Modal visible={filterVisible} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Lọc theo trạng thái</Text>
-              <TouchableOpacity onPress={() => setFilterVisible(false)}>
-                <Ionicons name="close" size={24} color="#333" />
-              </TouchableOpacity>
-            </View>
-
-            {statusOptions.map((status) => (
-              <TouchableOpacity
-                key={status.value}
-                style={[
-                  styles.statusOption,
-                  selectedStatus === status.value && styles.selectedOption,
-                ]}
-                onPress={() => {
-                  setSelectedStatus(status.value as ImportOrderStatus);
-                  setFilterVisible(false);
-                }}
-              >
-                <Text
-                  style={[
-                    styles.statusOptionText,
-                    selectedStatus === status.value &&
-                      styles.selectedOptionText,
-                  ]}
-                >
-                  {status.label}
-                </Text>
-                {selectedStatus === status.value && (
-                  <Ionicons name="checkmark" size={20} color="#1677ff" />
-                )}
-              </TouchableOpacity>
-            ))}
-
-            <TouchableOpacity
-              style={styles.resetButton}
-              onPress={() => {
-                setSelectedStatus(null);
-                setFilterVisible(false);
-              }}
-            >
-              <Text style={styles.resetButtonText}>Bỏ lọc</Text>
-            </TouchableOpacity>
-          </View>
+      {/* Orders List */}
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#1677ff" />
         </View>
-      </Modal>
+      ) : filteredData.length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <Ionicons name="document-text-outline" size={60} color="#BDBDBD" />
+          <Text style={styles.emptyText}>
+            {searchQuery 
+              ? "Không tìm thấy đơn nhập phù hợp" 
+              : `Không có đơn nhập ${statusTabs.find(t => t.key === activeTab)?.title.toLowerCase()}`
+            }
+          </Text>
+        </View>
+      ) : (
+        <FlatList
+          data={filteredData}
+          renderItem={renderOrderItem}
+          keyExtractor={(item) => item.importOrderId.toString()}
+          contentContainerStyle={styles.ordersList}
+          showsVerticalScrollIndicator={false}
+        />
+      )}
     </View>
   );
 }
@@ -398,20 +427,15 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "700",
   },
-  content: {
-    flex: 1,
-  },
   searchContainer: {
-    flexDirection: "row",
-    alignItems: "center",
     paddingHorizontal: 16,
     paddingVertical: 12,
+    backgroundColor: 'white',
   },
   searchInputContainer: {
-    flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "white",
+    backgroundColor: "#F5F7FA",
     borderRadius: 8,
     paddingHorizontal: 12,
     height: 44,
@@ -427,33 +451,61 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: "#333",
   },
-  filterButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 8,
-    backgroundColor: "#FFFFFF",
-    marginLeft: 12,
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#E0E0E0",
+  
+  // Tabs Styles
+  tabsContainer: {
+    backgroundColor: 'white',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0E0E0',
+    
   },
-  statusChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#1677ff",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    marginLeft: 16,
-    marginBottom: 12,
-    alignSelf: "flex-start",
+  tabsScrollContent: {
+    paddingHorizontal: 16,
+    marginBottom:10,
   },
-  statusChipText: {
-    color: "white",
+  tabItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginRight: 8,
+    borderRadius: 20,
+    
+    backgroundColor: '#F5F7FA',
+  },
+  activeTabItem: {
+    backgroundColor: '#1677ff',
+  },
+  tabTitle: {
     fontSize: 14,
-    fontWeight: "500",
+    fontWeight: '500',
+    color: '#666',
   },
+  activeTabTitle: {
+    color: 'white',
+    fontWeight: '600',
+  },
+  tabBadge: {
+    backgroundColor: '#E0E0E0',
+    borderRadius: 10,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    marginLeft: 6,
+    minWidth: 20,
+    alignItems: 'center',
+  },
+  activeTabBadge: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
+  },
+  tabBadgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#666',
+  },
+  activeTabBadgeText: {
+    color: 'white',
+  },
+
   loadingContainer: {
     padding: 40,
     alignItems: "center",
@@ -467,10 +519,13 @@ const styles = StyleSheet.create({
     color: "#757575",
     fontSize: 16,
     marginTop: 16,
+    textAlign: 'center',
+    paddingHorizontal: 32,
   },
   ordersList: {
     paddingHorizontal: 16,
     paddingBottom: 16,
+    paddingTop: 16,
   },
   orderCard: {
     borderRadius: 12,
@@ -550,62 +605,5 @@ const styles = StyleSheet.create({
     color: "white",
     fontSize: 15,
     fontWeight: "600",
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "flex-end",
-  },
-  modalContent: {
-    backgroundColor: "white",
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    paddingBottom: 30,
-  },
-  modalHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#EEEEEE",
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#333",
-  },
-  statusOption: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F5F5F5",
-  },
-  selectedOption: {
-    backgroundColor: "#F0F7FF",
-  },
-  statusOptionText: {
-    fontSize: 16,
-    color: "#333",
-  },
-  selectedOptionText: {
-    color: "#1677ff",
-    fontWeight: "500",
-  },
-  resetButton: {
-    marginTop: 16,
-    marginHorizontal: 20,
-    paddingVertical: 14,
-    backgroundColor: "#F5F5F5",
-    borderRadius: 8,
-    alignItems: "center",
-  },
-  resetButtonText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#333",
   },
 });

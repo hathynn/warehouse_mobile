@@ -7,6 +7,7 @@ import {
   StatusBar,
   TextInput,
   StyleSheet,
+  FlatList,
 } from "react-native";
 import {
   useQuery,
@@ -28,7 +29,14 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const queryClient = new QueryClient();
 
-// Component hiển thị thông tin với icon (giống như trang đơn nhập)
+interface StatusTab {
+  key: string;
+  title: string;
+  status: ExportRequestStatus | 'ALL';
+  count: number;
+}
+
+// Component hiển thị thông tin với icon
 const InfoRow = ({
   icon,
   title,
@@ -53,66 +61,57 @@ const InfoRow = ({
   </View>
 );
 
-// Component Status Badge (tương tự như trong trang đơn nhập)
+// Component Status Badge
 const StatusBadge = ({ status }: { status: ExportRequestStatus }) => {
   const getStatusInfo = () => {
     switch (status) {
       case ExportRequestStatus.IN_PROGRESS:
         return {
-          label: "Đang xử lý",
+          label: "Cần kiểm đếm",
           color: "#FFF",
           bgColor: "#1677ff",
-          buttonColor: "#1677ff",
         };
       case ExportRequestStatus.COUNTED:
         return {
-          label: "Đã kiểm đếm",
-          color: "#E1F5FE",
+          label: "Chờ xác nhận",
+          color: "#FFF",
           bgColor: "#03A9F4",
-          buttonColor: "#03A9F4",
         };
       case ExportRequestStatus.COUNT_CONFIRMED:
         return {
           label: "Đã xác nhận kiểm đếm",
           color: "#fff",
           bgColor: "#213448",
-          buttonColor: "#4CAF50",
         };
       case ExportRequestStatus.WAITING_EXPORT:
         return {
           label: "Chờ xuất kho",
-          color: "#fffbe6",
+          color: "#fff",
           bgColor: "#faad14",
-          buttonColor: "#faad14",
         };
       case ExportRequestStatus.CONFIRMED:
         return {
           label: "Đã xuất kho",
-          color: "#ECFAE5", // xanh nhẹ
-          bgColor: "#B0DB9C", // nền xanh nhạt
-          buttonColor: "#ECFAE5", // nút xanh
+          color: "#fff",
+          bgColor: "#B0DB9C",
         };
-
       case ExportRequestStatus.COMPLETED:
         return {
           label: "Hoàn tất",
-          color: "#2196F3",
-          bgColor: "#E3F2FD",
-          buttonColor: "#2196F3",
+          color: "#fff",
+          bgColor: "#4CAF50",
         };
       case ExportRequestStatus.CANCELLED:
         return {
           label: "Đã hủy",
           color: "#F44336",
           bgColor: "#FFEBEE",
-          buttonColor: "#F44336",
         };
       default:
         return {
           label: "Không xác định",
           color: "#757575",
           bgColor: "#F5F5F5",
-          buttonColor: "#757575",
         };
     }
   };
@@ -132,9 +131,7 @@ function ExportListComponent() {
   const userId = useSelector((state: RootState) => state.auth.user?.id);
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedStatus, setSelectedStatus] =
-    useState<ExportRequestStatus | null>(null);
-  const [filterVisible, setFilterVisible] = useState(false);
+  const [activeTab, setActiveTab] = useState<string>('ALL');
   const dispatch = useDispatch();
   const insets = useSafeAreaInsets();
 
@@ -148,59 +145,83 @@ function ExportListComponent() {
     enabled: !!userId,
   });
 
-  const statusOptions = [
-    { label: "Chưa bắt đầu", value: ExportRequestStatus.NOT_STARTED },
-    { label: "Đang xử lý", value: ExportRequestStatus.IN_PROGRESS },
-    { label: "Chờ xác nhận", value: ExportRequestStatus.COUNTED },
-    {
-      label: "Đã xác nhận kiểm đếm",
-      value: ExportRequestStatus.COUNT_CONFIRMED,
-    },
-    { label: "Chờ xuất kho", value: ExportRequestStatus.WAITING_EXPORT },
-    { label: "Hoàn tất", value: ExportRequestStatus.COMPLETED },
-    { label: "Đã hủy", value: ExportRequestStatus.CANCELLED },
-  ];
+  // Định nghĩa các tab status
+  const getStatusTabs = (): StatusTab[] => {
+    const validRequests = exportRequests?.filter((request: ExportRequestType) => 
+      request.status !== ExportRequestStatus.CANCELLED
+    ) || [];
 
-  // Render chip thể hiện trạng thái lọc hiện tại
-  const renderStatusChip = () => {
-    if (!selectedStatus) return null;
-
-    const statusInfo = statusOptions.find(
-      (opt) => opt.value === selectedStatus
-    );
-    if (!statusInfo) return null;
-
-    return (
-      <TouchableOpacity
-        style={styles.statusChip}
-        onPress={() => setSelectedStatus(null)}
-      >
-        <Text style={styles.statusChipText}>{statusInfo.label}</Text>
-        <Ionicons
-          name="close-circle"
-          size={16}
-          color="#FFFFFF"
-          style={{ marginLeft: 4 }}
-        />
-      </TouchableOpacity>
-    );
+    return [
+      {
+        key: 'ALL',
+        title: 'Tất cả',
+        status: 'ALL',
+        count: validRequests.length,
+      },
+      {
+        key: 'IN_PROGRESS',
+        title: 'Cần kiểm đếm',
+        status: ExportRequestStatus.IN_PROGRESS,
+        count: validRequests.filter((request: ExportRequestType) => 
+          request.status === ExportRequestStatus.IN_PROGRESS
+        ).length,
+      },
+      {
+        key: 'COUNTED',
+        title: 'Chờ xác nhận',
+        status: ExportRequestStatus.COUNTED,
+        count: validRequests.filter((request: ExportRequestType) => 
+          request.status === ExportRequestStatus.COUNTED
+        ).length,
+      },
+      {
+        key: 'COUNT_CONFIRMED',
+        title: 'Đã xác nhận',
+        status: ExportRequestStatus.COUNT_CONFIRMED,
+        count: validRequests.filter((request: ExportRequestType) => 
+          request.status === ExportRequestStatus.COUNT_CONFIRMED
+        ).length,
+      },
+      {
+        key: 'WAITING_EXPORT',
+        title: 'Chờ xuất kho',
+        status: ExportRequestStatus.WAITING_EXPORT,
+        count: validRequests.filter((request: ExportRequestType) => 
+          request.status === ExportRequestStatus.WAITING_EXPORT
+        ).length,
+      },
+      {
+        key: 'COMPLETED',
+        title: 'Hoàn tất',
+        status: ExportRequestStatus.COMPLETED,
+        count: validRequests.filter((request: ExportRequestType) => 
+          request.status === ExportRequestStatus.COMPLETED
+        ).length,
+      },
+    ];
   };
 
-  const filteredExports =
-    exportRequests?.filter((request: ExportRequestType) => {
-      const matchSearch =
-        request?.exportRequestId &&
+  // Lọc dữ liệu theo tab active và search
+  const getFilteredData = () => {
+    let filtered = exportRequests?.filter((request: ExportRequestType) => {
+      // Loại bỏ phiếu xuất đã hủy
+      if (request.status === ExportRequestStatus.CANCELLED) return false;
+
+      // Lọc theo tab
+      if (activeTab !== 'ALL' && request.status !== activeTab) return false;
+
+      // Lọc theo search query
+      const matchSearch = request?.exportRequestId &&
         request.exportRequestId
           .toString()
           .toLowerCase()
           .includes(searchQuery.toLowerCase());
 
-      const matchStatus = selectedStatus
-        ? request.status === selectedStatus
-        : true;
-
-      return matchSearch && matchStatus;
+      return matchSearch;
     }) || [];
+
+    return filtered;
+  };
 
   const handleSelectExport = (request: ExportRequestType) => {
     dispatch(
@@ -215,6 +236,132 @@ function ExportListComponent() {
     });
   };
 
+  // Render tab item
+  const renderTabItem = (tab: StatusTab) => {
+    const isActive = activeTab === tab.key;
+    
+    return (
+      <TouchableOpacity
+        key={tab.key}
+        style={[styles.tabItem, isActive && styles.activeTabItem]}
+        onPress={() => setActiveTab(tab.key)}
+        activeOpacity={0.7}
+      >
+        <Text style={[styles.tabTitle, isActive && styles.activeTabTitle]}>
+          {tab.title}
+        </Text>
+        {tab.count > 0 && (
+          <View style={[styles.tabBadge, isActive && styles.activeTabBadge]}>
+            <Text style={[styles.tabBadgeText, isActive && styles.activeTabBadgeText]}>
+              {tab.count}
+            </Text>
+          </View>
+        )}
+      </TouchableOpacity>
+    );
+  };
+
+  // Render export item
+  const renderExportItem = ({ item: request }: { item: ExportRequestType }) => (
+    <TouchableOpacity
+      style={styles.orderCard}
+      onPress={() => handleSelectExport(request)}
+      activeOpacity={0.7}
+    >
+      {/* Header phiếu xuất */}
+      <View style={styles.orderHeader}>
+        <View style={styles.orderIdContainer}>
+          <Ionicons
+            name="document-text-outline"
+            size={20}
+            color="#1677ff"
+          />
+          <Text style={styles.orderId}>
+            {request.exportRequestId}
+          </Text>
+        </View>
+        <StatusBadge status={request.status} />
+      </View>
+
+      {/* Nội dung phiếu xuất */}
+      <View style={styles.orderContent}>
+        {request.exportDate && (
+          <InfoRow
+            icon="calendar-outline"
+            title="Ngày dự xuất"
+            value={new Date(request.exportDate).toLocaleDateString(
+              "vi-VN",
+              {
+                day: "2-digit",
+                month: "2-digit",
+                year: "numeric",
+              }
+            )}
+          />
+        )}
+      </View>
+
+      {/* Footer phiếu xuất */}
+      {(() => {
+        let buttonLabel = "Xem chi tiết phiếu xuất";
+        let backgroundColor = "#757575";
+        let icon = "eye-outline";
+
+        switch (request.status) {
+          case ExportRequestStatus.IN_PROGRESS:
+            buttonLabel = "Kiểm đếm phiếu xuất";
+            backgroundColor = "#1677ff";
+            icon = "clipboard-outline";
+            break;
+          case ExportRequestStatus.COUNT_CONFIRMED:
+            buttonLabel = "Tạo chứng từ";
+            backgroundColor = "#213448";
+            icon = "document-outline";
+            break;
+          case ExportRequestStatus.COUNTED:
+            backgroundColor = "#03A9F4";
+            break;
+          case ExportRequestStatus.WAITING_EXPORT:
+            backgroundColor = "#faad14";
+            break;
+          case ExportRequestStatus.CONFIRMED:
+            backgroundColor = "#B0DB9C";
+            break;
+          case ExportRequestStatus.COMPLETED:
+            backgroundColor = "#4CAF50";
+            break;
+        }
+
+        return (
+          <TouchableOpacity
+            style={[styles.actionButton, { backgroundColor }]}
+            onPress={() => {
+              if (request.status === ExportRequestStatus.COUNT_CONFIRMED) {
+                router.push({
+                  pathname: "/export/sign/warehouse-sign",
+                  params: { id: request.exportRequestId },
+                });
+              } else {
+                handleSelectExport(request);
+              }
+            }}
+          >
+            <Ionicons
+              name={icon}
+              size={18}
+              color="#FFFFFF"
+              style={styles.buttonIcon}
+            />
+            <Text style={styles.buttonText}>{buttonLabel}</Text>
+          </TouchableOpacity>
+        );
+      })()}
+    </TouchableOpacity>
+  );
+
+  const filteredData = getFilteredData();
+  const statusTabs = getStatusTabs();
+
   return (
     <View style={styles.container}>
       <StatusBar backgroundColor="#1677ff" barStyle="light-content" />
@@ -224,246 +371,63 @@ function ExportListComponent() {
         <Text style={styles.headerTitle}>Danh sách phiếu xuất</Text>
       </View>
 
-      <ScrollView style={styles.content}>
-        {/* Thanh tìm kiếm */}
-        <View style={styles.searchContainer}>
-          <View style={styles.searchInputContainer}>
-            <Ionicons
-              name="search"
-              size={18}
-              color="#999"
-              style={styles.searchIcon}
-            />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Tìm kiếm theo mã phiếu xuất"
-              placeholderTextColor="#999"
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-            />
-          </View>
-
-          <TouchableOpacity
-            onPress={() => setFilterVisible(true)}
-            style={styles.filterButton}
-          >
-            <Ionicons name="filter" size={22} color="#1677ff" />
-          </TouchableOpacity>
+      {/* Search Bar */}
+      <View style={styles.searchContainer}>
+        <View style={styles.searchInputContainer}>
+          <Ionicons
+            name="search"
+            size={18}
+            color="#999"
+            style={styles.searchIcon}
+          />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Tìm kiếm theo mã phiếu xuất"
+            placeholderTextColor="#999"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
         </View>
+      </View>
 
-        {/* Hiển thị trạng thái lọc */}
-        {renderStatusChip()}
+      {/* Status Tabs */}
+      <View style={styles.tabsContainer}>
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.tabsScrollContent}
+        >
+          {statusTabs.map(renderTabItem)}
+        </ScrollView>
+      </View>
 
-        {/* Danh sách phiếu xuất */}
-        {isLoading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#1677ff" />
-          </View>
-        ) : filteredExports.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <Ionicons name="document-text-outline" size={60} color="#BDBDBD" />
-            <Text style={styles.emptyText}>Không có phiếu xuất phù hợp</Text>
-          </View>
-        ) : (
-          <View style={styles.ordersList}>
-            {filteredExports.map((request: ExportRequestType) => (
-              <TouchableOpacity
-                key={request.exportRequestId}
-                style={styles.orderCard}
-                onPress={() => handleSelectExport(request)}
-                activeOpacity={0.7}
-              >
-                {/* Header phiếu xuất */}
-                <View style={styles.orderHeader}>
-                  <View style={styles.orderIdContainer}>
-                    <Ionicons
-                      name="document-text-outline"
-                      size={20}
-                      color="#1677ff"
-                    />
-                    <Text style={styles.orderId}>
-                      Phiếu xuất {request.exportRequestId}
-                    </Text>
-                  </View>
-                  <StatusBadge status={request.status} />
-                </View>
-
-                {/* Nội dung phiếu xuất */}
-                <View style={styles.orderContent}>
-                  {/* {request.exportReason && (
-                    <InfoRow
-                      icon="information-circle-outline"
-                      title="Lý do xuất"
-                      value={request.exportReason}
-                    />
-                  )} */}
-
-                  {request.exportDate && (
-                    <InfoRow
-                      icon="calendar-outline"
-                      title="Ngày dự xuất"
-                      value={new Date(request.exportDate).toLocaleDateString(
-                        "vi-VN",
-                        {
-                          day: "2-digit",
-                          month: "2-digit",
-                          year: "numeric",
-                        }
-                      )}
-                    />
-                  )}
-                </View>
-
-                {/* Footer phiếu xuất */}
-                {(() => {
-                  let buttonLabel = "Xem chi tiết phiếu xuất";
-                  let backgroundColor = "#757575";
-                  let icon = "eye-outline";
-
-                  switch (request.status) {
-                    case ExportRequestStatus.IN_PROGRESS:
-                      buttonLabel = "Kiểm đếm phiếu xuất";
-                      backgroundColor = "#1677ff";
-                      icon = "clipboard-outline";
-                      break;
-                    case ExportRequestStatus.COUNT_CONFIRMED:
-                      buttonLabel = "Tạo chứng từ";
-                      backgroundColor = "#213448";
-                      icon = "document-outline";
-                      break;
-                    case ExportRequestStatus.COUNTED:
-                      backgroundColor = "#03A9F4";
-                      break;
-                    case ExportRequestStatus.WAITING_EXPORT:
-                      backgroundColor = "#faad14";
-                      break;
-                    case ExportRequestStatus.CONFIRMED:
-                      backgroundColor = "#B0DB9C";
-                      break;
-                    case ExportRequestStatus.COMPLETED:
-                      backgroundColor = "#E3F2FD";
-                      break;
-                    case ExportRequestStatus.CANCELLED:
-                      backgroundColor = "#FFEBEE";
-                      break;
-                  }
-
-                  return (
-                    <TouchableOpacity
-                      style={[styles.actionButton, { backgroundColor }]}
-                      onPress={() => {
-                        if (
-                          request.status === ExportRequestStatus.COUNT_CONFIRMED
-                        ) {
-                          router.push({
-                            pathname: "/export/sign/warehouse-sign",
-                            params: { id: request.exportRequestId },
-                          });
-                        } else {
-                          handleSelectExport(request);
-                        }
-                      }}
-                    >
-                      <Ionicons
-                        name={icon}
-                        size={18}
-                        color="#FFFFFF"
-                        style={styles.buttonIcon}
-                      />
-                      <Text style={styles.buttonText}>{buttonLabel}</Text>
-                    </TouchableOpacity>
-                  );
-                })()}
-              </TouchableOpacity>
-            ))}
-          </View>
-        )}
-      </ScrollView>
-
-      {/* Modal lọc */}
-      <Modal visible={filterVisible} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Lọc theo trạng thái</Text>
-              <TouchableOpacity onPress={() => setFilterVisible(false)}>
-                <Ionicons name="close" size={24} color="#333" />
-              </TouchableOpacity>
-            </View>
-
-            {statusOptions.map((status) => (
-              <TouchableOpacity
-                key={status.value}
-                style={[
-                  styles.statusOption,
-                  selectedStatus === status.value && styles.selectedOption,
-                ]}
-                onPress={() => {
-                  setSelectedStatus(status.value);
-                  setFilterVisible(false);
-                }}
-              >
-                <Text
-                  style={[
-                    styles.statusOptionText,
-                    selectedStatus === status.value &&
-                      styles.selectedOptionText,
-                  ]}
-                >
-                  {status.label}
-                </Text>
-                {selectedStatus === status.value && (
-                  <Ionicons name="checkmark" size={20} color="#1677ff" />
-                )}
-              </TouchableOpacity>
-            ))}
-
-            <TouchableOpacity
-              style={styles.resetButton}
-              onPress={() => {
-                setSelectedStatus(null);
-                setFilterVisible(false);
-              }}
-            >
-              <Text style={styles.resetButtonText}>Bỏ lọc</Text>
-            </TouchableOpacity>
-          </View>
+      {/* Export Requests List */}
+      {isLoading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#1677ff" />
         </View>
-      </Modal>
+      ) : filteredData.length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <Ionicons name="document-text-outline" size={60} color="#BDBDBD" />
+          <Text style={styles.emptyText}>
+            {searchQuery 
+              ? "Không tìm thấy phiếu xuất phù hợp" 
+              : `Không có phiếu xuất ${statusTabs.find(t => t.key === activeTab)?.title.toLowerCase()}`
+            }
+          </Text>
+        </View>
+      ) : (
+        <FlatList
+          data={filteredData}
+          renderItem={renderExportItem}
+          keyExtractor={(item) => item.exportRequestId.toString()}
+          contentContainerStyle={styles.ordersList}
+          showsVerticalScrollIndicator={false}
+        />
+      )}
     </View>
   );
 }
-
-// Thêm component Modal để hiển thị
-const Modal = ({
-  visible,
-  transparent,
-  animationType,
-  children,
-}: {
-  visible: boolean;
-  transparent: boolean;
-  animationType: "slide" | "none" | "fade";
-  children: React.ReactNode;
-}) => {
-  if (!visible) return null;
-
-  return (
-    <View
-      style={{
-        position: "absolute",
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: transparent ? "transparent" : "white",
-        zIndex: 1000,
-      }}
-    >
-      {children}
-    </View>
-  );
-};
 
 const styles = StyleSheet.create({
   container: {
@@ -486,20 +450,15 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "700",
   },
-  content: {
-    flex: 1,
-  },
   searchContainer: {
-    flexDirection: "row",
-    alignItems: "center",
     paddingHorizontal: 16,
     paddingVertical: 12,
+    backgroundColor: 'white',
   },
   searchInputContainer: {
-    flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "white",
+    backgroundColor: "#F5F7FA",
     borderRadius: 8,
     paddingHorizontal: 12,
     height: 44,
@@ -515,33 +474,59 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: "#333",
   },
-  filterButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 8,
-    backgroundColor: "#FFFFFF",
-    marginLeft: 12,
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#E0E0E0",
+  
+  // Tabs Styles
+  tabsContainer: {
+    backgroundColor: 'white',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0E0E0',
   },
-  statusChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#1677ff",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    marginLeft: 16,
-    marginBottom: 12,
-    alignSelf: "flex-start",
+  tabsScrollContent: {
+    paddingHorizontal: 16,
+    marginBottom:10,
   },
-  statusChipText: {
-    color: "white",
+  tabItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginRight: 8,
+    borderRadius: 20,
+    backgroundColor: '#F5F7FA',
+  },
+  activeTabItem: {
+    backgroundColor: '#1677ff',
+  },
+  tabTitle: {
     fontSize: 14,
-    fontWeight: "500",
+    fontWeight: '500',
+    color: '#666',
   },
+  activeTabTitle: {
+    color: 'white',
+    fontWeight: '600',
+  },
+  tabBadge: {
+    backgroundColor: '#E0E0E0',
+    borderRadius: 10,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    marginLeft: 6,
+    minWidth: 20,
+    alignItems: 'center',
+  },
+  activeTabBadge: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
+  },
+  tabBadgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#666',
+  },
+  activeTabBadgeText: {
+    color: 'white',
+  },
+
   loadingContainer: {
     padding: 40,
     alignItems: "center",
@@ -555,10 +540,13 @@ const styles = StyleSheet.create({
     color: "#757575",
     fontSize: 16,
     marginTop: 16,
+    textAlign: 'center',
+    paddingHorizontal: 32,
   },
   ordersList: {
     paddingHorizontal: 16,
     paddingBottom: 16,
+    paddingTop: 16,
   },
   orderCard: {
     borderRadius: 12,
@@ -627,12 +615,6 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 12,
     borderBottomRightRadius: 12,
   },
-  viewButton: {
-    backgroundColor: "#4CAF50",
-  },
-  viewButton2: {
-    backgroundColor: "#213448",
-  },
   buttonIcon: {
     marginRight: 8,
   },
@@ -649,63 +631,6 @@ const styles = StyleSheet.create({
   statusText: {
     fontSize: 12,
     fontWeight: "500",
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "flex-end",
-  },
-  modalContent: {
-    backgroundColor: "white",
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    paddingBottom: 30,
-  },
-  modalHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#EEEEEE",
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#333",
-  },
-  statusOption: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F5F5F5",
-  },
-  selectedOption: {
-    backgroundColor: "#F0F7FF",
-  },
-  statusOptionText: {
-    fontSize: 16,
-    color: "#333",
-  },
-  selectedOptionText: {
-    color: "#1677ff",
-    fontWeight: "500",
-  },
-  resetButton: {
-    marginTop: 16,
-    marginHorizontal: 20,
-    paddingVertical: 14,
-    backgroundColor: "#F5F5F5",
-    borderRadius: 8,
-    alignItems: "center",
-  },
-  resetButtonText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#333",
   },
 });
 

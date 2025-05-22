@@ -34,7 +34,7 @@ const useImportOrder = () => {
 
   // Fetch chi tiết import order theo ID
   const fetchImportOrderById = useCallback(
-    async (id: number) => {
+    async (id: string) => {
       if (!id) return null;
 
       setIsLoading(true);

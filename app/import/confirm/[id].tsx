@@ -44,7 +44,9 @@ const Confirm = () => {
   const products = useSelector((state: RootState) => state.product.products);
 
   const filteredProducts = filtered
-    ? products.filter((p) => String(p.id).includes(searchId.trim()))
+    ? products.filter((p) =>
+        (p.name || "").toLowerCase().includes(searchId.trim().toLowerCase())
+      )
     : products;
 
   const dispatch = useDispatch();
@@ -122,7 +124,7 @@ const Confirm = () => {
               <Ionicons name="search" size={18} color="#999" />
               <Input
                 flex={1}
-                placeholder="Tìm theo ID sản phẩm"
+                placeholder="Tìm theo tên sản phẩm"
                 value={searchId}
                 onChangeText={setSearchId}
                 borderWidth={0}
