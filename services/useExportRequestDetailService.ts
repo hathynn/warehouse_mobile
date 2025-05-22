@@ -12,7 +12,7 @@ const useExportRequestDetail = () => {
   >([]);
 
   const fetchExportRequestDetails = async (
-    exportRequestId: number,
+    exportRequestId: string,
     page = 1,
     limit = 100
   ): Promise<ExportRequestDetailType[]> => {
@@ -49,7 +49,7 @@ const useExportRequestDetail = () => {
   };
 
   const confirmCountedExportRequest = async (
-    exportRequestId: number
+    exportRequestId: string
   ): Promise<boolean> => {
     try {
       await callApi(

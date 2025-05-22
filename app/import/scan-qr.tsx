@@ -14,6 +14,8 @@ import { RootState } from "@/redux/store"; // update path nếu khác
 import { Button } from "tamagui";
 import { updateProduct } from "@/redux/productSlice";
 import { Dimensions } from "react-native";
+import { Audio } from "expo-av";
+import { useIsFocused } from "@react-navigation/native";
 
 const { width } = Dimensions.get("window");
 
@@ -28,13 +30,17 @@ export default function ScanQrScreen() {
   const [lastScannedProduct, setLastScannedProduct] = useState<any | null>(
     null
   );
+const [canScan, setCanScan] = useState(true);
+const isFocused = useIsFocused();
 
   const importOrderId = useSelector(
     (state: RootState) => state.paper.importOrderId
   );
 
   const products = useSelector((state: RootState) =>
-    state.product.products.filter((p) => p.importOrderId === importOrderId)
+    state.product.products.filter(
+      (p) => String(p.importOrderId) === importOrderId
+    )
   );
   const dispatch = useDispatch();
   const productsScanned = products.filter((p) => p.actual > 0).length;
@@ -52,35 +58,48 @@ export default function ScanQrScreen() {
     })();
   }, []);
 
-  const handleBarCodeScanned = ({ data }: { data: string }) => {
-    if (!isScanning) return;
-    setIsScanning(false); // chặn quét tiếp
-  
+  const playBeep = async () => {
     try {
-      const qrData = JSON.parse(decodeURIComponent(data));
-      const foundProduct = products.find((product) => product.id === qrData.id);
-  
-      if (foundProduct) {
-        setLastScannedProduct(foundProduct);
-  
-        dispatch(
-          updateProduct({
-            id: foundProduct.id,
-            actual: foundProduct.actual + 1,
-          })
-        );
-      } else {
-        Alert.alert("⚠️ Sản phẩm không có trong đơn nhập.", "", [
-          { text: "OK", onPress: () => setIsScanning(true) },
-        ]);
-      }
+      const { sound } = await Audio.Sound.createAsync(
+        require("@/assets/beep-07a.mp3")
+      );
+      await sound.playAsync();
     } catch (error) {
-      Alert.alert("❌ Mã QR không hợp lệ.", "", [
-        { text: "OK", onPress: () => setIsScanning(true) },
-      ]);
+      console.warn("Không thể phát âm thanh:", error);
     }
   };
-  
+
+  const handleBarCodeScanned = ({ data }: { data: string }) => {
+  if (!isFocused || !canScan) return; // chặn nếu đang cooldown
+
+  setCanScan(false); // chặn tiếp theo
+  setTimeout(() => setCanScan(true), 3000); // mở lại sau 3 giây
+
+  try {
+    const qrData = JSON.parse(decodeURIComponent(data));
+    const foundProduct = products.find((product) => product.id === qrData.id);
+
+    if (foundProduct) {
+      playBeep();
+
+      dispatch(
+        updateProduct({
+          id: foundProduct.id,
+          actual: foundProduct.actual + 1,
+        })
+      );
+
+      setLastScannedProduct(foundProduct);
+      setTimeout(() => setLastScannedProduct(null), 2000); // chỉ hiển thị 2s
+    } else {
+      Alert.alert("⚠️ Sản phẩm không có trong đơn nhập.");
+    }
+  } catch (error) {
+    Alert.alert("❌ Mã QR không hợp lệ.");
+  }
+};
+
+
   // Bấm tiếp tục
   const handleScanAgain = () => {
     setError(null);
@@ -102,8 +121,7 @@ export default function ScanQrScreen() {
       Alert.alert("Không thể điều hướng", "Không tìm thấy mã sản phẩm.");
     }
   };
-  
-  
+
   if (hasPermission === null) return <Text>Đang xin quyền camera...</Text>;
   if (hasPermission === false) return <Text>Không có quyền dùng camera</Text>;
 
@@ -155,27 +173,25 @@ export default function ScanQrScreen() {
                 </Text>
               </View>
 
-           
-                <View className="flex-row">
-                  <Button
-                    onPress={handleScanAgain}
-                    style={[styles.confirmButton, { marginLeft: 10 }]}
-                    backgroundColor="#f0f0f0"
-                  >
-                    →
-                  </Button>
+              <View className="flex-row">
+                {/* <Button
+                  onPress={handleScanAgain}
+                  style={[styles.confirmButton, { marginLeft: 10 }]}
+                  backgroundColor="#f0f0f0"
+                >
+                  →
+                </Button> */}
 
-                  <Button
-                    backgroundColor="#1677ff"
-                    color="white"
-                    fontWeight="500"
-                    onPress={handleConfirm}
-                    style={[styles.confirmButton, { marginLeft: 10 }]}
-                  >
-                    Xác nhận
-                  </Button>
-                </View>
-            
+                <Button
+                  backgroundColor="#1677ff"
+                  color="white"
+                  fontWeight="500"
+                  onPress={handleConfirm}
+                  style={[styles.confirmButton, { marginLeft: 10 }]}
+                >
+                  Xác nhận
+                </Button>
+              </View>
             </View>
           </View>
         )}

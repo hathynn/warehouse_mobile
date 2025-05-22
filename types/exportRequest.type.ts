@@ -45,7 +45,7 @@ export enum ExportRequestStatus {
 // }
 
 export interface ExportRequestType {
-  exportRequestId: number; 
+  exportRequestId: string; 
   exportDate: string;
   exportTime: string;
   assignedWareHouseKeeperId: number | null;

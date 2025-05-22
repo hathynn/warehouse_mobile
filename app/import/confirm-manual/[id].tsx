@@ -35,7 +35,9 @@ const ConfirmManual = () => {
   const dispatch = useDispatch();
 
   const filteredProducts = filtered
-    ? products.filter((p) => String(p.id).includes(searchId.trim()))
+    ? products.filter((p) =>
+        (p.name || "").toLowerCase().includes(searchId.trim().toLowerCase())
+      )
     : products;
 
   const handleUpdateQuantity = (productId: number) => {
@@ -62,17 +64,16 @@ const ConfirmManual = () => {
           backgroundColor: "#1677ff",
           paddingTop: insets.top,
           paddingBottom: 16,
-          
-       paddingHorizontal: 17,
+
+          paddingHorizontal: 17,
           flexDirection: "row",
-          justifyContent:"space-between",
-          alignItems:'center',
-          
+          justifyContent: "space-between",
+          alignItems: "center",
         }}
       >
         <TouchableOpacity
           onPress={() => router.back()}
-          style={{ paddingRight: 12,  marginTop: 7, }}
+          style={{ paddingRight: 12, marginTop: 7 }}
         >
           <Ionicons name="arrow-back" size={24} color="white" />
         </TouchableOpacity>
@@ -82,7 +83,6 @@ const ConfirmManual = () => {
             fontSize: 16,
             fontWeight: "bold",
             marginTop: 7,
-           
           }}
         >
           Nhập số lượng thủ công đơn nhập #{id}
@@ -104,7 +104,7 @@ const ConfirmManual = () => {
             <Ionicons name="search" size={18} color="#999" />
             <Input
               flex={1}
-              placeholder="Tìm theo ID sản phẩm"
+              placeholder="Tìm theo tên sản phẩm"
               value={searchId}
               onChangeText={setSearchId}
               borderWidth={0}

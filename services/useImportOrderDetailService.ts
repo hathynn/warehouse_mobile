@@ -139,7 +139,7 @@ const useImportOrderDetail = () => {
 
   const updateImportOrderDetailsByOrderId = useCallback(
     async (
-      importOrderId: number,
+      importOrderId: string,
       updateItems: {
         itemId: number;
         actualQuantity: number;

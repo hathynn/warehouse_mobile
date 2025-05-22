@@ -85,7 +85,7 @@ const useExportRequest = () => {
 
   // Lấy chi tiết Export Request theo ID
   const fetchExportRequestById = useCallback(
-    async (id: number) => {
+    async (id: string) => {
       if (!id) return;
       setIsLoading(true);
       try {
