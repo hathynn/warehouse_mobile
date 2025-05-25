@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, FlatList, TouchableOpacity } from "react-native
 import { Ionicons } from "@expo/vector-icons";
 
 type Product = {
-  id: number;
+  id: string;
   name: string;
   actual: number;
   expect: number;

@@ -172,8 +172,8 @@ const SignReceiveScreen = () => {
 
           {/* Chọn phương thức ký */}
           <View style={{ alignItems: "center", marginVertical: 16 }}>
-            <Text style={styles.label}>Chọn phương thức ký</Text>
-            <View
+            <Text style={styles.label}>Người nhận hàng ký tên</Text>
+            {/* <View
               style={{
                 flexDirection: "row",
                 justifyContent: "center",
@@ -202,7 +202,7 @@ const SignReceiveScreen = () => {
                   Ký trực tiếp
                 </Text>
               </TouchableOpacity>
-            </View>
+            </View> */}
           </View>
 
           {signMethod === "draw" ? (

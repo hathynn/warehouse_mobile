@@ -1,12 +1,12 @@
 export interface ExportRequestDetailType {
-  id: number;
+  id: string;
   measurementValue: number | null;
   actualQuantity: number;
   quantity: number;
   status: ExportRequestDetailStatus | null;
   exportRequestId: number;
-  itemId: number;
-  inventoryItemIds: number[];
+  itemId: string;
+  inventoryItemIds: string[];
 }
 
 export enum ExportRequestDetailStatus {

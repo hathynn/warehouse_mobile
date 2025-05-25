@@ -290,7 +290,7 @@ export default function ReceiptDetail() {
         </TouchableOpacity>
       ) : (
         <TouchableOpacity
-          style={[styles.actionButton, { backgroundColor: '#FF6B35' }]}
+          style={[styles.actionButton, { backgroundColor: '#213448' }]}
           onPress={() =>
             router.push({
               pathname: "/import/detail/[id]",
@@ -299,12 +299,12 @@ export default function ReceiptDetail() {
           }
         >
           <Ionicons
-            name="timeline-outline"
+            name="time-outline"
             size={18}
             color="#FFFFFF"
             style={styles.buttonIcon}
           />
-          <Text style={styles.buttonText}>Xem tiến độ</Text>
+          <Text style={styles.buttonText}>Chờ xác nhận</Text>
         </TouchableOpacity>
       )}
     </TouchableOpacity>

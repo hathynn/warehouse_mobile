@@ -41,7 +41,7 @@ const useImportOrderDetail = () => {
 
   // ✅ Lấy danh sách detail theo orderId
   const fetchImportOrderDetails = useCallback(
-    async (importOrderId: number, page = 1, size = 999) => {
+    async (importOrderId: string, page = 1, size = 999) => {
       if (!importOrderId) return [];
 
       setLoading(true);
@@ -74,7 +74,7 @@ const useImportOrderDetail = () => {
 
   // ✅ Lấy chi tiết 1 dòng
   const fetchImportOrderDetailById = useCallback(
-    async (id: number) => {
+    async (id: string) => {
       if (!id) return null;
   
       setLoading(true);
@@ -141,7 +141,7 @@ const useImportOrderDetail = () => {
     async (
       importOrderId: string,
       updateItems: {
-        itemId: number;
+        itemId: string;
         actualQuantity: number;
       }[]
     ) => {

@@ -1,11 +1,11 @@
 export interface ImportOrderType {
-  importOrderId: number;
+  importOrderId: string;
   importRequestId: number;
   dateReceived: string;
   timeReceived: string;
   note: string;
   status: ImportOrderStatus | null;
-  importOrderDetailIds: number[];
+  importOrderDetailIds: string[];
   createdBy: string;
   updatedBy: string | null;
   createdDate: string;

@@ -69,7 +69,7 @@ const ImportOrderScreen: React.FC = () => {
 
       // 2. Lấy thông tin chi tiết và inventory theo từng ID
       const enrichedDetails = await Promise.all(
-        order.importOrderDetailIds.map(async (detailId: number) => {
+        order.importOrderDetailIds.map(async (detailId: string) => {
           const detail = await fetchImportOrderDetailById(detailId);
           if (!detail) return null;
 
