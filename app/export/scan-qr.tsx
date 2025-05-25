@@ -13,6 +13,8 @@ import { useDispatch, useSelector } from "react-redux";
 import { RootState } from "@/redux/store";
 import { Button } from "tamagui";
 import { setExportRequestDetail } from "@/redux/exportRequestDetailSlice";
+import { useIsFocused } from "@react-navigation/native";
+import { Audio } from "expo-av";
 
 const { width } = Dimensions.get("window");
 
@@ -25,6 +27,22 @@ export default function ScanQrScreen() {
   const [isPaused, setIsPaused] = useState(false);
   const [cameraKey, setCameraKey] = useState(0);
   const dispatch = useDispatch();
+  const isFocused = useIsFocused();
+
+  const [lastScannedProduct, setLastScannedProduct] = useState<any | null>(
+    null
+  );
+
+  const playBeep = async () => {
+    try {
+      const { sound } = await Audio.Sound.createAsync(
+        require("@/assets/beep-07a.mp3")
+      );
+      await sound.playAsync();
+    } catch (error) {
+      console.warn("Không thể phát âm thanh:", error);
+    }
+  };
 
   const exportDetails = useSelector(
     (state: RootState) => state.exportRequestDetail.details
@@ -37,65 +55,68 @@ export default function ScanQrScreen() {
     })();
   }, []);
 
+  const [canScan, setCanScan] = useState(true);
+
   const handleBarCodeScanned = ({ data }: { data: string }) => {
-    if (isProcessing || isPaused) return;
+  if (isProcessing || !canScan) return;
 
-    setIsProcessing(true);
+  setCanScan(false);
+  setTimeout(() => setCanScan(true), 2000);
+  setIsProcessing(true);
 
-    try {
-      const keyValuePairs = data.split(";");
-      const qrData: Record<string, string> = {};
+  try {
+    // Parse dạng "itemId=xxx;inventoryItemId=yyy"
+    const keyValuePairs = data.split(";");
+    const parsed: Record<string, string> = {};
 
-      keyValuePairs.forEach((pair) => {
-        const [key, value] = pair.split("=");
-        if (key && value) {
-          qrData[key.trim()] = value.trim();
-        }
-      });
-
-      const scannedId = qrData.id;
-      const itemId = qrData.itemId;
-
-      if (!scannedId || !itemId) {
-        setErrorMessage("❌ QR Code không hợp lệ.");
-        setIsProcessing(false);
-        return;
+    keyValuePairs.forEach((pair) => {
+      const [key, value] = pair.split("=");
+      if (key && value) {
+        parsed[key.trim()] = value.trim();
       }
+    });
 
-      const found = exportDetails.find(
-        (d) => d.id?.toString() === scannedId && d.itemId?.toString() === itemId
-      );
+    const scannedItemId = parsed.itemId;
+    const scannedInventoryItemId = parsed.inventoryItemId;
 
-      if (!found) {
-        setErrorMessage("❌ Không tìm thấy sản phẩm khớp với QR code.");
-        setIsProcessing(false);
-        return;
-      }
-
-      if (found.actualQuantity >= found.quantity) {
-        setErrorMessage("⚠️ Sản phẩm này đã được quét đủ số lượng.");
-        setIsProcessing(false);
-        return;
-      }
-
-      const updatedDetails = exportDetails.map((d) =>
-        d.id?.toString() === scannedId && d.itemId?.toString() === itemId
-          ? { ...d, actualQuantity: d.actualQuantity + 1 }
-          : d
-      );
-
-      dispatch(setExportRequestDetail(updatedDetails));
-      setScannedIds((prev) => [...prev, scannedId]);
-
-      // Tạm dừng để chờ bấm nút "Tiếp tục"
-      setIsPaused(true);
-      setIsProcessing(false);
-      setErrorMessage(null);
-    } catch (e) {
-      setErrorMessage("❌ QR Code không hợp lệ.");
-      setIsProcessing(false);
+    if (!scannedItemId || !scannedInventoryItemId) {
+      throw new Error("❌ Mã QR không hợp lệ.");
     }
-  };
+
+    const matched = exportDetails.find(
+      (detail) =>
+        detail.itemId === scannedItemId &&
+        Array.isArray(detail.inventoryItemIds) &&
+        detail.inventoryItemIds.includes(scannedInventoryItemId)
+    );
+
+    if (!matched) {
+      throw new Error("❌ Không tìm thấy sản phẩm phù hợp với QR code.");
+    }
+
+    if (matched.actualQuantity >= matched.quantity) {
+      throw new Error("⚠️ Sản phẩm này đã được quét đủ số lượng.");
+    }
+
+    const updatedDetails = exportDetails.map((detail) =>
+      detail === matched
+        ? { ...detail, actualQuantity: detail.actualQuantity + 1 }
+        : detail
+    );
+
+    dispatch(setExportRequestDetail(updatedDetails));
+    playBeep();
+    setLastScannedProduct(matched);
+    setErrorMessage(null);
+    setTimeout(() => setLastScannedProduct(null), 2000);
+  } catch (err: any) {
+    console.warn("Scan error:", err.message);
+    setErrorMessage(err.message || "❌ QR không hợp lệ.");
+  } finally {
+    setIsProcessing(false);
+  }
+};
+
 
   const handleRetry = () => {
     setErrorMessage(null);
@@ -124,7 +145,7 @@ export default function ScanQrScreen() {
 
       {/* Camera */}
       <View style={styles.cameraWrapper}>
-        {!isPaused && !errorMessage && (
+        {isFocused && (
           <CameraView
             key={cameraKey}
             barcodeScannerSettings={{ barcodeTypes: ["qr"] }}
@@ -133,23 +154,32 @@ export default function ScanQrScreen() {
           />
         )}
 
-        {/* Hiển thị lỗi */}
         {errorMessage && (
-          <View style={styles.errorBox}>
-            <Text style={styles.errorText}>{errorMessage}</Text>
-            <Button onPress={handleRetry} style={styles.retryButton}>
-              Thử lại
-            </Button>
+          <View style={styles.bottomBox}>
+            <View style={styles.productBox}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.errorText}>{errorMessage}</Text>
+                <Button onPress={handleRetry} style={styles.retryButton}>
+                  Quét tiếp sản phẩm khác
+                </Button>
+              </View>
+            </View>
           </View>
         )}
 
-        {/* Hiển thị sau khi quét thành công */}
-        {isPaused && !errorMessage && (
-          <View style={styles.pauseBox}>
-            <Text style={styles.pauseText}>✅ Đã quét thành công!</Text>
-            <Button onPress={handleContinue} style={styles.retryButton}>
-              Tiếp tục quét
-            </Button>
+        {lastScannedProduct && (
+          <View style={styles.bottomBox}>
+            <View style={styles.productBox}>
+              <View style={{ flex: 1 }}>
+                  <Text style={styles.productName}>
+              Mã sản phẩm
+                </Text>
+                <Text style={styles.productTitle}>
+                  {lastScannedProduct.itemId}
+                </Text>
+              
+              </View>
+            </View>
           </View>
         )}
       </View>
@@ -209,5 +239,36 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     backgroundColor: "#1677ff",
     borderRadius: 8,
+    color:"white",
+    fontWeight:500
+    },
+  bottomBox: {
+    position: "absolute",
+    bottom: 30,
+    width: "100%",
+    paddingHorizontal: 20,
+    zIndex: 10,
+  },
+  productBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "white",
+    padding: 16,
+    borderRadius: 5,
+    width: "100%",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  productTitle: {
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+  productName: {
+    fontSize: 14,
+    color: "#555",
   },
 });

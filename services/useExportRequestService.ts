@@ -58,7 +58,7 @@ const useExportRequest = () => {
   );
 
   const updateExportRequestStatus = useCallback(
-    async (exportRequestId: number, status: string) => {
+    async (exportRequestId: string, status: string) => {
       console.log("ID API:", exportRequestId)
       if (!exportRequestId || !status) return false;
       setIsLoading(true);

@@ -1,13 +1,11 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import {
   ScrollView,
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
-  SafeAreaView,
 } from "react-native";
 import { useRoute } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
@@ -21,6 +19,7 @@ import { ExportRequestStatus } from "@/types/exportRequest.type";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import StyledButton from "@/components/ui/StyledButton";
 import StatusBadge from "@/components/StatusBadge";
+import { Modal, TextInput as RNTextInput } from "react-native";
 
 interface RouteParams {
   id: string;
@@ -33,6 +32,26 @@ const ExportRequestScreen: React.FC = () => {
   const { id } = route.params as RouteParams;
   const dispatch = useDispatch();
   const { updateActualQuantity } = useExportRequestDetail();
+  const [manualModalVisible, setManualModalVisible] = useState(false);
+  const [manualItemId, setManualItemId] = useState("");
+  const [manualInventoryItemId, setManualInventoryItemId] = useState("");
+
+  const getExportTypeLabel = (type: string | undefined) => {
+    switch (type) {
+      case "BORROWING":
+        return "Mượn";
+      case "RETURN":
+        return "Trả";
+      case "LIQUIDATION":
+        return "Thanh lý";
+      case "PARTIAL":
+        return "Xuất lẻ";
+      case "PRODUCTION":
+        return "Xuất sản xuất";
+      default:
+        return "Không xác định";
+    }
+  };
 
   const {
     loading: loadingRequest,
@@ -50,15 +69,19 @@ const ExportRequestScreen: React.FC = () => {
 
       fetchExportRequestById(requestId);
 
-      fetchExportRequestDetails(requestId, 1, 100).then((newData) => {
-        const refreshedDetails = newData.map((item) => ({
-          ...item,
-          actualQuantity: item.actualQuantity ?? 0, // fallback nếu BE không trả
-        }));
-        dispatch(setExportRequestDetail(refreshedDetails));
-      });
+    fetchExportRequestDetails(requestId, 1, 100).then((newData) => {
+  const refreshedDetails = newData.map((item) => ({
+    ...item,
+    actualQuantity: item.actualQuantity ?? 0,
+    inventoryItemIds: item.inventoryItemIds ?? [], // <-- thêm lại dòng này nếu BE có trả
+  }));
+  dispatch(setExportRequestDetail(refreshedDetails));
+});
+
     }
   }, [id]);
+
+  
 
   const savedExportRequestDetails = useSelector(
     (state: RootState) => state.exportRequestDetail.details
@@ -72,6 +95,78 @@ const ExportRequestScreen: React.FC = () => {
       </View>
     );
   }
+  const updateAllActualQuantities = async (): Promise<boolean> => {
+    let allSuccess = true;
+
+    for (const p of savedExportRequestDetails) {
+      const success = await updateActualQuantity(p.id, p.actualQuantity ?? 0);
+      if (!success) {
+        console.warn(`⚠️ Không thể cập nhật item ID: ${p.id}`);
+        allSuccess = false;
+        break;
+      }
+    }
+
+    return allSuccess;
+  };
+
+  const handleManualUpdate = () => {
+    console.log("🔍 manualItemId:", manualItemId);
+    console.log("🔍 manualInventoryItemId:", manualInventoryItemId);
+    console.log("🔍 savedExportRequestDetails:", savedExportRequestDetails);
+
+    savedExportRequestDetails.forEach((d) => {
+  console.log("✅", d.itemId, d.inventoryItemIds);
+});
+
+    const matched = savedExportRequestDetails.find((detail) => {
+      const normalizedItemId = detail.itemId?.trim().toLowerCase();
+      const normalizedInventoryIds = (detail.inventoryItemIds || []).map(
+        (id: string) => id.trim().toLowerCase()
+      );
+
+      return (
+        normalizedItemId === manualItemId.trim().toLowerCase() &&
+        normalizedInventoryIds.includes(
+          manualInventoryItemId.trim().toLowerCase()
+        )
+      );
+    });
+
+    if (!matched) {
+      alert("❌ Không tìm thấy sản phẩm phù hợp.");
+      return;
+    }
+
+    if (matched.actualQuantity >= matched.quantity) {
+      alert("⚠️ Sản phẩm đã đủ số lượng.");
+      return;
+    }
+
+    const updated = savedExportRequestDetails.map((d) =>
+      d === matched ? { ...d, actualQuantity: d.actualQuantity + 1 } : d
+    );
+
+    dispatch(setExportRequestDetail(updated));
+    setManualModalVisible(false);
+    setManualItemId("");
+    setManualInventoryItemId("");
+  };
+
+  const handleSaveDraft = async () => {
+    try {
+      const success = await updateAllActualQuantities();
+
+      if (success) {
+        alert("Lưu nháp thành công")
+        console.log("✅ Lưu nháp thành công (chưa cập nhật trạng thái)");
+      } else {
+        console.warn("❌ Lưu nháp thất bại ở một số dòng.");
+      }
+    } catch (error) {
+      console.error("❌ Lỗi khi lưu nháp:", error);
+    }
+  };
 
   const handleConfirm = async () => {
     try {
@@ -91,10 +186,7 @@ const ExportRequestScreen: React.FC = () => {
       if (allSuccess) {
         console.log("✅ Cập nhật toàn bộ actualQuantity thành công");
 
-        const statusUpdate = await updateExportRequestStatus(
-          Number(id),
-          "COUNTED"
-        );
+        const statusUpdate = await updateExportRequestStatus(id, "COUNTED");
 
         if (statusUpdate) {
           console.log("✅ Đã cập nhật status sang COUNTED");
@@ -118,14 +210,48 @@ const ExportRequestScreen: React.FC = () => {
 
     switch (status) {
       case ExportRequestStatus.IN_PROGRESS:
-      case ExportRequestStatus.COUNTED:
-        return (
-          <StyledButton
-            title="Xác nhận số lượng"
-            onPress={handleConfirm}
-            style={{ marginTop: 12 }}
-          />
+          return (
+          <View>
+            <StyledButton
+              title="Cập nhật thủ công"
+              onPress={() => setManualModalVisible(true)}
+              style={{ backgroundColor: "#e0e0e0" }}
+            />
+            <StyledButton
+              title="Lưu nháp"
+              onPress={handleSaveDraft}
+              style={{ marginTop: 12, backgroundColor: "#ccc" }}
+            />
+
+            <StyledButton
+              title="Xác nhận số lượng"
+              onPress={handleConfirm}
+              style={{ marginTop: 12 }}
+            />
+          </View>
         );
+
+      // case ExportRequestStatus.COUNTED:
+      //   return (
+      //     <View>
+      //       <StyledButton
+      //         title="Cập nhật thủ công"
+      //         onPress={() => setManualModalVisible(true)}
+      //         style={{ backgroundColor: "#e0e0e0" }}
+      //       />
+      //       <StyledButton
+      //         title="Lưu nháp"
+      //         onPress={handleSaveDraft}
+      //         style={{ marginTop: 12, backgroundColor: "#ccc" }}
+      //       />
+
+      //       <StyledButton
+      //         title="Xác nhận số lượng"
+      //         onPress={handleConfirm}
+      //         style={{ marginTop: 12 }}
+      //       />
+      //     </View>
+      //   );
 
       case ExportRequestStatus.WAITING_EXPORT:
         return (
@@ -200,17 +326,37 @@ const ExportRequestScreen: React.FC = () => {
 
           <View style={styles.row}>
             <Text style={styles.label}>Ngày tạo đơn</Text>
-            <Text style={styles.value}>{exportRequest?.exportDate}</Text>
+            <Text style={styles.value}>
+              {" "}
+              {exportRequest?.exportDate
+                ? new Date(exportRequest?.exportDate).toLocaleString("vi-VN", {
+                    day: "2-digit",
+                    month: "2-digit",
+                    year: "numeric",
+                  })
+                : "--"}
+            </Text>
           </View>
 
           <View style={styles.row}>
             <Text style={styles.label}>Ngày mong muốn xuất</Text>
-            <Text style={styles.value}>{exportRequest?.exportDate}</Text>
+            <Text style={styles.value}>
+              {" "}
+              {exportRequest?.exportDate
+                ? new Date(exportRequest?.exportDate).toLocaleString("vi-VN", {
+                    day: "2-digit",
+                    month: "2-digit",
+                    year: "numeric",
+                  })
+                : "--"}
+            </Text>
           </View>
 
           <View style={styles.row}>
             <Text style={styles.label}>Loại xuất</Text>
-            <Text style={styles.value}>{exportRequest?.type}</Text>
+            <Text style={styles.value}>
+              {getExportTypeLabel(exportRequest?.type)}
+            </Text>
           </View>
 
           <View style={styles.row}>
@@ -275,6 +421,63 @@ const ExportRequestScreen: React.FC = () => {
 
         <View className="p-5">{renderActionButton()}</View>
       </ScrollView>
+
+      <Modal visible={manualModalVisible} transparent animationType="slide">
+        <View
+          style={{
+            flex: 1,
+            justifyContent: "center",
+            alignItems: "center",
+            backgroundColor: "rgba(0,0,0,0.5)",
+          }}
+        >
+          <View
+            style={{
+              width: "90%",
+              backgroundColor: "white",
+              borderRadius: 12,
+              padding: 20,
+            }}
+          >
+            <Text
+              style={{ fontWeight: "bold", fontSize: 16, marginBottom: 12 }}
+            >
+              Cập nhật số lượng thủ công
+            </Text>
+            <RNTextInput
+              placeholder="Nhập itemId"
+              value={manualItemId}
+              onChangeText={setManualItemId}
+              style={styles.inputs}
+            />
+            <RNTextInput
+              placeholder="Nhập inventoryItemId"
+              value={manualInventoryItemId}
+              onChangeText={setManualInventoryItemId}
+              style={styles.inputs}
+            />
+
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "space-between",
+                marginTop: 20,
+              }}
+            >
+              <StyledButton
+                title="Hủy"
+                onPress={() => setManualModalVisible(false)}
+                style={{ flex: 1, marginRight: 8, backgroundColor: "#ccc" }}
+              />
+              <StyledButton
+                title="Cập nhật"
+                onPress={handleManualUpdate}
+                style={{ flex: 1 }}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -412,6 +615,15 @@ const styles = StyleSheet.create({
     fontSize: 14,
     height: 80,
     textAlignVertical: "top",
+  },
+  inputs: {
+    backgroundColor: "#f9f9f9",
+    padding: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#ddd",
+    marginBottom: 12,
+    fontSize: 14,
   },
 });
 

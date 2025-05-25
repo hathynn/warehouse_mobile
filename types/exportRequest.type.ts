@@ -4,7 +4,6 @@ export enum ExportRequestTypeEnum {
   LIQUIDDATION = "LIQUIDATION",
   PARTIAL = "PARTIAL",
   PRODUCTION = "PRODUCTION",
-  // Các loại khác có thể được bổ sung thêm tại đây
 }
 
 // types/exportRequest.type.ts
