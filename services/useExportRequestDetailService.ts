@@ -31,7 +31,7 @@ const useExportRequestDetail = () => {
   };
 
   const updateActualQuantity = async (
-    exportRequestDetailId: number,
+    exportRequestDetailId: string,
     actualQuantity: number
   ): Promise<boolean> => {
     try {

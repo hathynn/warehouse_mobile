@@ -7,7 +7,7 @@ const useInventoryService = () => {
   const { callApi, setIsLoading, loading } = useApiService();
 
   const fetchInventoryItemsByImportOrderDetailId = useCallback(
-    async (importOrderDetailId: number, page = 1, limit = 100) => {
+    async (importOrderDetailId: string, page = 1, limit = 100) => {
       if (!importOrderDetailId) return [];
       setIsLoading(true);
       try {

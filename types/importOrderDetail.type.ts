@@ -1,8 +1,8 @@
 // types/importOrderDetail.type.ts
 export interface ImportOrderDetailType {
-  importOrderDetailId: number;
-  importOrderId: number;
-  itemId: number;
+  importOrderDetailId: string;
+  importOrderId: string;
+  itemId: string;
   itemName: string;
   expectQuantity: number;
   actualQuantity: number;

@@ -1,11 +1,11 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 
 interface Product {
-  id: number;
+  id: string;
   name: string;
   expect: number;
   actual: number;
-  importOrderId: number; 
+  importOrderId: string; 
 }
 
 
@@ -34,13 +34,13 @@ const productSlice = createSlice({
         product.actual = actual; // Cập nhật số lượng mới
       }
     },
-    updateProduct: (state, action: PayloadAction<{ id: number; actual: number }>) => { // Sửa lại id: number
+    updateProduct: (state, action: PayloadAction<{ id: string; actual: number }>) => { // Sửa lại id: number
       const product = state.products.find(p => p.id === action.payload.id);
       if (product) {
         product.actual = action.payload.actual;
       }
     },
-    updateActual: (state, action: PayloadAction<{ id: number; actual: number }>) => {
+    updateActual: (state, action: PayloadAction<{ id: string; actual: number }>) => {
       const product = state.products.find((p) => p.id === action.payload.id);
       if (product) {
         product.actual = action.payload.actual;

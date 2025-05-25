@@ -22,10 +22,8 @@ const { width } = Dimensions.get("window");
 export default function ScanQrScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
-  const scanCooldownRef = useRef(false);
   const [isScanning, setIsScanning] = useState(true);
 
-  const [scannedProducts, setScannedProducts] = useState<any[]>([]); // Lưu các sản phẩm đã quét
   const [error, setError] = useState<string | null>(null);
   const [lastScannedProduct, setLastScannedProduct] = useState<any | null>(
     null
@@ -45,11 +43,7 @@ const isFocused = useIsFocused();
   const dispatch = useDispatch();
   const productsScanned = products.filter((p) => p.actual > 0).length;
 
-  // Tính số sản phẩm cần quét
-  const totalProductsToScan = products.length;
 
-  // Số sản phẩm chưa quét
-  const remainingProducts = products.length - productsScanned;
 
   useEffect(() => {
     (async () => {
@@ -77,7 +71,7 @@ const isFocused = useIsFocused();
 
   try {
     const qrData = JSON.parse(decodeURIComponent(data));
-    const foundProduct = products.find((product) => product.id === qrData.id);
+const foundProduct = products.find((product) => product.id === String(qrData.id));
 
     if (foundProduct) {
       playBeep();

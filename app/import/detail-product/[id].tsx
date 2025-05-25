@@ -20,7 +20,7 @@ import { updateProductActual } from "@/redux/productSlice";
 import { RootState } from "@/redux/store";
 
 export default function SuccessPage() {
-  const { id } = useLocalSearchParams<{ id: string }>(); // productId
+  const { id } = useLocalSearchParams<{ id : any }>(); 
   const productId = Number(id);
   const dispatch = useDispatch();
 
@@ -28,9 +28,9 @@ export default function SuccessPage() {
     (state: RootState) => state.paper.importOrderId
   );
 
-  const product = useSelector((state: RootState) =>
-    state.product.products.find((p) => p.id === productId)
-  );
+const product = useSelector((state: RootState) =>
+  state.product.products.find((p) => p.id === id) 
+);
 
   const [quantity, setQuantity] = useState(product?.actual?.toString() || "1");
 
@@ -73,9 +73,8 @@ export default function SuccessPage() {
         useNativeDriver: true,
       }),
     ]).start(() => {
-      dispatch(
-        updateProductActual({ productId: id, actual: Number(quantity) })
-      );
+     dispatch(updateProductActual({ productId: id, actual: Number(quantity) }));
+
       router.push(`/import/confirm/${importOrderId}`);
     });
   };
