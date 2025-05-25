@@ -92,7 +92,7 @@ const SignReceiveScreen = () => {
 
         const statusUpdated = await updateExportRequestStatus(
           exportRequestId,
-          "CONFIRMED"
+          "COMPLETED"
         );
         console.log("2", statusUpdated);
         if (statusUpdated) {

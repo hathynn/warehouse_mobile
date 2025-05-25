@@ -26,7 +26,7 @@ const SignWarehouseScreen = () => {
   const insets = useSafeAreaInsets();
   const dispatch = useDispatch();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const exportRequestId = Number(id);
+  const exportRequestId = id;
   const [signature, setSignature] = useState<string | null>(null);
   const signatureRef = useRef<SignatureViewRef>(null);
   const [scrollEnabled, setScrollEnabled] = useState(true);
