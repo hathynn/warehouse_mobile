@@ -32,7 +32,8 @@ const ImportOrderScreen: React.FC = () => {
   const route = useRoute();
   const { id } = route.params as RouteParams;
   const dispatch = useDispatch();
-  const { fetchImportOrderDetailById, fetchImportOrderDetails } = useImportOrderDetailService();
+  const { fetchImportOrderDetailById, fetchImportOrderDetails } =
+    useImportOrderDetailService();
   const [importOrderDetails, setImportOrderDetails] = useState<any[]>([]);
   const { fetchInventoryItemsByImportOrderDetailId } = useInventoryService();
 
@@ -76,17 +77,27 @@ const ImportOrderScreen: React.FC = () => {
           const inventoryItems = await fetchInventoryItemsByImportOrderDetailId(
             detailId
           );
+          // console.log("▶ detailId truyền vào API:", detailId);
+          // console.log("📦 inventoryItems:", inventoryItems);
 
           return {
-            id: `item_id ${detailId}`,
+            id: detailId.toString(),
             productName: detail.itemName,
-            sku: `Sản phẩm số ${detail.itemId}`,
+            sku: `Mã sản phẩm ${detail.itemId}`,
             expectedQuantity: detail.expectQuantity,
             countedQuantity: detail.actualQuantity,
+            status: order.status,
             products: inventoryItems.map((inv: any) => ({
               id: `ID ${inv.id}`,
-            //   serialNumber: inv.itemCode || `Chưa có code`,
-              location: parseStoredLocation(inv.storedLocationName),
+              //   serialNumber: inv.itemCode || `Chưa có code`,
+              location: inv.storedLocationName
+                ? parseStoredLocation(inv.storedLocationName)
+                : {
+                    zone: "Không rõ vị trí",
+                    floor: "Không rõ vị trí",
+                    row: "Không rõ vị trí",
+                    batch: "Không rõ vị trí",
+                  },
             })),
           };
         })
@@ -94,6 +105,7 @@ const ImportOrderScreen: React.FC = () => {
 
       // 3. Bỏ null nếu có dòng lỗi
       setImportOrderDetails(enrichedDetails.filter(Boolean));
+      // console.log("📦 importOrderDetails:", enrichedDetails);
     };
 
     loadData();
@@ -135,7 +147,7 @@ const ImportOrderScreen: React.FC = () => {
             marginTop: 7,
           }}
         >
-         {id}
+          {id}
         </Text>
       </View>
 
@@ -145,7 +157,7 @@ const ImportOrderScreen: React.FC = () => {
           <Text style={styles.cardTitle}>Thông tin chi tiết đơn nhập</Text>
 
           <View style={styles.row}>
-            <Text style={styles.label}>Mã phiếu</Text>
+            <Text style={styles.label}>Mã đơn nhập</Text>
             <View style={styles.badgeBlue}>
               <Text style={styles.badgeText}>{importOrder?.importOrderId}</Text>
             </View>
@@ -186,24 +198,28 @@ const ImportOrderScreen: React.FC = () => {
 
         {importOrder?.status === ImportOrderStatus.IN_PROGRESS ||
         importOrder?.status === ImportOrderStatus.NOT_STARTED ? (
-            <TouchableOpacity
+          <TouchableOpacity
             style={styles.tamaButton}
             activeOpacity={0.8}
             onPress={async () => {
               try {
-                const response = await fetchImportOrderDetails(importOrder.importOrderId);
-          
+                const response = await fetchImportOrderDetails(
+                  importOrder.importOrderId
+                );
+
                 const products = response.map((item: any) => ({
-                    id: item.itemId,
-                    name: item.itemName,
-                    expect: item.expectQuantity,
-                    actual: item.actualQuantity || 0,
-                    importOrderId: importOrder.importOrderId,
-                  }));
-                  
+                  id: item.itemId,
+                  name: item.itemName,
+                  expect: item.expectQuantity,
+                  actual: item.actualQuantity || 0,
+                  importOrderId: importOrder.importOrderId,
+                }));
+
                 dispatch(setProducts(products));
-                dispatch(setPaperData({ importOrderId: importOrder.importOrderId }));
-          
+                dispatch(
+                  setPaperData({ importOrderId: importOrder.importOrderId })
+                );
+
                 router.push("/import/scan-qr");
               } catch (error) {
                 console.error("Lỗi khi tạo chứng từ:", error);
@@ -212,12 +228,13 @@ const ImportOrderScreen: React.FC = () => {
           >
             <Text style={styles.tamaButtonText}>Kiểm đếm đơn nhập</Text>
           </TouchableOpacity>
-          
-          
         ) : importOrder?.status === ImportOrderStatus.COMPLETED &&
           importOrder?.paperIds ? (
-            <TouchableOpacity
-            style={[styles.tamaButton, { backgroundColor: "#1a88ff", marginTop: 10 }]}
+          <TouchableOpacity
+            style={[
+              styles.tamaButton,
+              { backgroundColor: "#1a88ff", marginTop: 10 },
+            ]}
             activeOpacity={0.8}
             onPress={() => {
               router.push(`/import/paper-detail/${importOrder.paperIds}`);
@@ -225,7 +242,6 @@ const ImportOrderScreen: React.FC = () => {
           >
             <Text style={styles.tamaButtonText}>Xem chữ ký chứng từ</Text>
           </TouchableOpacity>
-          
         ) : null}
 
         {/* Danh sách chi tiết đơn nhập - Sử dụng component mới */}
@@ -307,13 +323,12 @@ const styles = StyleSheet.create({
     elevation: 2,
     marginHorizontal: 16,
   },
-  
+
   tamaButtonText: {
     color: "#fff",
     fontSize: 15,
     fontWeight: "600",
   },
-  
 });
 
 export default ImportOrderScreen;

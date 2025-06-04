@@ -117,7 +117,7 @@ const takePhoto = async () => {
         <View style={{ padding: 16 }}>
           {/* Chọn phương thức ký */}
           <View style={{ alignItems: "center", marginVertical: 16 }}>
-            <Text style={styles.label}>Chọn phương thức ký</Text>
+            <Text style={styles.label}>Người giao hàng ký tên</Text>
             <View
               style={{
                 flexDirection: "row",

@@ -43,7 +43,7 @@ const useExportRequest = () => {
             },
           }
         );
-        console.log("Full response:", response);
+        // console.log("Full response:", response);
         const content = response?.content || [];
         setExportRequests(content);
         return content;

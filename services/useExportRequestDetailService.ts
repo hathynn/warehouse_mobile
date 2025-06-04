@@ -32,19 +32,21 @@ const useExportRequestDetail = () => {
 
   const updateActualQuantity = async (
     exportRequestDetailId: string,
-    actualQuantity: number
+    inventoryItemId: string
   ): Promise<boolean> => {
     try {
       const payload = {
         exportRequestDetailId,
-        actualQuantity,
+        inventoryItemId,
       };
-
       await callApi("put", `/export-request-detail/actual-quantity`, payload);
       return true;
-    } catch (error) {
-      console.error("❌ Lỗi khi cập nhật actualQuantity:", error);
-      return false;
+    } catch (error: any) {
+      console.error(
+        "❌ Lỗi khi cập nhật actualQuantity:",
+        error?.response?.data || error
+      );
+      throw error;
     }
   };
 

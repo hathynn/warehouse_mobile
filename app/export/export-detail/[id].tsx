@@ -7,7 +7,7 @@ import {
   StyleSheet,
   ActivityIndicator,
 } from "react-native";
-import { useRoute } from "@react-navigation/native";
+import { useFocusEffect, useRoute } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import useExportRequest from "@/services/useExportRequestService";
 import useExportRequestDetail from "@/services/useExportRequestDetailService";
@@ -63,23 +63,21 @@ const ExportRequestScreen: React.FC = () => {
   const { loading: loadingDetails, fetchExportRequestDetails } =
     useExportRequestDetail();
 
-  useEffect(() => {
+useFocusEffect(
+  React.useCallback(() => {
     if (id) {
-      const requestId = id;
-
-      fetchExportRequestById(requestId);
-
-    fetchExportRequestDetails(requestId, 1, 100).then((newData) => {
-  const refreshedDetails = newData.map((item) => ({
-    ...item,
-    actualQuantity: item.actualQuantity ?? 0,
-    inventoryItemIds: item.inventoryItemIds ?? [], // <-- thêm lại dòng này nếu BE có trả
-  }));
-  dispatch(setExportRequestDetail(refreshedDetails));
-});
-
+      fetchExportRequestById(id);
+      fetchExportRequestDetails(id, 1, 100).then((newData) => {
+        const refreshedDetails = newData.map((item) => ({
+          ...item,
+          actualQuantity: item.actualQuantity ?? 0,
+          inventoryItemIds: item.inventoryItemIds ?? [],
+        }));
+        dispatch(setExportRequestDetail(refreshedDetails));
+      });
     }
-  }, [id]);
+  }, [id])
+);
 
   
 
@@ -153,56 +151,35 @@ const ExportRequestScreen: React.FC = () => {
     setManualInventoryItemId("");
   };
 
-  const handleSaveDraft = async () => {
-    try {
-      const success = await updateAllActualQuantities();
+  // const handleSaveDraft = async () => {
+  //   try {
+  //     const success = await updateAllActualQuantities();
 
-      if (success) {
-        alert("Lưu nháp thành công")
-        console.log("✅ Lưu nháp thành công (chưa cập nhật trạng thái)");
-      } else {
-        console.warn("❌ Lưu nháp thất bại ở một số dòng.");
-      }
-    } catch (error) {
-      console.error("❌ Lỗi khi lưu nháp:", error);
+  //     if (success) {
+  //       alert("Lưu nháp thành công")
+  //       console.log("✅ Lưu nháp thành công (chưa cập nhật trạng thái)");
+  //     } else {
+  //       console.warn("❌ Lưu nháp thất bại ở một số dòng.");
+  //     }
+  //   } catch (error) {
+  //     console.error("❌ Lỗi khi lưu nháp:", error);
+  //   }
+  // };
+
+ const handleConfirm = async () => {
+  try {
+    const statusUpdate = await updateExportRequestStatus(id, "COUNTED");
+    if (statusUpdate) {
+      console.log("✅ Đã cập nhật status sang COUNTED");
+      router.push("/(tabs)/export");
+    } else {
+      console.warn("⚠️ Cập nhật status thất bại.");
     }
-  };
+  } catch (error) {
+    console.error("❌ Lỗi khi xác nhận:", error);
+  }
+};
 
-  const handleConfirm = async () => {
-    try {
-      let allSuccess = true;
-
-      // 1. Cập nhật actualQuantity từng dòng
-      for (const p of savedExportRequestDetails) {
-        const success = await updateActualQuantity(p.id, p.actualQuantity ?? 0);
-        if (!success) {
-          console.warn(`⚠️ Không thể cập nhật item ID: ${p.id}`);
-          allSuccess = false;
-          break;
-        }
-      }
-
-      // 2. Nếu tất cả thành công thì update status + chuyển trang
-      if (allSuccess) {
-        console.log("✅ Cập nhật toàn bộ actualQuantity thành công");
-
-        const statusUpdate = await updateExportRequestStatus(id, "COUNTED");
-
-        if (statusUpdate) {
-          console.log("✅ Đã cập nhật status sang COUNTED");
-          router.push("/(tabs)/export");
-        } else {
-          console.warn("⚠️ Cập nhật status thất bại.");
-        }
-      } else {
-        console.warn(
-          "❌ Một số dòng không cập nhật được số lượng. Dừng xử lý."
-        );
-      }
-    } catch (error) {
-      console.error("❌ Lỗi khi xác nhận tổng thể:", error);
-    }
-  };
 
   const renderActionButton = () => {
     if (!exportRequest) return null;
@@ -212,16 +189,16 @@ const ExportRequestScreen: React.FC = () => {
       case ExportRequestStatus.IN_PROGRESS:
           return (
           <View>
-            <StyledButton
+            {/* <StyledButton
               title="Cập nhật thủ công"
               onPress={() => setManualModalVisible(true)}
               style={{ backgroundColor: "#e0e0e0" }}
-            />
-            <StyledButton
+            /> */}
+            {/* <StyledButton
               title="Lưu nháp"
               onPress={handleSaveDraft}
               style={{ marginTop: 12, backgroundColor: "#ccc" }}
-            />
+            /> */}
 
             <StyledButton
               title="Xác nhận số lượng"
@@ -371,7 +348,7 @@ const ExportRequestScreen: React.FC = () => {
           <View style={[styles.tableRow, styles.tableHeader]}>
             <Text style={[styles.cellCode]}>Mã hàng</Text>
             <Text style={[styles.cellAlignRight]}>Cần</Text>
-            <Text style={[styles.cellAlignRight]}>Tồn</Text>
+            <Text style={[styles.cellAlignRight]}>Kiểm đếm</Text>
             {[
               ExportRequestStatus.IN_PROGRESS,
               ExportRequestStatus.COUNTED,
@@ -408,9 +385,12 @@ const ExportRequestScreen: React.FC = () => {
                         );
                       }}
                     >
-                      <Text style={styles.scanText}>
-                        {isDisabled ? "Đã đủ" : "Scan"}
-                      </Text>
+                     {isDisabled ? (
+  <Text style={styles.scanText}>Đã đủ</Text>
+) : (
+  <Ionicons name="qr-code-outline" size={18}  color="white" />
+)}
+
                     </TouchableOpacity>
                   </View>
                 )}

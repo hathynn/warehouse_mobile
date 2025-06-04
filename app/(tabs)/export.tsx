@@ -152,12 +152,7 @@ function ExportListComponent() {
     ) || [];
 
     return [
-      {
-        key: 'ALL',
-        title: 'Tất cả',
-        status: 'ALL',
-        count: validRequests.length,
-      },
+  
       {
         key: 'IN_PROGRESS',
         title: 'Cần kiểm đếm',
