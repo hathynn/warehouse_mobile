@@ -20,6 +20,8 @@ import { useIsFocused } from "@react-navigation/native";
 const { width } = Dimensions.get("window");
 
 export default function ScanQrScreen() {
+  const [beepSound, setBeepSound] = useState<Audio.Sound | null>(null);
+
   const { id } = useLocalSearchParams<{ id: string }>();
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [isScanning, setIsScanning] = useState(true);
@@ -52,16 +54,33 @@ const isFocused = useIsFocused();
     })();
   }, []);
 
-  const playBeep = async () => {
-    try {
-      const { sound } = await Audio.Sound.createAsync(
-        require("@/assets/beep-07a.mp3")
-      );
-      await sound.playAsync();
-    } catch (error) {
-      console.warn("Không thể phát âm thanh:", error);
-    }
+  useEffect(() => {
+  const loadBeep = async () => {
+    const { sound } = await Audio.Sound.createAsync(
+      require("@/assets/beep-07a.mp3")
+    );
+    setBeepSound(sound);
   };
+
+  loadBeep();
+
+  return () => {
+    beepSound?.unloadAsync(); // cleanup khi unmount
+  };
+}, []);
+
+
+const playBeep = async () => {
+  try {
+    if (beepSound) {
+      await beepSound.stopAsync(); // dừng nếu đang phát
+      await beepSound.setPositionAsync(0); // quay lại đầu
+      await beepSound.playAsync(); // phát lại
+    }
+  } catch (err) {
+    console.warn("Không thể phát âm thanh:", err);
+  }
+};
 
   const handleBarCodeScanned = ({ data }: { data: string }) => {
   if (!isFocused || !canScan) return; // chặn nếu đang cooldown
@@ -160,7 +179,7 @@ const foundProduct = products.find((product) => product.id === String(qrData.id)
             <View style={styles.productBox}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.productTitle}>
-                  #{lastScannedProduct.id}
+                  {lastScannedProduct.id}
                 </Text>
                 <Text style={styles.productName}>
                   {lastScannedProduct.name}

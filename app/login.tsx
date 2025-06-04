@@ -23,18 +23,18 @@ const LoginScreen = () => {
   const [showPassword, setShowPassword] = useState(false);
   const dispatch = useDispatch();
   const router = useRouter();
-  const [email, setEmail] = useState("");
+  const [username, setUserName] = useState("");
   const [password, setPassword] = useState("");
   const { loginUser } = useAccountService();
 
   const handleLogin = async () => {
-    if (!email || !password) {
-      Alert.alert("Vui lòng nhập đầy đủ email và mật khẩu");
+    if (!username || !password) {
+      Alert.alert("Vui lòng nhập đầy đủ username và mật khẩu");
       return;
     }
 
     try {
-      const res = await loginUser({ email, password });
+      const res = await loginUser({ username, password });
       const { access_token, refresh_token } = res.content;
 
       if (!access_token || !refresh_token) {
@@ -76,7 +76,7 @@ const LoginScreen = () => {
           <Text className="text-center text-lg font-medium">Phone Number</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          className={`flex-1 py-2 rounded-full ${selectedTab === "email" ? "bg-green-300" : ""}`}
+          className={`flex-1 py-2 rounded-full ${selectedTab === "username" ? "bg-green-300" : ""}`}
           onPress={() => setSelectedTab("email")}
         >
           <Text className="text-center text-lg font-medium">Email</Text>
@@ -89,8 +89,8 @@ const LoginScreen = () => {
             placeholder="Email"
             placeholderTextColor="#999"
             keyboardType="email-address"
-            value={email}
-            onChangeText={setEmail}
+            value={username}
+            onChangeText={setUserName}
           />
 
           {/* <TextInput

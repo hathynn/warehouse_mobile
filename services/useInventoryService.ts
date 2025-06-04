@@ -10,6 +10,7 @@ const useInventoryService = () => {
     async (importOrderDetailId: string, page = 1, limit = 100) => {
       if (!importOrderDetailId) return [];
       setIsLoading(true);
+     
       try {
         const res = await callApi(
           "get",
@@ -17,8 +18,8 @@ const useInventoryService = () => {
           undefined, // không có body cho GET
           { params: { page, limit } } // → đây mới là config được truyền xuống axios
         );
-
-        console.log("📦 API trả về:", res.metaDataDTO);
+//  console.log("ID:",importOrderDetailId)
+//         console.log("📦 API trả về:", res.metaDataDTO);
 
         return res.content || [];
       } catch (err) {

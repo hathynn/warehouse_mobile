@@ -53,12 +53,7 @@ export default function ReceiptDetail() {
     );
 
     return [
-      {
-        key: 'ALL',
-        title: 'Tất cả',
-        status: 'ALL',
-        count: validOrders.length,
-      },
+    
       {
         key: 'IN_PROGRESS',
         title: 'Cần kiểm đếm',
@@ -91,14 +86,7 @@ export default function ReceiptDetail() {
           order.status === ImportOrderStatus.COMPLETED
         ).length,
       },
-      {
-        key: 'CANCELLED',
-        title: 'Đã hủy',
-        status: ImportOrderStatus.COMPLETED,
-        count: validOrders.filter((order: any) => 
-          order.status === ImportOrderStatus.COMPLETED
-        ).length,
-      },
+      
     ];
   };
 
