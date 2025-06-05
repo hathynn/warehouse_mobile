@@ -2,8 +2,6 @@ import { useState, useCallback } from "react";
 import { ImportOrderType } from "../types/importOrder.type";
 import useApiService from "./useApi";
 
-const BASE_URL =
-  "https://warehouse-backend-jlcj5.ondigitalocean.app/import-order";
 
 const useImportOrder = () => {
   const { loading, callApi, setIsLoading } = useApiService();
@@ -14,7 +12,7 @@ const useImportOrder = () => {
     async (staffId: number, page = 1, limit = 10) => {
       setIsLoading(true);
       try {
-        const response = await callApi("get", `${BASE_URL}/staff/${staffId}`, {
+        const response = await callApi("get", `/import-order/staff/${staffId}`, {
           params: {
             page,
             limit,
@@ -39,7 +37,7 @@ const useImportOrder = () => {
 
       setIsLoading(true);
       try {
-        const response = await callApi("get", `${BASE_URL}/${id}`);
+        const response = await callApi("get", `/import-order/${id}`);
         setImportOrder(response.content);
         return response.content;
       } catch (error) {
@@ -52,29 +50,14 @@ const useImportOrder = () => {
     [callApi, setIsLoading]
   );
 
-  // Tạo mới import order
-  const createImportOrder = useCallback(
-    async (newOrder: Omit<ImportOrderType, "importOrderId">) => {
-      setIsLoading(true);
-      try {
-        const response = await callApi("post", BASE_URL, newOrder);
-        return response;
-      } catch (error) {
-        console.error("Lỗi khi tạo import order:", error);
-        return null;
-      } finally {
-        setIsLoading(false);
-      }
-    },
-    [callApi, setIsLoading]
-  );
+ 
 
   // Cập nhật import order
   const updateImportOrder = useCallback(
     async (id: number, updatedData: Partial<ImportOrderType>) => {
       setIsLoading(true);
       try {
-        const response = await callApi("put", `${BASE_URL}/${id}`, updatedData);
+        const response = await callApi("put", `/import-order/${id}`, updatedData);
         return response;
       } catch (error) {
         console.error("Lỗi khi cập nhật import order:", error);
@@ -86,22 +69,7 @@ const useImportOrder = () => {
     [callApi, setIsLoading]
   );
 
-  // Xóa import order
-  const deleteImportOrder = useCallback(
-    async (id: number) => {
-      setIsLoading(true);
-      try {
-        await callApi("delete", `${BASE_URL}/${id}`);
-        return true;
-      } catch (error) {
-        console.error("Lỗi khi xóa import order:", error);
-        return false;
-      } finally {
-        setIsLoading(false);
-      }
-    },
-    [callApi, setIsLoading]
-  );
+ 
 
   return {
     loading,
@@ -109,9 +77,9 @@ const useImportOrder = () => {
     importOrder,
     fetchImportOrders,
     fetchImportOrderById,
-    createImportOrder,
+ 
     updateImportOrder,
-    deleteImportOrder,
+   
   };
 };
 

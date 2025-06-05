@@ -16,7 +16,7 @@ const useExportRequest = () => {
   const fetchExportRequests = useCallback(async () => {
     setIsLoading(true);
     try {
-      const response = await callApi("get", `${BASE_URL}`, {});
+      const response = await callApi("get", `/export-request`, {});
       setExportRequests(response.content);
       return response.content;
     } catch (error) {
@@ -34,8 +34,8 @@ const useExportRequest = () => {
       try {
         const response = await callApi(
           "get",
-          `${BASE_URL}/staff/${staffId}`,
-          undefined,
+          `/export-request/staff/${staffId}`,
+
           {
             params: {
               page,
@@ -59,17 +59,17 @@ const useExportRequest = () => {
 
   const updateExportRequestStatus = useCallback(
     async (exportRequestId: string, status: string) => {
-      console.log("ID API:", exportRequestId)
+      console.log("ID API:", exportRequestId);
       if (!exportRequestId || !status) return false;
       setIsLoading(true);
       try {
         const response = await callApi(
           "post",
-          `${BASE_URL}/update-status/${exportRequestId}`,
-          undefined,
-          {
-            params: { status },
-          }
+          `/export-request/update-status/${exportRequestId}?status=${status}`,
+
+          // {
+          //   params: { status },
+          // }
         );
         // console.log("1", response);
         return response;
@@ -89,7 +89,7 @@ const useExportRequest = () => {
       if (!id) return;
       setIsLoading(true);
       try {
-        const response = await callApi("get", `${BASE_URL}/${id}`);
+        const response = await callApi("get", `/export-request/${id}`);
         setExportRequest(response.content); // ✅ PHẢI có dòng này
       } catch (error) {
         console.error("Lỗi khi lấy export request:", error);
@@ -100,51 +100,21 @@ const useExportRequest = () => {
     [callApi, setIsLoading]
   );
 
-  // Tạo mới export request
-  const createExportRequest = useCallback(
-    async (newRequest: Omit<ExportRequestType, "exportRequestId">) => {
-      setIsLoading(true);
-      try {
-        const response = await callApi("post", BASE_URL, newRequest);
-        return response;
-      } catch (error) {
-        console.error("Lỗi khi tạo export request:", error);
-        return null;
-      } finally {
-        setIsLoading(false);
-      }
-    },
-    [callApi, setIsLoading]
-  );
-
   // Cập nhật export request
   const updateExportRequest = useCallback(
-    async (id: number, updatedData: Partial<ExportRequestType>) => {
+    async (id: string, updatedData: Partial<ExportRequestType>) => {
       setIsLoading(true);
       try {
         console.log("Hello");
-        const response = await callApi("put", `${BASE_URL}/${id}`, updatedData);
+        const response = await callApi(
+          "post",
+          `/export-request/update-status/${id}`,
+          updatedData
+        );
         return response;
       } catch (error) {
         console.error("Lỗi khi cập nhật export request:", error);
         return null;
-      } finally {
-        setIsLoading(false);
-      }
-    },
-    [callApi, setIsLoading]
-  );
-
-  // Xóa export request
-  const deleteExportRequest = useCallback(
-    async (id: number) => {
-      setIsLoading(true);
-      try {
-        await callApi("delete", `${BASE_URL}/${id}`);
-        return true;
-      } catch (error) {
-        console.error("Lỗi khi xóa export request:", error);
-        return false;
       } finally {
         setIsLoading(false);
       }
@@ -158,9 +128,7 @@ const useExportRequest = () => {
     exportRequest,
     fetchExportRequests,
     fetchExportRequestById,
-    createExportRequest,
     updateExportRequest,
-    deleteExportRequest,
     fetchExportRequestsByStaffId,
     updateExportRequestStatus,
   };

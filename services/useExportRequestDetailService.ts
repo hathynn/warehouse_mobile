@@ -1,9 +1,8 @@
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import { ExportRequestDetailType } from "../types/exportRequestDetail.type";
 import useApiService from "./useApi";
 
-const BASE_URL =
-  "https://warehouse-backend-jlcj5.ondigitalocean.app/export-request-detail";
+
 
 const useExportRequestDetail = () => {
   const { loading, callApi, setIsLoading } = useApiService();
@@ -20,7 +19,7 @@ const useExportRequestDetail = () => {
       const response = await callApi(
         "get",
         `/export-request-detail/${exportRequestId}`,
-        undefined,
+        
         { params: { page, limit } } // config → query string
       );
       return response.content || [];

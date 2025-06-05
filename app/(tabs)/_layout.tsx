@@ -18,6 +18,13 @@ export default function TabsLayout() {
           tabBarIcon: ({ color, size }) => <Ionicons name="cloud-upload" color={color} size={size} />,
         }}
       />
+        <Tabs.Screen
+        name="notification"
+        options={{
+          title: "Thông báo",
+          tabBarIcon: ({ color, size }) => <Ionicons name="notifications" color={color} size={size} />,
+        }}
+      />
       <Tabs.Screen
         name="account"
         options={{
@@ -25,6 +32,7 @@ export default function TabsLayout() {
           tabBarIcon: ({ color, size }) => <Ionicons name="person-circle" color={color} size={size} />,
         }}
       />
+    
     </Tabs>
   );
 }

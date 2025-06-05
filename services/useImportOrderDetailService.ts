@@ -46,7 +46,7 @@ const useImportOrderDetail = () => {
 
       setLoading(true);
       try {
-        const response = await callApi("get", `${BASE_URL}/page/${importOrderId}`, {
+        const response = await callApi("get", `/import-order-detail/page/${importOrderId}`, {
           params: { page, size },
         });
 

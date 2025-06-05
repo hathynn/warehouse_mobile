@@ -140,10 +140,9 @@ const playBeep = async () => {
       setErrorMessage(null);
       setTimeout(() => setLastScannedProduct(null), 2000);
     } catch (err: any) {
-      const message =
-        err?.response?.data?.message || err?.message || "Lỗi không xác định";
+      const message = err?.response?.data?.message || err?.message || "Lỗi không xác định";
 
-      let displayMessage = "QR không hợp lệ.";
+      let displayMessage = "QR không hợp"
 
       if (message.toLowerCase().includes("has been tracked")) {
         displayMessage = "Sản phẩm này đã được quét trước đó!";
