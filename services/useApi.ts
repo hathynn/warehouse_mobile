@@ -1,48 +1,55 @@
-import api from "@/config/api";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useCallback, useState } from "react";
+import { useState, useCallback } from "react";
+import api from "../config/api"; // axios instance
 
-const useApiService = () => {
+type HttpMethod = "get" | "post" | "put" | "delete" | "patch";
+
+interface CallApiOptions {
+  headers?: Record<string, string>;
+}
+
+const useApi = () => {
   const [loading, setIsLoading] = useState<boolean>(false);
 
   const callApi = useCallback(
     async (
-      method: "get" | "post" | "put" | "delete",
+      method: HttpMethod,
       url: string,
       data?: any,
-      config: any = {}
+      options?: CallApiOptions,
+      message?: string
     ) => {
       try {
         setIsLoading(true);
+        console.log(`→ [API] ${method.toUpperCase()} ${url}`);
 
-        const token = await AsyncStorage.getItem("access_token");
-        if (token) {
-          config.headers = {
-            ...(config.headers || {}),
-            Authorization: `Bearer ${token}`,
-          };
+        // Khởi tạo header cơ bản
+        const headers: Record<string, string> = {
+          // Mặc định: application/json
+          "Content-Type": "application/json",
+          ...options?.headers,
+        };
+
+        // Nếu data là FormData (ví dụ FormData từ usePaperService),
+        // thì bỏ hẳn Content-Type để Axios tự thêm boundary multipart
+        if (data instanceof FormData) {
+          delete headers["Content-Type"];
+        }
+
+        const axiosConfig = { headers };
+
+        if (method === "get" || method === "delete") {
+          // GET/DELETE không dùng body, chỉ truyền config
+          const response = await api[method]<any>(url, axiosConfig);
+          if (message) console.log(message);
+          return response.data;
         } else {
-          console.warn("⚠️ Không tìm thấy token");
+          // POST/PUT/PATCH dùng (url, data, config)
+          const response = await api[method]<any>(url, data, axiosConfig);
+          if (message) console.log(message);
+          return response.data;
         }
-
-        // console.log("➡️ Gọi API:", { method, url, headers: config.headers });
-
-        const response =
-          method === "get" || method === "delete"
-            ? await api[method](url, config)
-            : await api[method](url, data, config);
-
-        if (!response || !response.data) {
-          console.warn("⚠️ API không trả về dữ liệu hợp lệ");
-          return undefined;
-        }
-
-        return response.data;
       } catch (error: any) {
-        console.error(
-          "API Error:",
-          error.response?.data || error.message || error
-        );
+        console.error("← [API ERROR]", error.response?.status, error.message);
         throw error;
       } finally {
         setIsLoading(false);
@@ -54,4 +61,4 @@ const useApiService = () => {
   return { loading, callApi, setIsLoading };
 };
 
-export default useApiService;
+export default useApi;

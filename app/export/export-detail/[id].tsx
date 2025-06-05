@@ -20,6 +20,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import StyledButton from "@/components/ui/StyledButton";
 import StatusBadge from "@/components/StatusBadge";
 import { Modal, TextInput as RNTextInput } from "react-native";
+import { ExportRequestDetailStatus } from "@/types/exportRequestDetail.type";
 
 interface RouteParams {
   id: string;
@@ -93,20 +94,20 @@ useFocusEffect(
       </View>
     );
   }
-  const updateAllActualQuantities = async (): Promise<boolean> => {
-    let allSuccess = true;
+  // const updateAllActualQuantities = async (): Promise<boolean> => {
+  //   let allSuccess = true;
 
-    for (const p of savedExportRequestDetails) {
-      const success = await updateActualQuantity(p.id, p.actualQuantity ?? 0);
-      if (!success) {
-        console.warn(`⚠️ Không thể cập nhật item ID: ${p.id}`);
-        allSuccess = false;
-        break;
-      }
-    }
+  //   for (const p of savedExportRequestDetails) {
+  //     const success = await updateActualQuantity(p.id, p.actualQuantity ?? 0);
+  //     if (!success) {
+  //       console.warn(`⚠️ Không thể cập nhật item ID: ${p.id}`);
+  //       allSuccess = false;
+  //       break;
+  //     }
+  //   }
 
-    return allSuccess;
-  };
+  //   return allSuccess;
+  // };
 
   const handleManualUpdate = () => {
     console.log("🔍 manualItemId:", manualItemId);
@@ -168,7 +169,7 @@ useFocusEffect(
 
  const handleConfirm = async () => {
   try {
-    const statusUpdate = await updateExportRequestStatus(id, "COUNTED");
+    const statusUpdate = await updateExportRequestStatus(id, ExportRequestStatus.COUNTED);
     if (statusUpdate) {
       console.log("✅ Đã cập nhật status sang COUNTED");
       router.push("/(tabs)/export");

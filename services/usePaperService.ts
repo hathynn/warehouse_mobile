@@ -1,15 +1,20 @@
 import { useCallback } from "react";
 import * as FileSystem from "expo-file-system";
-import useApiService from "./useApi";
+import axios from "axios";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const usePaperService = () => {
-  const { callApi, setIsLoading } = useApiService();
-
   const createPaper = useCallback(
     async (paperData: any) => {
       try {
-        const formData = new FormData();
+        // 1. Đọc accessToken từ AsyncStorage
+        const token = await AsyncStorage.getItem("access_token");
+        if (!token) {
+          throw new Error("Không tìm thấy access token");
+        }
 
+        // 2. Chuẩn bị FormData
+        const formData = new FormData();
         formData.append("id", paperData.id || "");
         formData.append("description", paperData.description || "");
         if (paperData.importOrderId) {
@@ -19,12 +24,12 @@ const usePaperService = () => {
           formData.append("exportRequestId", paperData.exportRequestId);
         }
 
-        // ✨ Xử lý linh hoạt cả base64 và file://
+        // 3. Hàm helper để xử lý base64 hoặc file://
         const processImageInput = async (input: string, filename: string) => {
           if (!input) throw new Error("Thiếu ảnh chữ ký");
 
           if (input.startsWith("data:image")) {
-            // Là base64 → tách ra và ghi vào file
+            // Là base64 → ghi ra file
             const base64 = input.split(",")[1];
             const path = `${FileSystem.cacheDirectory}${filename}`;
             await FileSystem.writeAsStringAsync(path, base64, {
@@ -34,7 +39,7 @@ const usePaperService = () => {
           }
 
           if (input.startsWith("file://")) {
-            // Là đường dẫn ảnh từ ImagePicker
+            // Đường dẫn từ ImagePicker
             return input;
           }
 
@@ -62,33 +67,46 @@ const usePaperService = () => {
           type: "image/jpeg",
         } as any);
 
-        const response = await callApi("post", "/paper", formData, {
-          headers: {
-            "Content-Type": "multipart/form-data",
-          },
-        });
+        // 4. Gọi Axios với header Authorization
+        const response = await axios.post(
+          "https://warehouse-backend-jlcj5.ondigitalocean.app/paper",
+          formData,
+          {
+            headers: {
+              "Content-Type": "multipart/form-data",
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
 
-        // console.log("✅ Paper Created:", response);
-        return response;
+        return response.data;
       } catch (error: any) {
-        console.error("❌ Lỗi tạo paper:", error.message || error);
+        console.error("❌ Lỗi tạo paper:", error.response?.data || error.message);
         return null;
       }
     },
-    [callApi]
+    []
   );
 
   const getPaperById = useCallback(
     async (id: number | string) => {
       try {
-        const response = await callApi("get", `/paper/${id}`);
-        return response?.content;
+        const token = await AsyncStorage.getItem("access_token");
+        if (!token) throw new Error("Không tìm thấy access token");
+
+        const response = await axios.get(
+          `https://warehouse-backend-jlcj5.ondigitalocean.app/paper/${id}`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
+        return response.data?.content;
       } catch (error: any) {
-        console.error("❌ Lỗi lấy chứng từ:", error.message || error);
+        console.error("❌ Lỗi lấy chứng từ:", error.response?.data || error.message);
         return null;
       }
     },
-    [callApi]
+    []
   );
 
   return { createPaper, getPaperById };

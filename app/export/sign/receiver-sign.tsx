@@ -85,8 +85,9 @@ const SignReceiveScreen = () => {
 
     try {
       setIsLoading(true);
-
+console.log("Dataaaaaaa:", paperData)
       const response = await createPaper(paperData);
+      console.log("Responseeeeee",response)
       if (response) {
         console.log("✅ Tạo phiếu thành công");
 
