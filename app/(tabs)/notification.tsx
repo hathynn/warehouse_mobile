@@ -1,73 +1,133 @@
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
 import {
   Text,
   View,
-  ScrollView,
   TouchableOpacity,
   StatusBar,
   StyleSheet,
   FlatList,
+  ActivityIndicator,
 } from "react-native";
-import { useState } from "react";
+import { useState, useEffect, useCallback, useContext } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useSelector } from "react-redux";
+import { RootState } from "@/redux/store";
+import useNotificationService, {
+  NotificationResponse,
+} from "@/services/useNotificationService";
+import { PusherContext } from "@/contexts/pusher/PusherContext";
+import { IMPORT_ORDER_ASSIGNED_EVENT } from "@/constants/channelsNEvents";
 
-// Mock data cho notifications
-const mockNotifications = [
-  {
-    id: 1,
-    title: "Đơn nhập #12345 cần kiểm đếm",
-    message: "Đơn nhập hàng mới đã được tạo và cần được kiểm đếm",
-    time: "2 phút trước",
-    type: "import",
-    isRead: false,
-  },
-  {
-    id: 2,
-    title: "Đơn nhập #12344 đã hoàn tất",
-    message: "Đơn nhập hàng đã được xác nhận và hoàn tất thành công",
-    time: "1 giờ trước",
-    type: "success",
-    isRead: true,
-  },
-//   {
-//     id: 3,
-//     title: "Cập nhật hệ thống",
-//     message: "Hệ thống đã được cập nhật với các tính năng mới",
-//     time: "3 giờ trước",
-//     type: "system",
-//     isRead: false,
-//   },
-  {
-    id: 4,
-    title: "Đơn nhập #12343 cần xác nhận",
-    message: "Đơn nhập đã được kiểm đếm và chờ xác nhận từ quản lý",
-    time: "5 giờ trước",
-    type: "pending",
-    isRead: true,
-  },
-];
+const formatTimeAgo = (dateString: string) => {
+  if (!dateString) return "";
+  const date = new Date(dateString);
+  const now = new Date();
+  const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+
+  let interval = seconds / 31536000;
+  if (interval > 1) {
+    return Math.floor(interval) + " năm trước";
+  }
+  interval = seconds / 2592000;
+  if (interval > 1) {
+    return Math.floor(interval) + " tháng trước";
+  }
+  interval = seconds / 86400;
+  if (interval > 1) {
+    return Math.floor(interval) + " ngày trước";
+  }
+  interval = seconds / 3600;
+  if (interval > 1) {
+    return Math.floor(interval) + " giờ trước";
+  }
+  interval = seconds / 60;
+  if (interval > 1) {
+    return Math.floor(interval) + " phút trước";
+  }
+  return "Vừa xong";
+};
+
+const getNotificationTypeFromContent = (content: string): string => {
+  if (!content) return "default";
+  const lowerContent = content.toLowerCase();
+  if (
+    lowerContent.includes("cần kiểm đếm") ||
+    lowerContent.includes("đơn nhập hàng mới")
+  ) {
+    return "import";
+  }
+  if (lowerContent.includes("đã hoàn tất")) {
+    return "success";
+  }
+  if (lowerContent.includes("cập nhật hệ thống")) {
+    return "system";
+  }
+  if (lowerContent.includes("cần xác nhận")) {
+    return "pending";
+  }
+  if (lowerContent.includes("báo cáo")) {
+    return "report";
+  }
+  return "default";
+};
 
 export default function NotificationScreen() {
-  const [notifications, setNotifications] = useState(mockNotifications);
+  const [notifications, setNotifications] = useState<NotificationResponse[]>([]);
+  const { user } = useSelector((state: RootState) => state.auth);
+  const { getAllNotifications, clickNotification, viewAllNotifications, loading: isLoading } = useNotificationService();
+  const { latestNotification } = useContext(PusherContext);
+
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
-  // Đếm số thông báo chưa đọc
-  const unreadCount = notifications.filter((n) => !n.isRead).length;
+  const fetchNotifications = useCallback(async () => {
+    if (!user?.id) {
+      return;
+    }
+    const response = await getAllNotifications(Number(user.id));
+    if (
+      response.statusCode >= 200 &&
+      response.statusCode < 300 &&
+      Array.isArray(response.content)
+    ) {
+      setNotifications(response.content);
+    }
+  }, [user]);
 
-  // Đánh dấu một thông báo đã đọc
-  const markAsRead = (id: number) => {
-    setNotifications((prev) =>
-      prev.map((notification) =>
-        notification.id === id
-          ? { ...notification, isRead: true }
-          : notification
-      )
-    );
+  useFocusEffect(
+    useCallback(() => {
+      fetchNotifications();
+      if (user?.id) {
+        viewAllNotifications(Number(user.id)).catch(error => {
+          console.error('Failed to mark all notifications as viewed:', error);
+        });
+      }
+    }, [fetchNotifications, user])
+  );
+
+  useEffect(() => {
+    if (latestNotification) {
+      fetchNotifications();
+    }
+  }, [latestNotification]);
+
+  const handleNotificationPress = async (notification: NotificationResponse) => {
+    if (!notification.isClicked) {
+      try {
+        await clickNotification(notification.id);
+        await fetchNotifications();
+      } catch (error) {
+        console.error("Failed to mark notification as clicked:", error);
+      }
+    }
+    if (notification.eventType === IMPORT_ORDER_ASSIGNED_EVENT) {
+      router.push(`/import/detail/${notification.objectId}`);
+    }
   };
 
-  // Lấy icon theo loại thông báo
+  const unreadCount = notifications.filter((n) => !n.isClicked).length;
+
   const getNotificationIcon = (type: string) => {
     switch (type) {
       case "import":
@@ -85,55 +145,51 @@ export default function NotificationScreen() {
     }
   };
 
-  // Render notification item
-  const renderNotificationItem = ({ item }: { item: any }) => {
-    const icon = getNotificationIcon(item.type);
+  const renderNotificationItem = ({
+    item,
+  }: {
+    item: NotificationResponse;
+  }) => {
+    const type = getNotificationTypeFromContent(item.content);
+    const icon = getNotificationIcon(type);
+    const iconName = icon.name as keyof typeof Ionicons.glyphMap;
 
     return (
       <TouchableOpacity
-        style={[styles.notificationCard, item.isRead && styles.readCard]}
-        onPress={() => markAsRead(item.id)}
+        style={[styles.notificationCard, item.isClicked && styles.readCard]}
+        onPress={() => handleNotificationPress(item)}
         activeOpacity={0.7}
       >
         <View style={styles.notificationContent}>
-          {/* Icon */}
           <View
             style={[
               styles.iconContainer,
               { backgroundColor: `${icon.color}15` },
             ]}
           >
-            <Ionicons name={icon.name} size={24} color={icon.color} />
+            <Ionicons name={iconName} size={24} color={icon.color} />
           </View>
 
-          {/* Nội dung */}
           <View style={styles.textContainer}>
             <Text
               style={[
                 styles.notificationTitle,
-                item.isRead && styles.readTitle,
+                item.isClicked && styles.readTitle,
               ]}
             >
-              {item.title}
+              {item.content}
             </Text>
             <Text
               style={[
-                styles.notificationMessage,
-                item.isRead && styles.readMessage,
+                styles.notificationTime,
+                item.isClicked && styles.readTime,
               ]}
-              numberOfLines={2}
             >
-              {item.message}
-            </Text>
-            <Text
-              style={[styles.notificationTime, item.isRead && styles.readTime]}
-            >
-              {item.time}
+              {formatTimeAgo(item.createdDate)}
             </Text>
           </View>
 
-          {/* Chấm đỏ cho thông báo chưa đọc */}
-          {!item.isRead && <View style={styles.unreadDot} />}
+          {!item.isClicked && <View style={styles.unreadDot} />}
         </View>
       </TouchableOpacity>
     );
@@ -141,15 +197,12 @@ export default function NotificationScreen() {
 
   return (
     <View style={styles.container}>
-      {/* StatusBar */}
       <StatusBar backgroundColor="#1677ff" barStyle="light-content" />
 
-      {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
         <Text style={styles.headerTitle}>Thông báo</Text>
       </View>
 
-      {/* Summary */}
       {unreadCount > 0 && (
         <View style={styles.summaryContainer}>
           <View style={styles.summaryContent}>
@@ -161,8 +214,11 @@ export default function NotificationScreen() {
         </View>
       )}
 
-      {/* Notifications List */}
-      {notifications.length === 0 ? (
+      {isLoading ? (
+        <View style={styles.emptyContainer}>
+          <ActivityIndicator size="large" color="#1677ff" />
+        </View>
+      ) : notifications.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Ionicons name="notifications-outline" size={60} color="#BDBDBD" />
           <Text style={styles.emptyText}>Bạn chưa có thông báo nào</Text>
@@ -174,6 +230,8 @@ export default function NotificationScreen() {
           keyExtractor={(item) => item.id.toString()}
           contentContainerStyle={styles.notificationsList}
           showsVerticalScrollIndicator={false}
+          onRefresh={fetchNotifications}
+          refreshing={isLoading}
         />
       )}
     </View>
@@ -224,6 +282,7 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   emptyContainer: {
+    flex: 1,
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 80,
@@ -250,7 +309,7 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   readCard: {
-    opacity: 0.6,
+    opacity: 0.7,
   },
   notificationContent: {
     flexDirection: "row",
@@ -290,6 +349,7 @@ const styles = StyleSheet.create({
   notificationTime: {
     fontSize: 12,
     color: "#999",
+    marginTop: 4,
   },
   readTime: {
     color: "#bbb",
@@ -300,5 +360,6 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: "#1677ff",
     marginTop: 4,
+    marginLeft: 8,
   },
 });

@@ -5,6 +5,10 @@ import { useEffect, useState } from "react";
 import "@/global.css";
 import { TamaguiProvider } from "tamagui";
 import tamaguiConfig from "@/tamagui.config";
+import { PusherProvider } from "@/contexts/pusher/PusherProvider";
+import NotificationPopup from "@/components/NotificationPopup";
+import React from "react";
+
 function AuthHandler() {
   const isAuthenticated = useSelector(
     (state: RootState) => state.auth.isLoggedIn
@@ -31,14 +35,21 @@ function AuthHandler() {
 
   if (isLoading) return null; // Hiển thị màn hình trắng trong lúc load
 
-  return <Stack screenOptions={{ headerShown: false }} />;
+  return (
+    <>
+      <Stack screenOptions={{ headerShown: false }} />
+      <NotificationPopup />
+    </>
+  );
 }
 
 export default function Layout() {
   return (
     <TamaguiProvider config={tamaguiConfig}>
       <Provider store={store}>
-        <AuthHandler />
+        <PusherProvider>
+          <AuthHandler />
+        </PusherProvider>
       </Provider>
     </TamaguiProvider>
   );
