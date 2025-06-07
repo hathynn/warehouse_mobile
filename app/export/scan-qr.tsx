@@ -93,7 +93,7 @@ const playBeep = async () => {
     setIsProcessing(true);
 
     try {
-      // Parse dạng mới: "exportRequestDetailId=xxx;inventoryItemId=yyy"
+      // Parse: "exportRequestDetailId=xxx;inventoryItemId=yyy"
       const keyValuePairs = data.split(";");
       const parsed: Record<string, string> = {};
 
@@ -108,7 +108,7 @@ const playBeep = async () => {
       const inventoryItemId = parsed.inventoryItemId;
 
       if (!exportRequestDetailId || !inventoryItemId) {
-        throw new Error("❌ QR không hợp lệ: Thiếu dữ liệu.");
+        throw new Error("QR không hợp lệ: Thiếu dữ liệu.");
       }
 
       const matched = exportDetails.find(
@@ -117,12 +117,12 @@ const playBeep = async () => {
 
       if (!matched) {
         throw new Error(
-          "❌ Không tìm thấy exportRequestDetailId trong danh sách."
+          "Không tìm thấy exportRequestDetailId trong danh sách."
         );
       }
 
       if (matched.actualQuantity >= matched.quantity) {
-        throw new Error("⚠️ Sản phẩm này đã được quét đủ số lượng.");
+        throw new Error("Sản phẩm này đã được quét đủ số lượng.");
       }
 
       const success = await updateActualQuantity(
@@ -130,19 +130,18 @@ const playBeep = async () => {
         inventoryItemId
       );
       if (!success) {
-        throw new Error("❌ Lỗi khi cập nhật actualQuantity.");
+        throw new Error("Lỗi khi cập nhật số liệu thực tế của sản phẩm.");
       }
 
       playBeep();
       setLastScannedProduct(matched);
       setIsProcessing(false);
-
       setErrorMessage(null);
       setTimeout(() => setLastScannedProduct(null), 2000);
     } catch (err: any) {
       const message = err?.response?.data?.message || err?.message || "Lỗi không xác định";
 
-      let displayMessage = "QR không hợp"
+      let displayMessage = "QR không hợp lệ."
 
       if (message.toLowerCase().includes("has been tracked")) {
         displayMessage = "Sản phẩm này đã được quét trước đó!";

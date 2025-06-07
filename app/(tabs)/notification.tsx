@@ -30,14 +30,14 @@ const mockNotifications = [
     type: "success",
     isRead: true,
   },
-  {
-    id: 3,
-    title: "Cập nhật hệ thống",
-    message: "Hệ thống đã được cập nhật với các tính năng mới",
-    time: "3 giờ trước",
-    type: "system",
-    isRead: false,
-  },
+//   {
+//     id: 3,
+//     title: "Cập nhật hệ thống",
+//     message: "Hệ thống đã được cập nhật với các tính năng mới",
+//     time: "3 giờ trước",
+//     type: "system",
+//     isRead: false,
+//   },
   {
     id: 4,
     title: "Đơn nhập #12343 cần xác nhận",
