@@ -66,26 +66,25 @@ const ImportOrderScreen: React.FC = () => {
 
       // 1. Lấy thông tin đơn nhập
       const order = await fetchImportOrderById(orderId);
-      if (!order || !order.importOrderDetailIds) return;
 
+      if (!order || !order.importOrderDetails) return;
       // 2. Lấy thông tin chi tiết và inventory theo từng ID
       const enrichedDetails = await Promise.all(
-        order.importOrderDetailIds.map(async (detailId: string) => {
-          const detail = await fetchImportOrderDetailById(detailId);
-          if (!detail) return null;
+        order.importOrderDetails.map(async (detail: any) => {
+          
+          const detailData = await fetchImportOrderDetailById(detail.importOrderDetailId);
+          if (!detailData) return null;
 
           const inventoryItems = await fetchInventoryItemsByImportOrderDetailId(
-            detailId
+            detail.importOrderDetailId
           );
-          // console.log("▶ detailId truyền vào API:", detailId);
-          // console.log("📦 inventoryItems:", inventoryItems);
 
           return {
-            id: detailId.toString(),
-            productName: detail.itemName,
-            sku: `Mã sản phẩm ${detail.itemId}`,
-            expectedQuantity: detail.expectQuantity,
-            countedQuantity: detail.actualQuantity,
+            id: detailData.importOrderDetailId.toString(),
+            productName: detailData.itemName,
+            sku: `Mã sản phẩm ${detailData.itemId}`,
+            expectedQuantity: detailData.expectQuantity,
+            countedQuantity: detailData.actualQuantity,
             status: order.status,
             products: inventoryItems.map((inv: any) => ({
               id: `ID ${inv.id}`,
@@ -105,7 +104,6 @@ const ImportOrderScreen: React.FC = () => {
 
       // 3. Bỏ null nếu có dòng lỗi
       setImportOrderDetails(enrichedDetails.filter(Boolean));
-      // console.log("📦 importOrderDetails:", enrichedDetails);
     };
 
     loadData();

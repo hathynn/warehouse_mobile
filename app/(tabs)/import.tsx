@@ -10,8 +10,9 @@ import {
   StyleSheet,
   FlatList,
 } from "react-native";
-import { ReactNode, useEffect, useState } from "react";
+import { ReactNode, useEffect, useState, useCallback } from "react";
 import { Ionicons } from "@expo/vector-icons";
+import { useFocusEffect } from "@react-navigation/native";
 import useImportOrder from "@/services/useImportOrderService";
 import { useDispatch, useSelector } from "react-redux";
 import { setPaperData } from "@/redux/paperSlice";
@@ -90,28 +91,30 @@ export default function ReceiptDetail() {
     ];
   };
 
-  useEffect(() => {
-    const fetchOrders = async () => {
-      if (!userId) return;
+  const fetchOrders = useCallback(async () => {
+    if (!userId) return;
 
-      try {
-        const orders = await fetchImportOrders(parseInt(userId));
-        setAllOrders(orders);
+    try {
+      const orders = await fetchImportOrders(parseInt(userId));
+      setAllOrders(orders);
 
-        const paperIds = orders
-          .map((order: any) => order.paperIds)
-          .filter(Boolean);
-        if (paperIds.length === 0) return;
+      const paperIds = orders
+        .map((order: any) => order.paperIds)
+        .filter(Boolean);
+      if (paperIds.length === 0) return;
 
-        const fetchedPapers = await Promise.all(paperIds.map(getPaperById));
-        setPapers(fetchedPapers);
-      } catch (err) {
-        console.error("Lỗi khi lấy đơn nhập:", err);
-      }
-    };
+      const fetchedPapers = await Promise.all(paperIds.map(getPaperById));
+      setPapers(fetchedPapers);
+    } catch (err) {
+      console.error("Lỗi khi lấy đơn nhập:", err);
+    }
+  }, [userId, fetchImportOrders, getPaperById]);
 
-    fetchOrders();
-  }, [userId]);
+  useFocusEffect(
+    useCallback(() => {
+      fetchOrders();
+    }, [fetchOrders])
+  );
 
   // Lọc dữ liệu theo tab active và search
   const getFilteredData = () => {
@@ -375,7 +378,7 @@ const InfoRow = ({
   title,
   value,
 }: {
-  icon?: string;
+  icon?: keyof typeof Ionicons.glyphMap;
   title: string;
   value: ReactNode;
 }) => (

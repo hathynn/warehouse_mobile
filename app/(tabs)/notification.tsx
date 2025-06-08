@@ -17,7 +17,7 @@ import useNotificationService, {
   NotificationResponse,
 } from "@/services/useNotificationService";
 import { PusherContext } from "@/contexts/pusher/PusherContext";
-import { IMPORT_ORDER_ASSIGNED_EVENT } from "@/constants/channelsNEvents";
+import { EXPORT_REQUEST_ASSIGNED_EVENT, IMPORT_ORDER_ASSIGNED_EVENT } from "@/constants/channelsNEvents";
 
 const formatTimeAgo = (dateString: string) => {
   if (!dateString) return "";
@@ -74,7 +74,7 @@ const getNotificationTypeFromContent = (content: string): string => {
 
 export default function NotificationScreen() {
   const [notifications, setNotifications] = useState<NotificationResponse[]>([]);
-  const { user } = useSelector((state: RootState) => state.auth);
+  const userId = useSelector((state: RootState) => state.auth.user.id);
   const { getAllNotifications, clickNotification, viewAllNotifications, loading: isLoading } = useNotificationService();
   const { latestNotification } = useContext(PusherContext);
 
@@ -82,10 +82,10 @@ export default function NotificationScreen() {
   const insets = useSafeAreaInsets();
 
   const fetchNotifications = useCallback(async () => {
-    if (!user?.id) {
+    if (!userId) {
       return;
     }
-    const response = await getAllNotifications(Number(user.id));
+    const response = await getAllNotifications(Number(userId));
     if (
       response.statusCode >= 200 &&
       response.statusCode < 300 &&
@@ -93,17 +93,17 @@ export default function NotificationScreen() {
     ) {
       setNotifications(response.content);
     }
-  }, [user]);
+  }, [userId]);
 
   useFocusEffect(
     useCallback(() => {
       fetchNotifications();
-      if (user?.id) {
-        viewAllNotifications(Number(user.id)).catch(error => {
+      if (userId) {
+        viewAllNotifications(Number(userId)).catch(error => {
           console.error('Failed to mark all notifications as viewed:', error);
         });
       }
-    }, [fetchNotifications, user])
+    }, [userId])
   );
 
   useEffect(() => {
@@ -123,6 +123,9 @@ export default function NotificationScreen() {
     }
     if (notification.eventType === IMPORT_ORDER_ASSIGNED_EVENT) {
       router.push(`/import/detail/${notification.objectId}`);
+    }
+    else if (notification.eventType === EXPORT_REQUEST_ASSIGNED_EVENT) {
+      router.push(`/export/export-detail/${notification.objectId}`);
     }
   };
 

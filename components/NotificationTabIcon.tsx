@@ -31,24 +31,18 @@ export default function NotificationTabIcon({ color, size, focused }: Notificati
     } catch (error) {
       console.error('Failed to fetch notifications:', error);
     }
-  }, [user, getAllNotifications]);
-
-  useFocusEffect(
-    useCallback(() => {
-      fetchUnviewedCount();
-    }, [fetchUnviewedCount])
-  );
+  }, [user]);
 
   useEffect(() => {
     fetchUnviewedCount();
-  }, [fetchUnviewedCount]);
+  }, [user]);
 
   // Listen for new notifications from Pusher
   useEffect(() => {
     if (latestNotification) {
       fetchUnviewedCount();
     }
-  }, [latestNotification, fetchUnviewedCount]);
+  }, [latestNotification]);
 
   return (
     <View style={styles.container}>
