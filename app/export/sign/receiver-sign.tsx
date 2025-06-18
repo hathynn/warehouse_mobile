@@ -24,6 +24,8 @@ import usePaperService from "@/services/usePaperService";
 import SimpleProductList from "@/components/ui/ProductList";
 import { ExportRequestDetailType } from "@/types/exportRequestDetail.type";
 import useExportRequest from "@/services/useExportRequestService";
+import StatusBadge from "@/components/StatusBadge";
+import { useFocusEffect } from "@react-navigation/native";
 
 const SignReceiveScreen = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -41,12 +43,19 @@ const SignReceiveScreen = () => {
     useExportRequestDetail();
   const { createPaper } = usePaperService();
   const paperData = useSelector((state: RootState) => state.paper);
-  const { updateExportRequestStatus } = useExportRequest();
+  const { exportRequest, updateExportRequestStatus, fetchExportRequestById } =
+    useExportRequest();
   const exportRequestId = paperData.exportRequestId;
 
   // useEffect(() => {
   //   console.log("EXPORT ID ", exportRequestId);
   // }, [exportRequestId]);
+
+  useEffect(() => {
+  if (exportRequestId) {
+    fetchExportRequestById(exportRequestId);
+  }
+}, [exportRequestId]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -57,6 +66,14 @@ const SignReceiveScreen = () => {
     };
     fetchData();
   }, [exportRequestId]);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      if (id) {
+        fetchExportRequestById(id);
+      }
+    }, [id])
+  );
 
   const handleClear = () => {
     setSignature(null);
@@ -85,9 +102,9 @@ const SignReceiveScreen = () => {
 
     try {
       setIsLoading(true);
-console.log("Dataaaaaaa:", paperData)
+      console.log("Dataaaaaaa:", paperData);
       const response = await createPaper(paperData);
-      console.log("Responseeeeee",response)
+      console.log("Responseeeeee", response);
       if (response) {
         console.log("✅ Tạo phiếu thành công");
 
@@ -118,6 +135,23 @@ console.log("Dataaaaaaa:", paperData)
     expect: item.quantity ?? 0,
   }));
 
+  const getExportTypeLabel = (type: string | undefined) => {
+    switch (type) {
+      case "BORROWING":
+        return "Mượn";
+      case "RETURN":
+        return "Trả";
+      case "LIQUIDATION":
+        return "Thanh lý";
+      case "SELLING":
+        return "Xuất bán";
+      case "PRODUCTION":
+        return "Xuất sản xuất";
+      default:
+        return "Không xác định";
+    }
+  };
+
   return (
     <View style={{ flex: 1 }}>
       {/* Header */}
@@ -126,7 +160,7 @@ console.log("Dataaaaaaa:", paperData)
           backgroundColor: "#1677ff",
           paddingTop: insets.top,
           paddingBottom: 16,
-
+          paddingHorizontal: 17,
           flexDirection: "row",
           justifyContent: "space-between",
           alignItems: "center",
@@ -149,19 +183,87 @@ console.log("Dataaaaaaa:", paperData)
           Người nhận hàng ký
         </Text>
       </View>
-
-      <View style={{ padding: 16, height: 415 }}>
-        <SimpleProductList
-          products={exportDetails.map((item) => ({
-            id: item.id,
-            name: `Sản phẩm #${item.itemId}`,
-            actual: item.actualQuantity,
-            expect: item.quantity,
-          }))}
-        />
-      </View>
-
       <ScrollView scrollEnabled={scrollEnabled}>
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Thông tin chi tiết yêu cầu</Text>
+
+          <View style={styles.row}>
+            {/* <Text style={styles.label}>Mã phiếu xuất</Text>
+            <Text style={styles.valueBlue}>
+              {exportRequest?.exportRequestId}
+            </Text> */}
+            <Text style={styles.label}>Mã phiếu</Text>
+            <View style={styles.badgeBlue}>
+              <Text style={styles.badgeText}>
+                {" "}
+                {exportRequest?.exportRequestId}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.row}>
+            <Text style={styles.label}>Ngày tạo đơn</Text>
+            <Text style={styles.value}>
+              {" "}
+              {exportRequest?.exportDate
+                ? new Date(exportRequest?.exportDate).toLocaleString("vi-VN", {
+                    day: "2-digit",
+                    month: "2-digit",
+                    year: "numeric",
+                  })
+                : "--"}
+            </Text>
+          </View>
+
+          <View style={styles.row}>
+            <Text style={styles.label}>Ngày mong muốn xuất</Text>
+            <Text style={styles.value}>
+              {" "}
+              {exportRequest?.exportDate
+                ? new Date(exportRequest?.exportDate).toLocaleString("vi-VN", {
+                    day: "2-digit",
+                    month: "2-digit",
+                    year: "numeric",
+                  })
+                : "--"}
+            </Text>
+          </View>
+
+          <View style={styles.row}>
+            <Text style={styles.label}>Loại xuất</Text>
+            <Text style={styles.value}>
+              {getExportTypeLabel(exportRequest?.type)}
+            </Text>
+          </View>
+
+          <View style={styles.row}>
+            <Text style={styles.label}>Người nhận hàng</Text>
+            <Text style={styles.value}>{exportRequest?.receiverName}</Text>
+          </View>
+
+          <View style={styles.row}>
+            <Text style={styles.label}>SĐT người nhận hàng</Text>
+            <Text style={styles.value}>{exportRequest?.receiverPhone}</Text>
+          </View>
+
+          <View style={styles.row}>
+            <Text style={styles.label}>Tình trạng yêu cầu</Text>
+            <Text style={styles.valueRed}>
+              <StatusBadge status={exportRequest?.status || "UNKNOWN"} />
+            </Text>
+          </View>
+        </View>
+        <View style={{ padding: 16 }}>
+          <SimpleProductList
+            products={exportDetails.map((item) => ({
+              id: item.id,
+              name: `Sản phẩm #${item.itemId}`,
+              actual: item.actualQuantity,
+              expect: item.quantity,
+            }))}
+          />
+        </View>
+
         <View style={{ padding: 16 }}>
           {/* Danh sách sản phẩm */}
 
@@ -192,9 +294,10 @@ console.log("Dataaaaaaa:", paperData)
           )} */}
 
           {/* Ký tên */}
-          <Text style={[styles.label, { marginTop: 24 }]}>
-            Người nhận ký tên
+          <Text style={styles.label1}>
+            Người nhận hàng kiểm tra thông tin và ký tên tại đây
           </Text>
+
           <View style={styles.signatureBox}>
             <Signature
               ref={signatureRef}
@@ -238,12 +341,12 @@ console.log("Dataaaaaaa:", paperData)
 };
 
 const styles = StyleSheet.create({
-  label: {
-    fontWeight: "600",
-    fontSize: 16,
+  label1: {
+    fontWeight: "300",
+    fontStyle: "italic",
+    fontSize: 14,
     marginBottom: 8,
     textAlign: "center",
-    marginTop: 16,
   },
   signatureBox: {
     height: 300,
@@ -260,6 +363,53 @@ const styles = StyleSheet.create({
     gap: 12,
     marginTop: 24,
     marginBottom: 24,
+  },
+  card: {
+    backgroundColor: "white",
+    margin: 16,
+    borderRadius: 12,
+    padding: 16,
+    elevation: 2,
+  },
+  cardTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    marginBottom: 12,
+  },
+  row: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 8,
+  },
+  label: {
+    fontSize: 14,
+    color: "#333",
+  },
+  value: {
+    fontSize: 14,
+    color: "#333",
+  },
+  badgeBlue: {
+    backgroundColor: "#1677ff",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
+    alignSelf: "flex-start",
+  },
+  badgeText: {
+    color: "white",
+    fontSize: 13,
+    fontWeight: "bold",
+  },
+  valueBlue: {
+    fontSize: 14,
+    color: "#1677ff",
+    fontWeight: "bold",
+  },
+  valueRed: {
+    fontSize: 14,
+    color: "#e63946",
+    fontWeight: "bold",
   },
 });
 

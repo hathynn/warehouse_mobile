@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   View,
   Image,
@@ -26,6 +26,8 @@ import { createSelector } from "reselect";
 import useImportOrderDetail from "@/services/useImportOrderDetailService";
 import usePaperService from "@/services/usePaperService";
 import * as ImageManipulator from "expo-image-manipulator";
+import useImportOrder from "@/services/useImportOrderService";
+import StatusBadge from "@/components/StatusBadge";
 
 const SignReceiveScreen = () => {
   const insets = useSafeAreaInsets();
@@ -51,6 +53,27 @@ const SignReceiveScreen = () => {
   const importOrderId = useSelector(selectImportOrderId);
   const products = useSelector(selectProductsByImportOrderId);
   const paperData = useSelector((state: RootState) => state.paper);
+const {
+    loading: loadingOrder,
+    importOrder,
+    fetchImportOrderById,
+  } = useImportOrder();
+
+  
+  useEffect(() => {
+    const loadOrder = async () => {
+      if (!importOrderId) return;
+      const order = await fetchImportOrderById(importOrderId);
+  
+      if (order) {
+        console.log("🧾 Import Order:", order);
+      } else {
+        console.warn("⚠️ Không tìm thấy đơn nhập");
+      }
+    };
+  
+    loadOrder();
+  }, [importOrderId]);
 
   const handleEnd = async () => {
     const img = await signatureRef.current?.readSignature();
@@ -159,50 +182,64 @@ const SignReceiveScreen = () => {
           Người nhận hàng ký
         </Text>
       </View>
-      <View style={{ padding: 16 }}>
-        {/* <Label>Xác nhận thông tin sản phẩm</Label> */}
-        <ProductListAccordion products={products} />
-      </View>
       <ScrollView
         showsVerticalScrollIndicator={false}
         scrollEnabled={scrollEnabled}
       >
-        <View className="px-3">
-          {/* Danh sách sản phẩm */}
+
+         <View style={styles.card}>
+        <Text style={styles.cardTitle}>Thông tin chi tiết đơn nhập</Text>
+
+        <View style={styles.row}>
+          <Text style={styles.label}>Mã đơn nhập</Text>
+          <View style={styles.badgeBlue}>
+            <Text style={styles.badgeText}>{importOrder?.importOrderId}</Text>
+          </View>
+        </View>
+
+        <View style={styles.row}>
+          <Text style={styles.label}>Mã phiếu nhập</Text>
+          <Text style={styles.value}>{importOrder?.importRequestId}</Text>
+        </View>
+
+        <View style={styles.row}>
+          <Text style={styles.label}>Ngày dự nhập</Text>
+          <Text style={styles.value}>
+            {importOrder?.dateReceived
+              ? new Date(importOrder.dateReceived).toLocaleString("vi-VN", {
+                  day: "2-digit",
+                  month: "2-digit",
+                  year: "numeric",
+                })
+              : "--"}
+          </Text>
+        </View>
+
+        <View style={styles.row}>
+          <Text style={styles.label}>Giờ dự nhập</Text>
+          <Text style={styles.value}>{importOrder?.timeReceived}</Text>
+        </View>
+
+        <View style={styles.row}>
+          <Text style={styles.label}>Tình trạng</Text>
+          <View>
+            {importOrder?.status && <StatusBadge status={importOrder.status} />}
+          </View>
+        </View>
+      </View>
+
+      <View style={{ padding: 16 }}>
+        {/* <Label>Xác nhận thông tin sản phẩm</Label> */}
+        <ProductListAccordion products={products} />
+      </View>
+      
+        <View style={{ padding: 16 }}>
+    
 
           {/* Chọn phương thức ký */}
-          <View style={{ alignItems: "center", marginVertical: 16 }}>
-            <Text style={styles.label}>Người nhận hàng ký tên</Text>
-            {/* <View
-              style={{
-                flexDirection: "row",
-                justifyContent: "center",
-                marginVertical: 10,
-              }}
-            >
-              <TouchableOpacity
-                onPress={() => {
-                  setSignMethod("draw");
-                  setCapturedImage(null);
-                }}
-                style={{
-                  flex: 1,
-                  paddingVertical: 12,
-                  backgroundColor: signMethod === "draw" ? "#1677ff" : "#eee",
-                  borderRadius: 8,
-                  marginRight: 5,
-                  alignItems: "center",
-                }}
-              >
-                <Text
-                  style={{
-                    color: signMethod === "draw" ? "white" : "black",
-                  }}
-                >
-                  Ký trực tiếp
-                </Text>
-              </TouchableOpacity>
-            </View> */}
+          <View style={{ alignItems: "center" }}>
+            <Text style={styles.label1}>Người nhận hàng kiểm tra thông tin và ký tên tại đây</Text>
+        
           </View>
 
           {signMethod === "draw" ? (
@@ -282,11 +319,14 @@ const SignReceiveScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  label: {
-    fontWeight: "600",
-    fontSize: 16,
+ label1: {
+    fontWeight: "300",
+    fontStyle: "italic",
+    fontSize: 14,
     marginBottom: 8,
+    textAlign: "center",
   },
+
   signatureBox: {
     height: 400,
     borderWidth: 1,
@@ -306,6 +346,49 @@ const styles = StyleSheet.create({
     gap: 12,
     marginTop: 24,
     marginBottom: 40,
+  },
+   card: {
+    backgroundColor: "white",
+    margin: 16,
+    borderRadius: 12,
+    padding: 16,
+    elevation: 2,
+  },
+  cardTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    marginBottom: 12,
+  },
+  row: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 8,
+    alignItems: "center",
+  },
+  label: {
+    fontSize: 14,
+    color: "#333",
+  },
+  value: {
+    fontSize: 14,
+    color: "#333",
+  },
+  badgeBlue: {
+    backgroundColor: "#1677ff",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
+    alignSelf: "flex-start",
+  },
+  badgeText: {
+    color: "white",
+    fontSize: 13,
+    fontWeight: "bold",
+  },
+  valueRed: {
+    fontSize: 14,
+    color: "#e63946",
+    fontWeight: "bold",
   },
 });
 

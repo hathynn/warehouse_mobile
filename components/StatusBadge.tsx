@@ -20,7 +20,7 @@ const getStatusStyle = (status: string) => {
     case "CONFIRMED":
       return { backgroundColor: "#722ed1", textColor: "#fff", label: "Đã xác nhận" };
     case "WAITING_EXPORT":
-      return { backgroundColor: "#eb2f96", textColor: "#fff", label: "Chờ xuất kho" };
+      return { backgroundColor: "#faad14", textColor: "#fff", label: "Chờ xuất kho" };
 
     default:
       return { backgroundColor: "#d9d9d9", textColor: "#000", label: "Không rõ" };

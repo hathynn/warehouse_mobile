@@ -81,7 +81,7 @@ const SimpleProductList: React.FC<Props> = ({
         keyExtractor={(item) => `product-${item.id}`}
         contentContainerStyle={styles.container}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
-        scrollEnabled={scrollEnabled}
+        scrollEnabled={false}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Ionicons name="basket-outline" size={40} color="#BDBDBD" />

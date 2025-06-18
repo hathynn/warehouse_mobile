@@ -36,36 +36,34 @@ export default function ScanQrScreen() {
     null
   );
 
-const [beepSound, setBeepSound] = useState<Audio.Sound | null>(null);
+  const [beepSound, setBeepSound] = useState<Audio.Sound | null>(null);
 
-useEffect(() => {
-  const loadBeep = async () => {
-    const { sound } = await Audio.Sound.createAsync(
-      require("@/assets/beep-07a.mp3")
-    );
-    setBeepSound(sound);
-  };
+  useEffect(() => {
+    const loadBeep = async () => {
+      const { sound } = await Audio.Sound.createAsync(
+        require("@/assets/beep-07a.mp3")
+      );
+      setBeepSound(sound);
+    };
 
-  loadBeep();
+    loadBeep();
 
-  return () => {
-    beepSound?.unloadAsync(); // cleanup nếu screen bị huỷ
-  };
-}, []);
+    return () => {
+      beepSound?.unloadAsync(); // cleanup nếu screen bị huỷ
+    };
+  }, []);
 
-const playBeep = async () => {
-  try {
-    if (beepSound) {
-      await beepSound.stopAsync(); // dừng nếu đang phát
-      await beepSound.setPositionAsync(0); // tua về đầu
-      await beepSound.playAsync(); // phát lại
+  const playBeep = async () => {
+    try {
+      if (beepSound) {
+        await beepSound.stopAsync(); // dừng nếu đang phát
+        await beepSound.setPositionAsync(0); // tua về đầu
+        await beepSound.playAsync(); // phát lại
+      }
+    } catch (err) {
+      console.warn("🔇 Không thể phát âm:", err);
     }
-  } catch (err) {
-    console.warn("🔇 Không thể phát âm:", err);
-  }
-};
-
-
+  };
 
   const exportDetails = useSelector(
     (state: RootState) => state.exportRequestDetail.details
@@ -85,18 +83,15 @@ const playBeep = async () => {
       console.warn = () => {};
       console.error = () => {};
     }
-    if (isProcessing || !canScan) return;
-  setScanningEnabled(false); // temporarily disable further scans
 
-    setCanScan(false);
-    setTimeout(() => setCanScan(true), 2000);
+    if (!scanningEnabled) return;
+    setScanningEnabled(false);
+
     setIsProcessing(true);
 
     try {
-      // Parse: "exportRequestDetailId=xxx;inventoryItemId=yyy"
       const keyValuePairs = data.split(";");
       const parsed: Record<string, string> = {};
-
       keyValuePairs.forEach((pair) => {
         const [key, value] = pair.split("=");
         if (key && value) {
@@ -129,19 +124,20 @@ const playBeep = async () => {
         exportRequestDetailId,
         inventoryItemId
       );
+
       if (!success) {
         throw new Error("Lỗi khi cập nhật số liệu thực tế của sản phẩm.");
       }
 
-      playBeep();
+      await playBeep();
       setLastScannedProduct(matched);
-      setIsProcessing(false);
       setErrorMessage(null);
       setTimeout(() => setLastScannedProduct(null), 2000);
     } catch (err: any) {
-      const message = err?.response?.data?.message || err?.message || "Lỗi không xác định";
+      const message =
+        err?.response?.data?.message || err?.message || "Lỗi không xác định";
 
-      let displayMessage = "QR không hợp lệ."
+      let displayMessage = "QR không hợp lệ.";
 
       if (message.toLowerCase().includes("has been tracked")) {
         displayMessage = "Sản phẩm này đã được quét trước đó!";
@@ -152,20 +148,98 @@ const playBeep = async () => {
       }
 
       setErrorMessage(displayMessage);
+    } finally {
+      setIsProcessing(false);
+      
+      setTimeout(() => setScanningEnabled(true), 3500); 
     }
   };
 
-const handleRetry = () => {
-  setErrorMessage(null);
-  setLastScannedProduct(null);
-  setIsProcessing(false);
-  setTimeout(() => {
-    setCanScan(true);
-    setScanningEnabled(true);
-    setCameraKey((prev) => prev + 1); // ép remount camera để ổn định
-  }, 300); // delay nhẹ giúp camera không trắng
-};
+  // const handleBarCodeScanned = async ({ data }: { data: string }) => {
+  //   if (__DEV__) {
+  //     console.warn = () => {};
+  //     console.error = () => {};
+  //   }
+  //   if (isProcessing || !canScan) return;
+  // setScanningEnabled(false); // temporarily disable further scans
 
+  //   setCanScan(false);
+  //   setTimeout(() => setCanScan(true), 2000);
+  //   setIsProcessing(true);
+
+  //   try {
+  //     // Parse: "exportRequestDetailId=xxx;inventoryItemId=yyy"
+  //     const keyValuePairs = data.split(";");
+  //     const parsed: Record<string, string> = {};
+
+  //     keyValuePairs.forEach((pair) => {
+  //       const [key, value] = pair.split("=");
+  //       if (key && value) {
+  //         parsed[key.trim()] = value.trim();
+  //       }
+  //     });
+
+  //     const exportRequestDetailId = parsed.exportRequestDetailId;
+  //     const inventoryItemId = parsed.inventoryItemId;
+
+  //     if (!exportRequestDetailId || !inventoryItemId) {
+  //       throw new Error("QR không hợp lệ: Thiếu dữ liệu.");
+  //     }
+
+  //     const matched = exportDetails.find(
+  //       (detail) => detail.id.toString() === exportRequestDetailId
+  //     );
+
+  //     if (!matched) {
+  //       throw new Error(
+  //         "Không tìm thấy exportRequestDetailId trong danh sách."
+  //       );
+  //     }
+
+  //     if (matched.actualQuantity >= matched.quantity) {
+  //       throw new Error("Sản phẩm này đã được quét đủ số lượng.");
+  //     }
+
+  //     const success = await updateActualQuantity(
+  //       exportRequestDetailId,
+  //       inventoryItemId
+  //     );
+  //     if (!success) {
+  //       throw new Error("Lỗi khi cập nhật số liệu thực tế của sản phẩm.");
+  //     }
+
+  //     playBeep();
+  //     setLastScannedProduct(matched);
+  //     setIsProcessing(false);
+  //     setErrorMessage(null);
+  //     setTimeout(() => setLastScannedProduct(null), 2000);
+  //   } catch (err: any) {
+  //     const message = err?.response?.data?.message || err?.message || "Lỗi không xác định";
+
+  //     let displayMessage = "QR không hợp lệ."
+
+  //     if (message.toLowerCase().includes("has been tracked")) {
+  //       displayMessage = "Sản phẩm này đã được quét trước đó!";
+  //     } else if (message.toLowerCase().includes("not stable")) {
+  //       displayMessage = "Sản phẩm không hợp lệ.";
+  //     } else {
+  //       displayMessage = `${message}`;
+  //     }
+
+  //     setErrorMessage(displayMessage);
+  //   }
+  // };
+
+  const handleRetry = () => {
+    setErrorMessage(null);
+    setLastScannedProduct(null);
+    setIsProcessing(false);
+    setTimeout(() => {
+      setCanScan(true);
+      setScanningEnabled(true);
+      setCameraKey((prev) => prev + 1); // ép remount camera để ổn định
+    }, 300); // delay nhẹ giúp camera không trắng
+  };
 
   const handleContinue = () => {
     setIsPaused(false);
