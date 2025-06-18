@@ -90,7 +90,7 @@ const useExportRequest = () => {
       setIsLoading(true);
       try {
         const response = await callApi("get", `/export-request/${id}`);
-        setExportRequest(response.content); // ✅ PHẢI có dòng này
+        setExportRequest(response.content);
       } catch (error) {
         console.error("Lỗi khi lấy export request:", error);
       } finally {

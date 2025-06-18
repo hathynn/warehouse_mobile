@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   View,
   Image,
@@ -19,6 +19,8 @@ import { createSelector } from "reselect";
 import ProductListAccordion from "@/components/ui/ProductList";
 import { Button } from "tamagui";
 import * as ImageManipulator from "expo-image-manipulator";
+import useImportOrder from "@/services/useImportOrderService";
+import StatusBadge from "@/components/StatusBadge";
 
 const SignDeliverScreen = () => {
   const insets = useSafeAreaInsets();
@@ -36,31 +38,58 @@ const SignDeliverScreen = () => {
       products.filter((p) => String(p.importOrderId) === importOrderId)
   );
   const products = useSelector(selectProductsByImportOrderId);
+  
+  const {
+    loading: loadingOrder,
+    importOrder,
+    fetchImportOrderById,
+  } = useImportOrder();
 
-const takePhoto = async () => {
-  const result = await ImagePicker.launchCameraAsync({
-    allowsEditing: true,
-    quality: 1, // chụp full trước
-  });
+  
 
-  if (!result.canceled && result.assets.length > 0) {
-    const originalUri = result.assets[0].uri;
 
-    // ✅ NÉN ảnh lại
-    const manipulated = await ImageManipulator.manipulateAsync(
-      originalUri,
-      [], // không resize
-      {
-        compress: 0.3, // từ 0 - 1, càng nhỏ thì càng nén nhiều
-        format: ImageManipulator.SaveFormat.JPEG,
-      }
-    );
 
-    setCapturedImage(manipulated.uri);
-    dispatch(setPaperData({ signProviderUrl: manipulated.uri }));
-  }
-};
+const importOrderId = useSelector((state: RootState) => state.paper.importOrderId);
 
+useEffect(() => {
+  const loadOrder = async () => {
+    if (!importOrderId) return;
+    const order = await fetchImportOrderById(importOrderId);
+
+    if (order) {
+      console.log("🧾 Import Order:", order);
+    } else {
+      console.warn("⚠️ Không tìm thấy đơn nhập");
+    }
+  };
+
+  loadOrder();
+}, [importOrderId]);
+
+
+  const takePhoto = async () => {
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: true,
+      quality: 1, // chụp full trước
+    });
+
+    if (!result.canceled && result.assets.length > 0) {
+      const originalUri = result.assets[0].uri;
+
+      // ✅ NÉN ảnh lại
+      const manipulated = await ImageManipulator.manipulateAsync(
+        originalUri,
+        [], // không resize
+        {
+          compress: 0.3, // từ 0 - 1, càng nhỏ thì càng nén nhiều
+          format: ImageManipulator.SaveFormat.JPEG,
+        }
+      );
+
+      setCapturedImage(manipulated.uri);
+      dispatch(setPaperData({ signProviderUrl: manipulated.uri }));
+    }
+  };
 
   const handleClear = () => {
     if (signMethod === "camera") {
@@ -110,14 +139,56 @@ const takePhoto = async () => {
           Người giao hàng ký
         </Text>
       </View>
+   <ScrollView scrollEnabled={scrollEnabled}>
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Thông tin chi tiết đơn nhập</Text>
+
+        <View style={styles.row}>
+          <Text style={styles.label}>Mã đơn nhập</Text>
+          <View style={styles.badgeBlue}>
+            <Text style={styles.badgeText}>{importOrder?.importOrderId}</Text>
+          </View>
+        </View>
+
+        <View style={styles.row}>
+          <Text style={styles.label}>Mã phiếu nhập</Text>
+          <Text style={styles.value}>{importOrder?.importRequestId}</Text>
+        </View>
+
+        <View style={styles.row}>
+          <Text style={styles.label}>Ngày dự nhập</Text>
+          <Text style={styles.value}>
+            {importOrder?.dateReceived
+              ? new Date(importOrder.dateReceived).toLocaleString("vi-VN", {
+                  day: "2-digit",
+                  month: "2-digit",
+                  year: "numeric",
+                })
+              : "--"}
+          </Text>
+        </View>
+
+        <View style={styles.row}>
+          <Text style={styles.label}>Giờ dự nhập</Text>
+          <Text style={styles.value}>{importOrder?.timeReceived}</Text>
+        </View>
+
+        <View style={styles.row}>
+          <Text style={styles.label}>Tình trạng</Text>
+          <View>
+            {importOrder?.status && <StatusBadge status={importOrder.status} />}
+          </View>
+        </View>
+      </View>
+
       <View style={{ padding: 16 }}>
         <ProductListAccordion products={products} />
       </View>
-      <ScrollView scrollEnabled={scrollEnabled}>
+   
         <View style={{ padding: 16 }}>
           {/* Chọn phương thức ký */}
-          <View style={{ alignItems: "center", marginVertical: 16 }}>
-            <Text style={styles.label}>Người giao hàng ký tên</Text>
+          <View style={{ alignItems: "center", marginBottom: 16 }}>
+            <Text style={styles.label1}>Người giao hàng kiểm tra thông tin và ký tên tại đây</Text>
             <View
               style={{
                 flexDirection: "row",
@@ -234,11 +305,14 @@ const takePhoto = async () => {
 };
 
 const styles = StyleSheet.create({
-  label: {
-    fontWeight: "600",
-    fontSize: 16,
+  label1: {
+    fontWeight: "300",
+    fontStyle: "italic",
+    fontSize: 14,
     marginBottom: 8,
+    textAlign: "center",
   },
+
   signatureBox: {
     height: 400,
     borderWidth: 1,
@@ -257,7 +331,50 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     gap: 12,
     marginTop: 24,
-    marginBottom:24
+    marginBottom: 24,
+  },
+  card: {
+    backgroundColor: "white",
+    margin: 16,
+    borderRadius: 12,
+    padding: 16,
+    elevation: 2,
+  },
+  cardTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    marginBottom: 12,
+  },
+  row: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 8,
+    alignItems: "center",
+  },
+  label: {
+    fontSize: 14,
+    color: "#333",
+  },
+  value: {
+    fontSize: 14,
+    color: "#333",
+  },
+  badgeBlue: {
+    backgroundColor: "#1677ff",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
+    alignSelf: "flex-start",
+  },
+  badgeText: {
+    color: "white",
+    fontSize: 13,
+    fontWeight: "bold",
+  },
+  valueRed: {
+    fontSize: 14,
+    color: "#e63946",
+    fontWeight: "bold",
   },
 });
 

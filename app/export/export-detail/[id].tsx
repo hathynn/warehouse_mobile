@@ -64,23 +64,21 @@ const ExportRequestScreen: React.FC = () => {
   const { loading: loadingDetails, fetchExportRequestDetails } =
     useExportRequestDetail();
 
-useFocusEffect(
-  React.useCallback(() => {
-    if (id) {
-      fetchExportRequestById(id);
-      fetchExportRequestDetails(id, 1, 100).then((newData) => {
-        const refreshedDetails = newData.map((item) => ({
-          ...item,
-          actualQuantity: item.actualQuantity ?? 0,
-          inventoryItemIds: item.inventoryItemIds ?? [],
-        }));
-        dispatch(setExportRequestDetail(refreshedDetails));
-      });
-    }
-  }, [id])
-);
-
-  
+  useFocusEffect(
+    React.useCallback(() => {
+      if (id) {
+        fetchExportRequestById(id);
+        fetchExportRequestDetails(id, 1, 100).then((newData) => {
+          const refreshedDetails = newData.map((item) => ({
+            ...item,
+            actualQuantity: item.actualQuantity ?? 0,
+            inventoryItemIds: item.inventoryItemIds ?? [],
+          }));
+          dispatch(setExportRequestDetail(refreshedDetails));
+        });
+      }
+    }, [id])
+  );
 
   const savedExportRequestDetails = useSelector(
     (state: RootState) => state.exportRequestDetail.details
@@ -115,8 +113,8 @@ useFocusEffect(
     console.log("🔍 savedExportRequestDetails:", savedExportRequestDetails);
 
     savedExportRequestDetails.forEach((d) => {
-  console.log("✅", d.itemId, d.inventoryItemIds);
-});
+      console.log("✅", d.itemId, d.inventoryItemIds);
+    });
 
     const matched = savedExportRequestDetails.find((detail) => {
       const normalizedItemId = detail.itemId?.trim().toLowerCase();
@@ -167,20 +165,22 @@ useFocusEffect(
   //   }
   // };
 
- const handleConfirm = async () => {
-  try {
-    const statusUpdate = await updateExportRequestStatus(id, ExportRequestStatus.COUNTED);
-    if (statusUpdate) {
-      console.log("✅ Đã cập nhật status sang COUNTED");
-      router.push("/(tabs)/export");
-    } else {
-      console.warn("⚠️ Cập nhật status thất bại.");
+  const handleConfirm = async () => {
+    try {
+      const statusUpdate = await updateExportRequestStatus(
+        id,
+        ExportRequestStatus.COUNTED
+      );
+      if (statusUpdate) {
+        console.log("✅ Đã cập nhật status sang COUNTED");
+        router.push("/(tabs)/export");
+      } else {
+        console.warn("⚠️ Cập nhật status thất bại.");
+      }
+    } catch (error) {
+      console.error("❌ Lỗi khi xác nhận:", error);
     }
-  } catch (error) {
-    console.error("❌ Lỗi khi xác nhận:", error);
-  }
-};
-
+  };
 
   const renderActionButton = () => {
     if (!exportRequest) return null;
@@ -188,7 +188,7 @@ useFocusEffect(
 
     switch (status) {
       case ExportRequestStatus.IN_PROGRESS:
-          return (
+        return (
           <View>
             {/* <StyledButton
               title="Cập nhật thủ công"
@@ -244,8 +244,10 @@ useFocusEffect(
         return (
           <StyledButton
             title="Xem chữ ký chứng từ"
-            // onPress={() => router.push(`/export/sign/receiver-sign?id=${id}`)}
-            onPress={() => console.log("Chưa có làm")}
+            onPress={() => {
+              router.push(`/import/paper-detail/${exportRequest.paperId}`);
+            }}
+          
             style={{ marginTop: 12 }}
           />
         );
@@ -386,12 +388,15 @@ useFocusEffect(
                         );
                       }}
                     >
-                     {isDisabled ? (
-  <Text style={styles.scanText}>Đã đủ</Text>
-) : (
-  <Ionicons name="qr-code-outline" size={18}  color="white" />
-)}
-
+                      {isDisabled ? (
+                        <Text style={styles.scanText}>Đã đủ</Text>
+                      ) : (
+                        <Ionicons
+                          name="qr-code-outline"
+                          size={18}
+                          color="white"
+                        />
+                      )}
                     </TouchableOpacity>
                   </View>
                 )}

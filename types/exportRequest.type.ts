@@ -2,7 +2,7 @@ export enum ExportRequestTypeEnum {
   BORROWING = "BORROWING",
   RETURN = "RETURN",
   LIQUIDDATION = "LIQUIDATION",
-  PARTIAL = "PARTIAL",
+  SELLING = "SELLING",
   PRODUCTION = "PRODUCTION",
 }
 
