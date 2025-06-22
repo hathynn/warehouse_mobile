@@ -53,25 +53,24 @@ const SignReceiveScreen = () => {
   const importOrderId = useSelector(selectImportOrderId);
   const products = useSelector(selectProductsByImportOrderId);
   const paperData = useSelector((state: RootState) => state.paper);
-const {
+  const {
     loading: loadingOrder,
     importOrder,
     fetchImportOrderById,
   } = useImportOrder();
 
-  
   useEffect(() => {
     const loadOrder = async () => {
       if (!importOrderId) return;
       const order = await fetchImportOrderById(importOrderId);
-  
+
       if (order) {
         console.log("🧾 Import Order:", order);
       } else {
         console.warn("⚠️ Không tìm thấy đơn nhập");
       }
     };
-  
+
     loadOrder();
   }, [importOrderId]);
 
@@ -182,12 +181,8 @@ const {
           Người nhận hàng ký
         </Text>
       </View>
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        scrollEnabled={scrollEnabled}
-      >
 
-         <View style={styles.card}>
+      <View style={styles.card}>
         <Text style={styles.cardTitle}>Thông tin chi tiết đơn nhập</Text>
 
         <View style={styles.row}>
@@ -195,11 +190,6 @@ const {
           <View style={styles.badgeBlue}>
             <Text style={styles.badgeText}>{importOrder?.importOrderId}</Text>
           </View>
-        </View>
-
-        <View style={styles.row}>
-          <Text style={styles.label}>Mã phiếu nhập</Text>
-          <Text style={styles.value}>{importOrder?.importRequestId}</Text>
         </View>
 
         <View style={styles.row}>
@@ -219,72 +209,64 @@ const {
           <Text style={styles.label}>Giờ dự nhập</Text>
           <Text style={styles.value}>{importOrder?.timeReceived}</Text>
         </View>
-
-        <View style={styles.row}>
-          <Text style={styles.label}>Tình trạng</Text>
-          <View>
-            {importOrder?.status && <StatusBadge status={importOrder.status} />}
-          </View>
-        </View>
       </View>
 
-      <View style={{ padding: 16 }}>
+      <View style={{ paddingHorizontal: 16 }}>
         {/* <Label>Xác nhận thông tin sản phẩm</Label> */}
         <ProductListAccordion products={products} />
       </View>
-      
-        <View style={{ padding: 16 }}>
-    
 
-          {/* Chọn phương thức ký */}
-          <View style={{ alignItems: "center" }}>
-            <Text style={styles.label1}>Người nhận hàng kiểm tra thông tin và ký tên tại đây</Text>
-        
-          </View>
+      <View style={{ padding: 16 }}>
+        {/* Chọn phương thức ký */}
+        <View style={{ alignItems: "center" }}>
+          <Text style={styles.label1}>
+            Người nhận hàng kiểm tra thông tin và ký tên tại đây
+          </Text>
+        </View>
 
-          {signMethod === "draw" ? (
-            <View style={styles.signatureBox}>
-              <Signature
-                ref={signatureRef}
-                onBegin={() => setScrollEnabled(false)}
-                onOK={(signature) => {
-                  dispatch(setPaperData({ signWarehouseUrl: signature }));
-                }}
-                onEnd={() => {
-                  setScrollEnabled(true);
-                  handleEnd();
-                }}
-                descriptionText="Ký tên tại đây"
-                imageType="image/png"
-                webStyle={`
+        {signMethod === "draw" ? (
+          <View style={styles.signatureBox}>
+            <Signature
+              ref={signatureRef}
+              onBegin={() => setScrollEnabled(false)}
+              onOK={(signature) => {
+                dispatch(setPaperData({ signWarehouseUrl: signature }));
+              }}
+              onEnd={() => {
+                setScrollEnabled(true);
+                handleEnd();
+              }}
+              descriptionText="Ký tên tại đây"
+              imageType="image/png"
+              webStyle={`
                   .m-signature-pad { height: 100% !important; }
                   .m-signature-pad--body { height: 100% !important; }
                   .m-signature---fopadoter { display: none; }
                   body, html { height: 100%; margin: 0; padding: 0; }
                 `}
-                style={{ flex: 1, height: 400 }}
+              style={{ flex: 1, height: 400 }}
+            />
+          </View>
+        ) : (
+          <View style={{ alignItems: "center" }}>
+            <Button onPress={takePhoto}>Chụp lại 📷</Button>
+            {capturedImage && (
+              <Image
+                source={{ uri: capturedImage }}
+                style={{
+                  width: "100%",
+                  height: 400,
+                  marginTop: 16,
+                  borderRadius: 12,
+                }}
+                resizeMode="contain"
               />
-            </View>
-          ) : (
-            <View style={{ alignItems: "center" }}>
-              <Button onPress={takePhoto}>Chụp lại 📷</Button>
-              {capturedImage && (
-                <Image
-                  source={{ uri: capturedImage }}
-                  style={{
-                    width: "100%",
-                    height: 400,
-                    marginTop: 16,
-                    borderRadius: 12,
-                  }}
-                  resizeMode="contain"
-                />
-              )}
-            </View>
-          )}
+            )}
+          </View>
+        )}
 
-          {/* Hiển thị chữ ký */}
-          {/* {paperData.signWarehouseUrl && (
+        {/* Hiển thị chữ ký */}
+        {/* {paperData.signWarehouseUrl && (
             <View>
               <View className="w-full bg-white p-3 rounded-2xl mt-4 items-center">
                 <Image
@@ -296,30 +278,66 @@ const {
             </View>
           )} */}
 
-          {/* Nút thao tác */}
-          {paperData.signWarehouseUrl && (
-            <View style={styles.actions}>
-              <Button flex={1} onPress={handleClear}>
-                Xóa
-              </Button>
+        {/* Nút thao tác */}
 
-              <Button flex={1} onPress={handleConfirm} disabled={isLoading}>
-                {isLoading ? (
-                  <ActivityIndicator color="white" />
-                ) : (
-                  "Tạo chứng từ"
-                )}
-              </Button>
-            </View>
-          )}
-        </View>
-      </ScrollView>
+        {paperData.signWarehouseUrl && (
+          <View
+            style={{
+              flexDirection: "row",
+              justifyContent: "center",
+              marginVertical: 20,
+            }}
+          >
+            <TouchableOpacity
+              onPress={handleClear}
+              style={{
+                flex: 1,
+                paddingVertical: 12,
+                backgroundColor: "#DDDDDD",
+                borderRadius: 8,
+                marginRight: 5,
+                alignItems: "center",
+              }}
+            >
+              <Text
+                style={{
+                  color: "black",
+                }}
+              >
+                Xóa
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={handleConfirm}
+              disabled={isLoading}
+              style={{
+                flex: 1,
+                paddingVertical: 12,
+                backgroundColor: isLoading ? "#a0c4ff" : "#1677ff", // màu nhạt khi loading
+                borderRadius: 8,
+                marginLeft: 5,
+                alignItems: "center",
+                opacity: isLoading ? 0.6 : 1,
+              }}
+            >
+              {isLoading ? (
+                <ActivityIndicator color="white" />
+              ) : (
+                <Text style={{ color: "white" }}>
+                  Tạo chứng từ
+                </Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        )}
+      </View>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
- label1: {
+  label1: {
     fontWeight: "300",
     fontStyle: "italic",
     fontSize: 14,
@@ -328,7 +346,7 @@ const styles = StyleSheet.create({
   },
 
   signatureBox: {
-    height: 400,
+    height: 300,
     borderWidth: 1,
     borderColor: "#ccc",
     borderRadius: 10,
@@ -347,7 +365,7 @@ const styles = StyleSheet.create({
     marginTop: 24,
     marginBottom: 40,
   },
-   card: {
+  card: {
     backgroundColor: "white",
     margin: 16,
     borderRadius: 12,

@@ -27,13 +27,15 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 interface StatusTab {
   key: string;
   title: string;
-  status: ImportOrderStatus | 'ALL';
+  status: ImportOrderStatus | "ALL";
   count: number;
 }
 
 export default function ReceiptDetail() {
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeTab, setActiveTab] = useState<string>('ALL');
+  const [activeTab, setActiveTab] = useState<string>(
+    ImportOrderStatus.IN_PROGRESS
+  );
 
   const userId = useSelector((state: RootState) => state.auth.user?.id);
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -49,45 +51,43 @@ export default function ReceiptDetail() {
 
   // Định nghĩa các tab status
   const getStatusTabs = (): StatusTab[] => {
-    const validOrders = allOrders.filter((order: any) => 
-      order.status !== ImportOrderStatus.CANCELLED
+    const validOrders = allOrders.filter(
+      (order: any) => order.status !== ImportOrderStatus.CANCELLED
     );
 
     return [
-    
       {
-        key: 'IN_PROGRESS',
-        title: 'Cần kiểm đếm',
+        key: "IN_PROGRESS",
+        title: "Cần kiểm đếm",
         status: ImportOrderStatus.IN_PROGRESS,
-        count: validOrders.filter((order: any) => 
-          order.status === ImportOrderStatus.IN_PROGRESS
+        count: validOrders.filter(
+          (order: any) => order.status === ImportOrderStatus.IN_PROGRESS
         ).length,
       },
       {
-        key: 'COUNTED',
-        title: 'Chờ xác nhận',
+        key: "COUNTED",
+        title: "Chờ xác nhận",
         status: ImportOrderStatus.COUNTED,
-        count: validOrders.filter((order: any) => 
-          order.status === ImportOrderStatus.COUNTED
+        count: validOrders.filter(
+          (order: any) => order.status === ImportOrderStatus.COUNTED
         ).length,
       },
+      // {
+      //   key: "CONFIRMED",
+      //   title: "Đã xác nhận",
+      //   status: ImportOrderStatus.CONFIRMED,
+      //   count: validOrders.filter(
+      //     (order: any) => order.status === ImportOrderStatus.CONFIRMED
+      //   ).length,
+      // },
       {
-        key: 'CONFIRMED',
-        title: 'Đã xác nhận',
-        status: ImportOrderStatus.CONFIRMED,
-        count: validOrders.filter((order: any) => 
-          order.status === ImportOrderStatus.CONFIRMED
-        ).length,
-      },
-      {
-        key: 'COMPLETED',
-        title: 'Hoàn tất',
+        key: "COMPLETED",
+        title: "Hoàn tất",
         status: ImportOrderStatus.COMPLETED,
-        count: validOrders.filter((order: any) => 
-          order.status === ImportOrderStatus.COMPLETED
+        count: validOrders.filter(
+          (order: any) => order.status === ImportOrderStatus.COMPLETED
         ).length,
       },
-      
     ];
   };
 
@@ -123,7 +123,7 @@ export default function ReceiptDetail() {
       if (order.status === ImportOrderStatus.CANCELLED) return false;
 
       // Lọc theo tab
-      if (activeTab !== 'ALL' && order.status !== activeTab) return false;
+      if (activeTab !== "ALL" && order.status !== activeTab) return false;
 
       // Lọc theo search query
       const matchSearch = order.importOrderId
@@ -165,7 +165,7 @@ export default function ReceiptDetail() {
   // Render tab item
   const renderTabItem = (tab: StatusTab) => {
     const isActive = activeTab === tab.key;
-    
+
     return (
       <TouchableOpacity
         key={tab.key}
@@ -178,7 +178,12 @@ export default function ReceiptDetail() {
         </Text>
         {tab.count > 0 && (
           <View style={[styles.tabBadge, isActive && styles.activeTabBadge]}>
-            <Text style={[styles.tabBadgeText, isActive && styles.activeTabBadgeText]}>
+            <Text
+              style={[
+                styles.tabBadgeText,
+                isActive && styles.activeTabBadgeText,
+              ]}
+            >
               {tab.count}
             </Text>
           </View>
@@ -203,9 +208,7 @@ export default function ReceiptDetail() {
       <View style={styles.orderHeader}>
         <View style={styles.orderIdContainer}>
           <Ionicons name="cube-outline" size={20} color="#1677ff" />
-          <Text style={styles.orderId}>
-            {order.importOrderId}
-          </Text>
+          <Text style={styles.orderId}>{order.importOrderId}</Text>
         </View>
         <StatusBadge status={order.status} />
       </View>
@@ -215,89 +218,51 @@ export default function ReceiptDetail() {
         <InfoRow
           icon="calendar-outline"
           title="Ngày dự nhập"
-          value={new Date(order.dateReceived).toLocaleDateString(
-            "vi-VN",
-            {
-              day: "2-digit",
-              month: "2-digit",
-              year: "numeric",
-            }
-          )}
+          value={new Date(order.dateReceived).toLocaleDateString("vi-VN", {
+            day: "2-digit",
+            month: "2-digit",
+            year: "numeric",
+          })}
         />
       </View>
 
       {/* Footer đơn nhập */}
-      {order.status === ImportOrderStatus.IN_PROGRESS ||
-      order.status === ImportOrderStatus.NOT_STARTED ? (
-        <TouchableOpacity
-          style={styles.actionButton}
-          onPress={() => handleImportCount(order)}
-        >
-          <Ionicons
-            name="scan-outline"
-            size={18}
-            color="#FFFFFF"
-            style={styles.buttonIcon}
-          />
-          <Text style={styles.buttonText}>Kiểm đếm đơn nhập</Text>
-        </TouchableOpacity>
-      ) : order.status === ImportOrderStatus.COMPLETED &&
-        order.paperIds ? (
-        <TouchableOpacity
-          style={[styles.actionButton, styles.viewButton]}
-          onPress={() =>
-            router.push({
-              pathname: "/import/detail/[id]",
-              params: { id: order.importOrderId.toString() },
-            })
+      <TouchableOpacity
+        style={styles.actionButton}
+        onPress={() =>
+          order.status === ImportOrderStatus.IN_PROGRESS ||
+          order.status === ImportOrderStatus.NOT_STARTED
+            ? handleImportCount(order)
+            : router.push({
+                pathname: "/import/detail/[id]",
+                params: { id: order.importOrderId.toString() },
+              })
+        }
+      >
+        <Ionicons
+          name={
+            order.status === ImportOrderStatus.IN_PROGRESS ||
+            order.status === ImportOrderStatus.NOT_STARTED
+              ? "scan-outline"
+              : order.status === ImportOrderStatus.CONFIRMED ||
+                order.status === ImportOrderStatus.COMPLETED
+              ? "eye-outline"
+              : "time-outline"
           }
-        >
-          <Ionicons
-            name="eye-outline"
-            size={18}
-            color="#FFFFFF"
-            style={styles.buttonIcon}
-          />
-          <Text style={styles.buttonText}>Xem chi tiết đơn nhập</Text>
-        </TouchableOpacity>
-      ) : order.status === ImportOrderStatus.CONFIRMED &&
-        order.paperIds ? (
-        <TouchableOpacity
-          style={[styles.actionButton, styles.viewButton2]}
-          onPress={() =>
-            router.push({
-              pathname: "/import/detail/[id]",
-              params: { id: order.importOrderId.toString() },
-            })
-          }
-        >
-          <Ionicons
-            name="eye-outline"
-            size={18}
-            color="#FFFFFF"
-            style={styles.buttonIcon}
-          />
-          <Text style={styles.buttonText}>Xem chi tiết đơn nhập</Text>
-        </TouchableOpacity>
-      ) : (
-        <TouchableOpacity
-          style={[styles.actionButton, { backgroundColor: '#213448' }]}
-          onPress={() =>
-            router.push({
-              pathname: "/import/detail/[id]",
-              params: { id: order.importOrderId.toString() },
-            })
-          }
-        >
-          <Ionicons
-            name="time-outline"
-            size={18}
-            color="#FFFFFF"
-            style={styles.buttonIcon}
-          />
-          <Text style={styles.buttonText}>Chờ xác nhận</Text>
-        </TouchableOpacity>
-      )}
+          size={18}
+          color="#FFFFFF"
+          style={styles.buttonIcon}
+        />
+        <Text style={styles.buttonText}>
+          {order.status === ImportOrderStatus.IN_PROGRESS ||
+          order.status === ImportOrderStatus.NOT_STARTED
+            ? "Kiểm đếm đơn nhập"
+            : order.status === ImportOrderStatus.CONFIRMED ||
+              order.status === ImportOrderStatus.COMPLETED
+            ? "Xem chi tiết đơn nhập"
+            : "Chờ xác nhận"}
+        </Text>
+      </TouchableOpacity>
     </TouchableOpacity>
   );
 
@@ -335,8 +300,8 @@ export default function ReceiptDetail() {
 
       {/* Status Tabs */}
       <View style={styles.tabsContainer}>
-        <ScrollView 
-          horizontal 
+        <ScrollView
+          horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.tabsScrollContent}
         >
@@ -353,10 +318,11 @@ export default function ReceiptDetail() {
         <View style={styles.emptyContainer}>
           <Ionicons name="document-text-outline" size={60} color="#BDBDBD" />
           <Text style={styles.emptyText}>
-            {searchQuery 
-              ? "Không tìm thấy đơn nhập phù hợp" 
-              : `Không có đơn nhập ${statusTabs.find(t => t.key === activeTab)?.title.toLowerCase()}`
-            }
+            {searchQuery
+              ? "Không tìm thấy đơn nhập phù hợp"
+              : `Không có đơn nhập ${statusTabs
+                  .find((t) => t.key === activeTab)
+                  ?.title.toLowerCase()}`}
           </Text>
         </View>
       ) : (
@@ -421,7 +387,7 @@ const styles = StyleSheet.create({
   searchContainer: {
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: 'white',
+    backgroundColor: "white",
   },
   searchInputContainer: {
     flexDirection: "row",
@@ -442,59 +408,58 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: "#333",
   },
-  
+
   // Tabs Styles
   tabsContainer: {
-    backgroundColor: 'white',
+    backgroundColor: "white",
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
-    
+    borderBottomColor: "#E0E0E0",
   },
   tabsScrollContent: {
     paddingHorizontal: 16,
-    marginBottom:10,
+    marginBottom: 10,
   },
   tabItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: 16,
     paddingVertical: 12,
     marginRight: 8,
     borderRadius: 20,
-    
-    backgroundColor: '#F5F7FA',
+
+    backgroundColor: "#F5F7FA",
   },
   activeTabItem: {
-    backgroundColor: '#1677ff',
+    backgroundColor: "#1677ff",
   },
   tabTitle: {
     fontSize: 14,
-    fontWeight: '500',
-    color: '#666',
+    fontWeight: "500",
+    color: "#666",
   },
   activeTabTitle: {
-    color: 'white',
-    fontWeight: '600',
+    color: "white",
+    fontWeight: "600",
   },
   tabBadge: {
-    backgroundColor: '#E0E0E0',
+    backgroundColor: "#E0E0E0",
     borderRadius: 10,
     paddingHorizontal: 6,
     paddingVertical: 2,
     marginLeft: 6,
     minWidth: 20,
-    alignItems: 'center',
+    alignItems: "center",
   },
   activeTabBadge: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: "rgba(255,255,255,0.2)",
   },
   tabBadgeText: {
     fontSize: 12,
-    fontWeight: '600',
-    color: '#666',
+    fontWeight: "600",
+    color: "#666",
   },
   activeTabBadgeText: {
-    color: 'white',
+    color: "white",
   },
 
   loadingContainer: {
@@ -510,7 +475,7 @@ const styles = StyleSheet.create({
     color: "#757575",
     fontSize: 16,
     marginTop: 16,
-    textAlign: 'center',
+    textAlign: "center",
     paddingHorizontal: 32,
   },
   ordersList: {
@@ -583,6 +548,7 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 12,
     borderBottomRightRadius: 12,
   },
+
   viewButton: {
     backgroundColor: "#4CAF50",
   },

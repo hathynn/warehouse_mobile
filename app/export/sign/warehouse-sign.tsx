@@ -129,7 +129,7 @@ const SignWarehouseScreen = () => {
           Người giao hàng ký
         </Text>
       </View>
-       <ScrollView scrollEnabled={scrollEnabled}>
+  
 
          <View style={styles.card}>
           <Text style={styles.cardTitle}>Thông tin chi tiết yêu cầu</Text>
@@ -197,14 +197,14 @@ const SignWarehouseScreen = () => {
             </Text>
           </View>
 
-          <View style={styles.row}>
+          {/* <View style={styles.row}>
             <Text style={styles.label}>Tình trạng yêu cầu</Text>
             <Text style={styles.valueRed}>
               <StatusBadge status={exportRequest?.status || "UNKNOWN"} />
             </Text>
-          </View>
+          </View> */}
         </View>
-      <View style={{ padding: 16}}>
+      <View style={{ paddingHorizontal: 16}}>
         <SimpleProductList
           products={exportDetails.map((item) => ({
             id: item.id,
@@ -243,17 +243,55 @@ const SignWarehouseScreen = () => {
           </View>
 
           {/* Hành động */}
-          <View style={styles.actions}>
-            <Button onPress={handleClear} flex={1}>
-              Xóa
-            </Button>
-            <Button
-              onPress={() => router.push("/export/sign/receiver-sign")}
-              flex={1}
-            >
-              Tiếp tục
-            </Button>
-          </View>
+       
+
+           <View
+                      style={{
+                        flexDirection: "row",
+                        justifyContent: "center",
+                        marginVertical: 20,
+                      }}
+                    >
+                      <TouchableOpacity
+                        onPress={handleClear}
+                        style={{
+                          flex: 1,
+                          paddingVertical: 12,
+                          backgroundColor: "#DDDDDD",
+                          borderRadius: 8,
+                          marginRight: 5,
+                          alignItems: "center",
+                        }}
+                      >
+                        <Text
+                          style={{
+                            color: "black",
+                          }}
+                        >
+                          Xóa
+                        </Text>
+                      </TouchableOpacity>
+          
+                  <TouchableOpacity
+                      onPress={() => router.push("/export/sign/receiver-sign")}
+                      style={{
+                        flex: 1,
+                        paddingVertical: 12,
+                        backgroundColor: "#1677ff",
+                        borderRadius: 8,
+                        marginLeft: 5,
+                        alignItems: "center",
+                      }}
+                    >
+                      <Text
+                        style={{
+                          color: "white",
+                        }}
+                      >
+                        Tiếp tục
+                      </Text>
+                    </TouchableOpacity>
+                    </View>
 
           {/* Hiển thị lại chữ ký */}
           {signature && (
@@ -276,7 +314,7 @@ const SignWarehouseScreen = () => {
             </>
           )}
         </View>
-       </ScrollView>
+ 
     </View>
    
   );
