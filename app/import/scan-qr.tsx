@@ -32,6 +32,7 @@ export default function ScanQrScreen() {
   );
 const [canScan, setCanScan] = useState(true);
 const isFocused = useIsFocused();
+const scanInProgress = useRef(false);
 
   const importOrderId = useSelector(
     (state: RootState) => state.paper.importOrderId
@@ -82,35 +83,46 @@ const playBeep = async () => {
   }
 };
 
-  const handleBarCodeScanned = ({ data }: { data: string }) => {
-  if (!isFocused || !canScan) return; // chặn nếu đang cooldown
+  const handleBarCodeScanned = async ({ data }: { data: string }) => {
+  if (!isFocused || !canScan || scanInProgress.current) return;
 
-  setCanScan(false); // chặn tiếp theo
-  setTimeout(() => setCanScan(true), 3000); // mở lại sau 3 giây
+  scanInProgress.current = true;
+  setCanScan(false); // chặn thêm
 
   try {
     const qrData = JSON.parse(decodeURIComponent(data));
-const foundProduct = products.find((product) => product.id === String(qrData.id));
+    const foundProduct = products.find((product) => product.id === String(qrData.id));
 
-    if (foundProduct) {
-      playBeep();
-
-      dispatch(
-        updateProduct({
-          id: foundProduct.id,
-          actual: foundProduct.actual + 1,
-        })
-      );
-
-      setLastScannedProduct(foundProduct);
-      setTimeout(() => setLastScannedProduct(null), 2000); // chỉ hiển thị 2s
-    } else {
+    if (!foundProduct) {
       Alert.alert("⚠️ Sản phẩm không có trong đơn nhập.");
+      scanInProgress.current = false;
+      setCanScan(true);
+      return;
     }
+
+    await playBeep();
+
+    dispatch(
+      updateProduct({
+        id: foundProduct.id,
+        actual: foundProduct.actual + 1,
+      })
+    );
+
+    setLastScannedProduct(foundProduct);
+
+    setTimeout(() => {
+      setLastScannedProduct(null);
+      scanInProgress.current = false;
+      setCanScan(true);
+    }, 2000);
   } catch (error) {
     Alert.alert("❌ Mã QR không hợp lệ.");
+    scanInProgress.current = false;
+    setCanScan(true);
   }
 };
+
 
 
   // Bấm tiếp tục

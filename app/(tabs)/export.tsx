@@ -8,7 +8,7 @@ import {
   TextInput,
   StyleSheet,
   FlatList,
-} from "react-native";  
+} from "react-native";
 import {
   useQuery,
   QueryClient,
@@ -32,7 +32,7 @@ const queryClient = new QueryClient();
 interface StatusTab {
   key: string;
   title: string;
-  status: ExportRequestStatus | 'ALL';
+  status: ExportRequestStatus | "ALL";
   count: number;
 }
 
@@ -131,7 +131,7 @@ function ExportListComponent() {
   const userId = useSelector((state: RootState) => state.auth.user?.id);
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeTab, setActiveTab] = useState<string>('ALL');
+  const [activeTab, setActiveTab] = useState<string>(ExportRequestStatus.IN_PROGRESS);
   const dispatch = useDispatch();
   const insets = useSafeAreaInsets();
 
@@ -147,50 +147,56 @@ function ExportListComponent() {
 
   // Định nghĩa các tab status
   const getStatusTabs = (): StatusTab[] => {
-    const validRequests = exportRequests?.filter((request: ExportRequestType) => 
-      request.status !== ExportRequestStatus.CANCELLED
-    ) || [];
+    const validRequests =
+      exportRequests?.filter(
+        (request: ExportRequestType) =>
+          request.status !== ExportRequestStatus.CANCELLED
+      ) || [];
 
     return [
-  
       {
-        key: 'IN_PROGRESS',
-        title: 'Cần kiểm đếm',
+        key: "IN_PROGRESS",
+        title: "Cần kiểm đếm",
         status: ExportRequestStatus.IN_PROGRESS,
-        count: validRequests.filter((request: ExportRequestType) => 
-          request.status === ExportRequestStatus.IN_PROGRESS
+        count: validRequests.filter(
+          (request: ExportRequestType) =>
+            request.status === ExportRequestStatus.IN_PROGRESS
         ).length,
       },
       {
-        key: 'COUNTED',
-        title: 'Chờ xác nhận',
+        key: "COUNTED",
+        title: "Chờ xác nhận",
         status: ExportRequestStatus.COUNTED,
-        count: validRequests.filter((request: ExportRequestType) => 
-          request.status === ExportRequestStatus.COUNTED
+        count: validRequests.filter(
+          (request: ExportRequestType) =>
+            request.status === ExportRequestStatus.COUNTED
         ).length,
       },
       {
-        key: 'COUNT_CONFIRMED',
-        title: 'Đã xác nhận',
+        key: "COUNT_CONFIRMED",
+        title: "Đã xác nhận",
         status: ExportRequestStatus.COUNT_CONFIRMED,
-        count: validRequests.filter((request: ExportRequestType) => 
-          request.status === ExportRequestStatus.COUNT_CONFIRMED
+        count: validRequests.filter(
+          (request: ExportRequestType) =>
+            request.status === ExportRequestStatus.COUNT_CONFIRMED
         ).length,
       },
       {
-        key: 'WAITING_EXPORT',
-        title: 'Chờ xuất kho',
+        key: "WAITING_EXPORT",
+        title: "Chờ xuất kho",
         status: ExportRequestStatus.WAITING_EXPORT,
-        count: validRequests.filter((request: ExportRequestType) => 
-          request.status === ExportRequestStatus.WAITING_EXPORT
+        count: validRequests.filter(
+          (request: ExportRequestType) =>
+            request.status === ExportRequestStatus.WAITING_EXPORT
         ).length,
       },
       {
-        key: 'COMPLETED',
-        title: 'Hoàn tất',
+        key: "COMPLETED",
+        title: "Hoàn tất",
         status: ExportRequestStatus.COMPLETED,
-        count: validRequests.filter((request: ExportRequestType) => 
-          request.status === ExportRequestStatus.COMPLETED
+        count: validRequests.filter(
+          (request: ExportRequestType) =>
+            request.status === ExportRequestStatus.COMPLETED
         ).length,
       },
     ];
@@ -198,22 +204,24 @@ function ExportListComponent() {
 
   // Lọc dữ liệu theo tab active và search
   const getFilteredData = () => {
-    let filtered = exportRequests?.filter((request: ExportRequestType) => {
-      // Loại bỏ phiếu xuất đã hủy
-      if (request.status === ExportRequestStatus.CANCELLED) return false;
+    let filtered =
+      exportRequests?.filter((request: ExportRequestType) => {
+        // Loại bỏ phiếu xuất đã hủy
+        if (request.status === ExportRequestStatus.CANCELLED) return false;
 
-      // Lọc theo tab
-      if (activeTab !== 'ALL' && request.status !== activeTab) return false;
+        // Lọc theo tab
+        if (activeTab !== "ALL" && request.status !== activeTab) return false;
 
-      // Lọc theo search query
-      const matchSearch = request?.exportRequestId &&
-        request.exportRequestId
-          .toString()
-          .toLowerCase()
-          .includes(searchQuery.toLowerCase());
+        // Lọc theo search query
+        const matchSearch =
+          request?.exportRequestId &&
+          request.exportRequestId
+            .toString()
+            .toLowerCase()
+            .includes(searchQuery.toLowerCase());
 
-      return matchSearch;
-    }) || [];
+        return matchSearch;
+      }) || [];
 
     return filtered;
   };
@@ -234,7 +242,7 @@ function ExportListComponent() {
   // Render tab item
   const renderTabItem = (tab: StatusTab) => {
     const isActive = activeTab === tab.key;
-    
+
     return (
       <TouchableOpacity
         key={tab.key}
@@ -247,13 +255,17 @@ function ExportListComponent() {
         </Text>
         {tab.count > 0 && (
           <View style={[styles.tabBadge, isActive && styles.activeTabBadge]}>
-            <Text style={[styles.tabBadgeText, isActive && styles.activeTabBadgeText]}>
+            <Text
+              style={[
+                styles.tabBadgeText,
+                isActive && styles.activeTabBadgeText,
+              ]}
+            >
               {tab.count}
             </Text>
           </View>
         )}
       </TouchableOpacity>
-      
     );
   };
 
@@ -267,14 +279,8 @@ function ExportListComponent() {
       {/* Header phiếu xuất */}
       <View style={styles.orderHeader}>
         <View style={styles.orderIdContainer}>
-          <Ionicons
-            name="document-text-outline"
-            size={20}
-            color="#1677ff"
-          />
-          <Text style={styles.orderId}>
-            {request.exportRequestId}
-          </Text>
+          <Ionicons name="document-text-outline" size={20} color="#1677ff" />
+          <Text style={styles.orderId}>{request.exportRequestId}</Text>
         </View>
         <StatusBadge status={request.status} />
       </View>
@@ -285,14 +291,11 @@ function ExportListComponent() {
           <InfoRow
             icon="calendar-outline"
             title="Ngày dự xuất"
-            value={new Date(request.exportDate).toLocaleDateString(
-              "vi-VN",
-              {
-                day: "2-digit",
-                month: "2-digit",
-                year: "numeric",
-              }
-            )}
+            value={new Date(request.exportDate).toLocaleDateString("vi-VN", {
+              day: "2-digit",
+              month: "2-digit",
+              year: "numeric",
+            })}
           />
         )}
       </View>
@@ -300,37 +303,22 @@ function ExportListComponent() {
       {/* Footer phiếu xuất */}
       {(() => {
         let buttonLabel = "Xem chi tiết phiếu xuất";
-        let backgroundColor = "#757575";
         let icon = "eye-outline";
 
         switch (request.status) {
           case ExportRequestStatus.IN_PROGRESS:
             buttonLabel = "Kiểm đếm phiếu xuất";
-            backgroundColor = "#1677ff";
             icon = "clipboard-outline";
             break;
           case ExportRequestStatus.COUNT_CONFIRMED:
             buttonLabel = "Tạo chứng từ";
-            backgroundColor = "#213448";
             icon = "document-outline";
-            break;
-          case ExportRequestStatus.COUNTED:
-            backgroundColor = "#03A9F4";
-            break;
-          case ExportRequestStatus.WAITING_EXPORT:
-            backgroundColor = "#faad14";
-            break;
-          case ExportRequestStatus.CONFIRMED:
-            backgroundColor = "#B0DB9C";
-            break;
-          case ExportRequestStatus.COMPLETED:
-            backgroundColor = "#4CAF50";
             break;
         }
 
         return (
           <TouchableOpacity
-            style={[styles.actionButton, { backgroundColor }]}
+            style={styles.actionButton}
             onPress={() => {
               if (request.status === ExportRequestStatus.COUNT_CONFIRMED) {
                 router.push({
@@ -388,8 +376,8 @@ function ExportListComponent() {
 
       {/* Status Tabs */}
       <View style={styles.tabsContainer}>
-        <ScrollView 
-          horizontal 
+        <ScrollView
+          horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.tabsScrollContent}
         >
@@ -406,10 +394,11 @@ function ExportListComponent() {
         <View style={styles.emptyContainer}>
           <Ionicons name="document-text-outline" size={60} color="#BDBDBD" />
           <Text style={styles.emptyText}>
-            {searchQuery 
-              ? "Không tìm thấy phiếu xuất phù hợp" 
-              : `Không có phiếu xuất ${statusTabs.find(t => t.key === activeTab)?.title.toLowerCase()}`
-            }
+            {searchQuery
+              ? "Không tìm thấy phiếu xuất phù hợp"
+              : `Không có phiếu xuất ${statusTabs
+                  .find((t) => t.key === activeTab)
+                  ?.title.toLowerCase()}`}
           </Text>
         </View>
       ) : (
@@ -449,7 +438,7 @@ const styles = StyleSheet.create({
   searchContainer: {
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: 'white',
+    backgroundColor: "white",
   },
   searchInputContainer: {
     flexDirection: "row",
@@ -470,57 +459,57 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: "#333",
   },
-  
+
   // Tabs Styles
   tabsContainer: {
-    backgroundColor: 'white',
+    backgroundColor: "white",
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
+    borderBottomColor: "#E0E0E0",
   },
   tabsScrollContent: {
     paddingHorizontal: 16,
-    marginBottom:10,
+    marginBottom: 10,
   },
   tabItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: 16,
     paddingVertical: 12,
     marginRight: 8,
     borderRadius: 20,
-    backgroundColor: '#F5F7FA',
+    backgroundColor: "#F5F7FA",
   },
   activeTabItem: {
-    backgroundColor: '#1677ff',
+    backgroundColor: "#1677ff",
   },
   tabTitle: {
     fontSize: 14,
-    fontWeight: '500',
-    color: '#666',
+    fontWeight: "500",
+    color: "#666",
   },
   activeTabTitle: {
-    color: 'white',
-    fontWeight: '600',
+    color: "white",
+    fontWeight: "600",
   },
   tabBadge: {
-    backgroundColor: '#E0E0E0',
+    backgroundColor: "#E0E0E0",
     borderRadius: 10,
     paddingHorizontal: 6,
     paddingVertical: 2,
     marginLeft: 6,
     minWidth: 20,
-    alignItems: 'center',
+    alignItems: "center",
   },
   activeTabBadge: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: "rgba(255,255,255,0.2)",
   },
   tabBadgeText: {
     fontSize: 12,
-    fontWeight: '600',
-    color: '#666',
+    fontWeight: "600",
+    color: "#666",
   },
   activeTabBadgeText: {
-    color: 'white',
+    color: "white",
   },
 
   loadingContainer: {
@@ -536,7 +525,7 @@ const styles = StyleSheet.create({
     color: "#757575",
     fontSize: 16,
     marginTop: 16,
-    textAlign: 'center',
+    textAlign: "center",
     paddingHorizontal: 32,
   },
   ordersList: {

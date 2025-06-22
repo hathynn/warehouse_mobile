@@ -20,8 +20,8 @@ import { updateProductActual } from "@/redux/productSlice";
 import { RootState } from "@/redux/store";
 
 export default function SuccessPage() {
-  const { id } = useLocalSearchParams<{ id : any }>(); 
-  const productId = Number(id);
+  const { id } = useLocalSearchParams<{ id: any }>();
+  const productId = id;
   const dispatch = useDispatch();
 
   const importOrderId = useSelector(
@@ -29,10 +29,10 @@ export default function SuccessPage() {
   );
 
 const product = useSelector((state: RootState) =>
-  state.product.products.find((p) => p.id === id) 
+  state.product.products.find((p) => p.id === productId)
 );
 
-  const [quantity, setQuantity] = useState(product?.actual?.toString() || "1");
+  const [quantity, setQuantity] = useState("0");
 
   // useEffect(() => {
   //   if (!isNaN(Number(quantity))) {
@@ -61,6 +61,9 @@ const product = useSelector((state: RootState) =>
   }, []);
 
   const handleSubmit = () => {
+    const toAdd = parseInt(quantity) || 0;
+    const newActual = (product?.actual || 0) + toAdd;
+
     Animated.sequence([
       Animated.timing(fadeAnim, {
         toValue: 0.7,
@@ -73,8 +76,7 @@ const product = useSelector((state: RootState) =>
         useNativeDriver: true,
       }),
     ]).start(() => {
-     dispatch(updateProductActual({ productId: id, actual: Number(quantity) }));
-
+      dispatch(updateProductActual({ productId, actual: newActual }));
       router.push(`/import/confirm/${importOrderId}`);
     });
   };
@@ -127,6 +129,13 @@ const product = useSelector((state: RootState) =>
                       <Text style={styles.label}>Số lượng thực tế</Text>
                       <Text style={styles.value}>{product.actual}</Text>
                     </View>
+
+                    <View style={styles.row}>
+                      <Text style={styles.label}>Sau khi cộng thêm</Text>
+                      <Text style={styles.valueBold}>
+                        {(product?.actual || 0) + (parseInt(quantity) || 0)}
+                      </Text>
+                    </View>
                   </>
                 )}
 
@@ -140,11 +149,7 @@ const product = useSelector((state: RootState) =>
                       onPress={() => {
                         const current = parseInt(quantity) || 0;
                         if (current > 1) {
-                          const newQty = current - 1;
-                          setQuantity(newQty.toString());
-                          dispatch(
-                            updateProductActual({ productId, actual: newQty })
-                          );
+                          setQuantity((current - 1).toString());
                         }
                       }}
                     >
@@ -157,13 +162,6 @@ const product = useSelector((state: RootState) =>
                       onChangeText={(text) => {
                         const numericText = text.replace(/[^0-9]/g, "");
                         setQuantity(numericText);
-
-                        const parsed = parseInt(numericText);
-                        if (!isNaN(parsed)) {
-                          dispatch(
-                            updateProductActual({ productId, actual: parsed })
-                          );
-                        }
                       }}
                       keyboardType="numeric"
                       textAlign="center"
@@ -173,11 +171,7 @@ const product = useSelector((state: RootState) =>
                       style={styles.quantityButton}
                       onPress={() => {
                         const current = parseInt(quantity) || 0;
-                        const newQty = current + 1;
-                        setQuantity(newQty.toString());
-                        dispatch(
-                          updateProductActual({ productId, actual: newQty })
-                        );
+                        setQuantity((current + 1).toString());
                       }}
                     >
                       <Ionicons name="add" size={22} color="#1677ff" />

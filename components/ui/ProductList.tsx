@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, StyleSheet, FlatList, TouchableOpacity } from "react-native";
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ScrollView } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
 type Product = {
@@ -75,21 +75,54 @@ const SimpleProductList: React.FC<Props> = ({
 
   return (
     <View style={[styles.listContainer, style]}>
-      <FlatList
-        data={products}
-        renderItem={renderItem}
-        keyExtractor={(item) => `product-${item.id}`}
+    <View style={{ maxHeight: 130 }}>
+      <ScrollView
+        scrollEnabled={products.length > 2}
+        showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.container}
-        ItemSeparatorComponent={() => <View style={styles.separator} />}
-        scrollEnabled={false}
-        ListEmptyComponent={
+      >
+        {products.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Ionicons name="basket-outline" size={40} color="#BDBDBD" />
             <Text style={styles.emptyText}>Không có sản phẩm nào</Text>
           </View>
-        }
-      />
+        ) : (
+          products.map((product) => {
+            const { name, color } = getStatusIcon(product.actual, product.expect);
+            const statusBackground = getStatusBackground(product.actual, product.expect);
+
+            return (
+              <TouchableOpacity
+                key={`product-${product.id}`}
+                activeOpacity={onItemPress ? 0.7 : 1}
+                onPress={() => onItemPress && onItemPress(product)}
+              >
+                <View style={[styles.item, { backgroundColor: "#FFFFFF" }]}>
+                  <View style={styles.productInfo}>
+                    <View style={[styles.iconContainer, { backgroundColor: statusBackground }]}>
+                      <Ionicons name={name} size={18} color={color} />
+                    </View>
+                    <Text style={styles.productName} numberOfLines={1}>
+                      {product.name}
+                    </Text>
+                  </View>
+
+                  <View style={[styles.quantityContainer, { backgroundColor: statusBackground }]}>
+                    <Text style={[styles.quantity, { color }]}>
+                      {product.actual}
+                      <Text style={styles.slash}>/</Text>
+                      <Text style={styles.expected}>{product.expect}</Text>
+                    </Text>
+                  </View>
+                </View>
+                <View style={styles.separator} />
+              </TouchableOpacity>
+            );
+          })
+        )}
+      </ScrollView>
     </View>
+  </View>
   );
 };
 

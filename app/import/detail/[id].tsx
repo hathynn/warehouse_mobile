@@ -22,9 +22,17 @@ import { Button } from "tamagui";
 import { useDispatch } from "react-redux";
 import { setProducts } from "@/redux/productSlice";
 import { setPaperData } from "@/redux/paperSlice";
+import { TodoList } from "@/components/ui/TodoList";
 
 interface RouteParams {
   id: string;
+}
+
+interface TodoItem {
+  id: string;
+  title: string;
+  completed: boolean;
+  enabled: boolean;
 }
 
 const ImportOrderScreen: React.FC = () => {
@@ -35,6 +43,22 @@ const ImportOrderScreen: React.FC = () => {
   const { fetchImportOrderDetailById, fetchImportOrderDetails } =
     useImportOrderDetailService();
   const [importOrderDetails, setImportOrderDetails] = useState<any[]>([]);
+  const [showTodoList, setShowTodoList] = useState(false);
+  const [todoItems, setTodoItems] = useState<TodoItem[]>([
+    {
+      id: 'scan-qr',
+      title: 'Dán QR Code',
+      completed: false,
+      enabled: true, 
+    },
+    {
+      id: 'store-location',
+      title: 'Cất hàng đúng vị trí',
+      completed: false,
+      enabled: false, 
+    },
+  ]);
+  
   const { fetchInventoryItemsByImportOrderDetailId } = useInventoryService();
 
   const {
@@ -57,6 +81,30 @@ const ImportOrderScreen: React.FC = () => {
       row: getPart("Row"),
       batch: getPart("Batch"),
     };
+  };
+
+  const handleTodoToggle = (itemId: string) => {
+    setTodoItems(prev => {
+      const newItems = prev.map(item => {
+        if (item.id === itemId && item.enabled) {
+          return { ...item, completed: !item.completed };
+        }
+        return item;
+      });
+
+      // Logic tuần tự: chỉ enable bước tiếp theo khi bước trước hoàn thành
+      const scanQrCompleted = newItems.find(item => item.id === 'scan-qr')?.completed;
+      
+      return newItems.map(item => {
+        if (item.id === 'store-location') {
+          return { ...item, enabled: scanQrCompleted || false };
+        }
+        return item;
+      });
+    });
+
+    // Điều hướng khi click vào todo item
+  
   };
 
   useEffect(() => {
@@ -127,7 +175,6 @@ const ImportOrderScreen: React.FC = () => {
           paddingBottom: 16,
           paddingHorizontal: 17,
           flexDirection: "row",
-          justifyContent: "space-between",
           alignItems: "center",
         }}
       >
@@ -137,16 +184,43 @@ const ImportOrderScreen: React.FC = () => {
         >
           <Ionicons name="arrow-back" size={24} color="white" />
         </TouchableOpacity>
-        <Text
-          style={{
-            color: "white",
-            fontSize: 16,
-            fontWeight: "bold",
-            marginTop: 7,
-          }}
-        >
-          {id}
-        </Text>
+        
+      
+        {importOrder?.status === ImportOrderStatus.COMPLETED ? (
+          <>
+            <Text
+              style={{
+                color: "white",
+                fontSize: 16,
+                fontWeight: "bold",
+                marginTop: 7,
+                flex: 1,
+                textAlign: "center",
+              }}
+            >
+              {id}
+            </Text>
+            <TouchableOpacity
+              onPress={() => setShowTodoList(true)}
+              style={{ paddingLeft: 12, marginTop: 7 }}
+            >
+              <Ionicons name="list-outline" size={24} color="white" />
+            </TouchableOpacity>
+          </>
+        ) : (
+          <Text
+            style={{
+              color: "white",
+              fontSize: 16,
+              fontWeight: "bold",
+              marginTop: 7,
+              flex: 1,
+              textAlign: "right",
+            }}
+          >
+            {id}
+          </Text>
+        )}
       </View>
 
       <ScrollView style={styles.container}>
@@ -193,6 +267,54 @@ const ImportOrderScreen: React.FC = () => {
             </View>
           </View>
         </View>
+
+        {/* Checklist Card - chỉ hiện khi status là COMPLETED */}
+        {/* {importOrder?.status === ImportOrderStatus.COMPLETED && (
+          <View style={styles.checklistCard}>
+            <View style={styles.checklistHeader}>
+              <Text style={styles.checklistTitle}>Quy trình nhập kho</Text>
+              <TouchableOpacity
+                onPress={() => setShowTodoList(true)}
+                style={styles.viewChecklistButton}
+              >
+                <Text style={styles.viewChecklistText}>Chi tiết</Text>
+                <Ionicons name="chevron-forward" size={16} color="#1677ff" />
+              </TouchableOpacity>
+            </View>
+            
+            <View style={styles.quickChecklist}>
+              {todoItems.map((item, index) => (
+                <View key={item.id} style={styles.quickCheckItem}>
+                  <View
+                    style={[
+                      styles.quickCheckbox,
+                      item.completed && styles.quickCheckboxCompleted,
+                      !item.enabled && styles.quickCheckboxDisabled,
+                    ]}
+                  >
+                    {item.completed ? (
+                      <Ionicons name="checkmark" size={14} color="white" />
+                    ) : (
+                      <Text style={styles.quickCheckNumber}>{index + 1}</Text>
+                    )}
+                  </View>
+                  <Text
+                    style={[
+                      styles.quickCheckText,
+                      item.completed && styles.quickCheckTextCompleted,
+                      !item.enabled && styles.quickCheckTextDisabled,
+                    ]}
+                  >
+                    {item.title}
+                  </Text>
+                  {!item.enabled && (
+                    <Ionicons name="lock-closed" size={12} color="#ccc" style={{ marginLeft: 8 }} />
+                  )}
+                </View>
+              ))}
+            </View>
+          </View>
+        )} */}
 
         {importOrder?.status === ImportOrderStatus.IN_PROGRESS ||
         importOrder?.status === ImportOrderStatus.NOT_STARTED ? (
@@ -242,9 +364,19 @@ const ImportOrderScreen: React.FC = () => {
           </TouchableOpacity>
         ) : null}
 
-        {/* Danh sách chi tiết đơn nhập - Sử dụng component mới */}
+        {/* Danh sách chi tiết đơn nhập */}
         <ImportOrderDetailsTable importOrderDetails={importOrderDetails} />
       </ScrollView>
+
+      {/* Todo List Modal - chỉ hiển thị khi status là COMPLETED */}
+      {importOrder?.status === ImportOrderStatus.COMPLETED && (
+        <TodoList
+          items={todoItems}
+          visible={showTodoList}
+          onClose={() => setShowTodoList(false)}
+          onItemToggle={handleTodoToggle}
+        />
+      )}
     </View>
   );
 };
@@ -276,6 +408,77 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     marginBottom: 12,
   },
+  checklistCard: {
+    backgroundColor: "white",
+    marginHorizontal: 16,
+    marginBottom: 16,
+    borderRadius: 12,
+    padding: 16,
+    elevation: 2,
+  },
+  checklistHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  checklistTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+  },
+  viewChecklistButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  viewChecklistText: {
+    fontSize: 14,
+    color: '#1677ff',
+    marginRight: 4,
+  },
+  quickChecklist: {
+    gap: 12,
+  },
+  quickCheckItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  quickCheckbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: '#dee2e6',
+    backgroundColor: 'white',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  quickCheckboxCompleted: {
+    backgroundColor: '#1677ff',
+    borderColor: '#1677ff',
+  },
+  quickCheckboxDisabled: {
+    borderColor: '#ccc',
+    backgroundColor: '#f5f5f5',
+  },
+  quickCheckNumber: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#999',
+  },
+  quickCheckText: {
+    fontSize: 14,
+    color: '#333',
+    flex: 1,
+  },
+  quickCheckTextCompleted: {
+    textDecorationLine: 'line-through',
+    color: '#6c757d',
+  },
+  quickCheckTextDisabled: {
+    color: '#adb5bd',
+  },
   row: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -302,13 +505,8 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "bold",
   },
-  valueRed: {
-    fontSize: 14,
-    color: "#e63946",
-    fontWeight: "bold",
-  },
   tamaButton: {
-    backgroundColor: "#1677ff", // màu giống theme="active" của Tamagui
+    backgroundColor: "#1677ff",
     paddingVertical: 12,
     paddingHorizontal: 20,
     borderRadius: 12,
@@ -321,7 +519,6 @@ const styles = StyleSheet.create({
     elevation: 2,
     marginHorizontal: 16,
   },
-
   tamaButtonText: {
     color: "#fff",
     fontSize: 15,
