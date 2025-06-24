@@ -125,13 +125,10 @@ const product = useSelector((state: RootState) =>
                       <Text style={styles.value}>{product.expect}</Text>
                     </View>
 
-                    <View style={styles.row}>
-                      <Text style={styles.label}>Số lượng thực tế</Text>
-                      <Text style={styles.value}>{product.actual}</Text>
-                    </View>
+                  
 
                     <View style={styles.row}>
-                      <Text style={styles.label}>Sau khi cộng thêm</Text>
+                      <Text style={styles.label}>Số lượng kiểm đếm</Text>
                       <Text style={styles.valueBold}>
                         {(product?.actual || 0) + (parseInt(quantity) || 0)}
                       </Text>

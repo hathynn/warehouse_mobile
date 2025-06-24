@@ -222,7 +222,7 @@ const ConfirmManual = () => {
             disabled={!isChecked}
             onPress={() => router.push("/import/sign/deliver-sign")}
             style={{
-              backgroundColor: isChecked ? "#0d1925" : "#ccc",
+              backgroundColor: isChecked ? "#1677ff" : "#ccc",
               borderRadius: 999,
               paddingVertical: 12,
               alignItems: "center",

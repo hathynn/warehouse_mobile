@@ -218,51 +218,21 @@ export default function ReceiptDetail() {
         <InfoRow
           icon="calendar-outline"
           title="Ngày dự nhập"
-          value={new Date(order.dateReceived).toLocaleDateString("vi-VN", {
+          value={new Date(order?.dateReceived).toLocaleDateString("vi-VN", {
             day: "2-digit",
             month: "2-digit",
             year: "numeric",
           })}
         />
+        <InfoRow
+          icon="time-outline"
+          title="Thời gian dự nhập"
+          value={order?.timeReceived}
+        />
       </View>
 
       {/* Footer đơn nhập */}
-      <TouchableOpacity
-        style={styles.actionButton}
-        onPress={() =>
-          order.status === ImportOrderStatus.IN_PROGRESS ||
-          order.status === ImportOrderStatus.NOT_STARTED
-            ? handleImportCount(order)
-            : router.push({
-                pathname: "/import/detail/[id]",
-                params: { id: order.importOrderId.toString() },
-              })
-        }
-      >
-        <Ionicons
-          name={
-            order.status === ImportOrderStatus.IN_PROGRESS ||
-            order.status === ImportOrderStatus.NOT_STARTED
-              ? "scan-outline"
-              : order.status === ImportOrderStatus.CONFIRMED ||
-                order.status === ImportOrderStatus.COMPLETED
-              ? "eye-outline"
-              : "time-outline"
-          }
-          size={18}
-          color="#FFFFFF"
-          style={styles.buttonIcon}
-        />
-        <Text style={styles.buttonText}>
-          {order.status === ImportOrderStatus.IN_PROGRESS ||
-          order.status === ImportOrderStatus.NOT_STARTED
-            ? "Kiểm đếm đơn nhập"
-            : order.status === ImportOrderStatus.CONFIRMED ||
-              order.status === ImportOrderStatus.COMPLETED
-            ? "Xem chi tiết đơn nhập"
-            : "Chờ xác nhận"}
-        </Text>
-      </TouchableOpacity>
+     
     </TouchableOpacity>
   );
 

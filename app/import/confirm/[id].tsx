@@ -238,7 +238,7 @@ const Confirm = () => {
             disabled={!isChecked}
             onPress={() => router.push("/import/sign/deliver-sign")}
             className={`px-5 py-4 rounded-full ${
-              isChecked ? "bg-[#0d1925]" : "bg-gray-400"
+              isChecked ? "bg-[#1677ff]" : "bg-gray-400"
             }`}
           >
             <Text className="text-white font-semibold text-sm text-center">

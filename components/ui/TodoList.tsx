@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import StyledButton from './StyledButton';
 
 interface TodoItem {
   id: string;
@@ -77,24 +78,14 @@ export const TodoList: React.FC<TodoListProps> = ({
               )}
             </TouchableOpacity>
           ))}
+       <StyledButton
+            title="Xác nhận"
+            onPress={() =>console.log("Xác nhận")}
+            style={{ marginTop: 12 }}
+          />
         </View>
 
-        {/* Progress */}
-        {/* <View style={styles.progressContainer}>
-          <Text style={styles.progressText}>
-            Hoàn thành: {items.filter(item => item.completed).length}/{items.length}
-          </Text>
-          <View style={styles.progressBar}>
-            <View
-              style={[
-                styles.progressFill,
-                {
-                  width: `${(items.filter(item => item.completed).length / items.length) * 100}%`,
-                },
-              ]}
-            />
-          </View>
-        </View> */}
+    
       </View>
     </View>
   );
