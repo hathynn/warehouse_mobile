@@ -129,6 +129,28 @@ const ImportOrderDetailsTable: React.FC<ImportOrderDetailsTableProps> = ({
   //Zone -> Floor -> Row -> Batch
   const sortedByLocation = useMemo(() => {
     return [...importOrderDetails].sort((a, b) => {
+      // Nếu cả 2 items đều chưa COMPLETED, sort theo ID số tăng dần
+      const aIsCompleted = a.status === ImportOrderStatus.COMPLETED;
+      const bIsCompleted = b.status === ImportOrderStatus.COMPLETED;
+      
+      if (!aIsCompleted && !bIsCompleted) {
+        // Sort theo ID số
+        const aId = parseInt(a.id);
+        const bId = parseInt(b.id);
+        
+        if (!isNaN(aId) && !isNaN(bId)) {
+          return aId - bId;
+        }
+        
+        // Fallback to string comparison if ID is not numeric
+        return a.id.localeCompare(b.id);
+      }
+      
+      // Nếu một cái completed một cái chưa, đưa completed xuống dưới
+      if (!aIsCompleted && bIsCompleted) return -1;
+      if (aIsCompleted && !bIsCompleted) return 1;
+      
+      // Nếu cả 2 đều completed, sort theo location như cũ
       const aLocation = getPrimaryLocation(a);
       const bLocation = getPrimaryLocation(b);
 
@@ -912,7 +934,7 @@ const styles = StyleSheet.create({
   quantityItem: {
     flexDirection: "column",
   },
-  quantityLabel: {
+ quantityLabel: {
     fontSize: 12,
     color: "#666",
     marginBottom: 4,

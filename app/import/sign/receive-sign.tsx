@@ -182,36 +182,9 @@ const SignReceiveScreen = () => {
         </Text>
       </View>
 
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Thông tin chi tiết đơn nhập</Text>
 
-        <View style={styles.row}>
-          <Text style={styles.label}>Mã đơn nhập</Text>
-          <View style={styles.badgeBlue}>
-            <Text style={styles.badgeText}>{importOrder?.importOrderId}</Text>
-          </View>
-        </View>
 
-        <View style={styles.row}>
-          <Text style={styles.label}>Ngày dự nhập</Text>
-          <Text style={styles.value}>
-            {importOrder?.dateReceived
-              ? new Date(importOrder.dateReceived).toLocaleString("vi-VN", {
-                  day: "2-digit",
-                  month: "2-digit",
-                  year: "numeric",
-                })
-              : "--"}
-          </Text>
-        </View>
-
-        <View style={styles.row}>
-          <Text style={styles.label}>Giờ dự nhập</Text>
-          <Text style={styles.value}>{importOrder?.timeReceived}</Text>
-        </View>
-      </View>
-
-      <View style={{ paddingHorizontal: 16 }}>
+      <View style={{ paddingHorizontal: 16, paddingTop:16 }}>
         {/* <Label>Xác nhận thông tin sản phẩm</Label> */}
         <ProductListAccordion products={products} />
       </View>
@@ -325,7 +298,7 @@ const SignReceiveScreen = () => {
                 <ActivityIndicator color="white" />
               ) : (
                 <Text style={{ color: "white" }}>
-                  Tạo chứng từ
+                  Xác nhận
                 </Text>
               )}
             </TouchableOpacity>

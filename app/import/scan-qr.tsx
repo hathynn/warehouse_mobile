@@ -30,9 +30,9 @@ export default function ScanQrScreen() {
   const [lastScannedProduct, setLastScannedProduct] = useState<any | null>(
     null
   );
-const [canScan, setCanScan] = useState(true);
-const isFocused = useIsFocused();
-const scanInProgress = useRef(false);
+  const [canScan, setCanScan] = useState(true);
+  const isFocused = useIsFocused();
+  const scanInProgress = useRef(false);
 
   const importOrderId = useSelector(
     (state: RootState) => state.paper.importOrderId
@@ -46,8 +46,6 @@ const scanInProgress = useRef(false);
   const dispatch = useDispatch();
   const productsScanned = products.filter((p) => p.actual > 0).length;
 
-
-
   useEffect(() => {
     (async () => {
       const { status } = await Camera.requestCameraPermissionsAsync();
@@ -56,74 +54,76 @@ const scanInProgress = useRef(false);
   }, []);
 
   useEffect(() => {
-  const loadBeep = async () => {
-    const { sound } = await Audio.Sound.createAsync(
-      require("@/assets/beep-07a.mp3")
-    );
-    setBeepSound(sound);
-  };
+    const loadBeep = async () => {
+      const { sound } = await Audio.Sound.createAsync(
+        require("@/assets/beep-07a.mp3")
+      );
+      setBeepSound(sound);
+    };
 
-  loadBeep();
+    loadBeep();
 
-  return () => {
-    beepSound?.unloadAsync(); // cleanup khi unmount
-  };
-}, []);
+    return () => {
+      beepSound?.unloadAsync(); // cleanup khi unmount
+    };
+  }, []);
 
-
-const playBeep = async () => {
-  try {
-    if (beepSound) {
-      await beepSound.stopAsync(); // dừng nếu đang phát
-      await beepSound.setPositionAsync(0); // quay lại đầu
-      await beepSound.playAsync(); // phát lại
+  const playBeep = async () => {
+    try {
+      if (beepSound) {
+        await beepSound.stopAsync(); // dừng nếu đang phát
+        await beepSound.setPositionAsync(0); // quay lại đầu
+        await beepSound.playAsync(); // phát lại
+      }
+    } catch (err) {
+      console.warn("Không thể phát âm thanh:", err);
     }
-  } catch (err) {
-    console.warn("Không thể phát âm thanh:", err);
-  }
-};
+  };
 
   const handleBarCodeScanned = async ({ data }: { data: string }) => {
-  if (!isFocused || !canScan || scanInProgress.current) return;
+    if (!isFocused || !canScan || scanInProgress.current) return;
 
-  scanInProgress.current = true;
-  setCanScan(false); // chặn thêm
+    scanInProgress.current = true;
+    setCanScan(false); // chặn thêm
 
-  try {
-    const qrData = JSON.parse(decodeURIComponent(data));
-    const foundProduct = products.find((product) => product.id === String(qrData.id));
+    try {
+      const qrData = JSON.parse(decodeURIComponent(data));
+      const foundProduct = products.find(
+        (product) => product.id === String(qrData.id)
+      );
 
-    if (!foundProduct) {
-      Alert.alert("⚠️ Sản phẩm không có trong đơn nhập.");
-      scanInProgress.current = false;
-      setCanScan(true);
-      return;
-    }
+      if (!foundProduct) {
+        Alert.alert("⚠️ Sản phẩm không có trong đơn nhập.");
+        scanInProgress.current = false;
+        setCanScan(true);
+        return;
+      }
 
-    await playBeep();
+      await playBeep();
 
-    dispatch(
-      updateProduct({
-        id: foundProduct.id,
+      dispatch(
+        updateProduct({
+          id: foundProduct.id,
+          actual: foundProduct.actual + 1,
+        })
+      );
+
+      setLastScannedProduct({
+        ...foundProduct,
         actual: foundProduct.actual + 1,
-      })
-    );
+      });
 
-    setLastScannedProduct(foundProduct);
-
-    setTimeout(() => {
-      setLastScannedProduct(null);
+      setTimeout(() => {
+        setLastScannedProduct(null);
+        scanInProgress.current = false;
+        setCanScan(true);
+      }, 2000);
+    } catch (error) {
+      Alert.alert("❌ Mã QR không hợp lệ.");
       scanInProgress.current = false;
       setCanScan(true);
-    }, 2000);
-  } catch (error) {
-    Alert.alert("❌ Mã QR không hợp lệ.");
-    scanInProgress.current = false;
-    setCanScan(true);
-  }
-};
-
-
+    }
+  };
 
   // Bấm tiếp tục
   const handleScanAgain = () => {
@@ -191,7 +191,8 @@ const playBeep = async () => {
             <View style={styles.productBox}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.productTitle}>
-                  {lastScannedProduct.id}
+                  {lastScannedProduct.id} - ({lastScannedProduct.actual}/
+                  {lastScannedProduct.expect})
                 </Text>
                 <Text style={styles.productName}>
                   {lastScannedProduct.name}

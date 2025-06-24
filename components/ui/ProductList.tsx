@@ -1,5 +1,12 @@
 import React from "react";
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ScrollView } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  TouchableOpacity,
+  ScrollView,
+} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
 type Product = {
@@ -44,24 +51,37 @@ const SimpleProductList: React.FC<Props> = ({
 
   const renderItem = ({ item: product }: { item: Product }) => {
     const { name, color } = getStatusIcon(product.actual, product.expect);
-    const statusBackground = getStatusBackground(product.actual, product.expect);
-    
+    const statusBackground = getStatusBackground(
+      product.actual,
+      product.expect
+    );
+
     return (
-      <TouchableOpacity 
+      <TouchableOpacity
         activeOpacity={onItemPress ? 0.7 : 1}
         onPress={() => onItemPress && onItemPress(product)}
       >
         <View style={[styles.item, { backgroundColor: "#FFFFFF" }]}>
           <View style={styles.productInfo}>
-            <View style={[styles.iconContainer, { backgroundColor: statusBackground }]}>
+            <View
+              style={[
+                styles.iconContainer,
+                { backgroundColor: statusBackground },
+              ]}
+            >
               <Ionicons name={name} size={18} color={color} />
             </View>
             <Text style={styles.productName} numberOfLines={1}>
               {product.name}
             </Text>
           </View>
-          
-          <View style={[styles.quantityContainer, { backgroundColor: statusBackground }]}>
+
+          <View
+            style={[
+              styles.quantityContainer,
+              { backgroundColor: statusBackground },
+            ]}
+          >
             <Text style={[styles.quantity, { color }]}>
               {product.actual}
               <Text style={styles.slash}>/</Text>
@@ -75,54 +95,74 @@ const SimpleProductList: React.FC<Props> = ({
 
   return (
     <View style={[styles.listContainer, style]}>
-    <View style={{ maxHeight: 130 }}>
-      <ScrollView
-        scrollEnabled={products.length > 2}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.container}
-      >
-        {products.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <Ionicons name="basket-outline" size={40} color="#BDBDBD" />
-            <Text style={styles.emptyText}>Không có sản phẩm nào</Text>
+      <View style={{ maxHeight: 305 }}>
+        <ScrollView
+          scrollEnabled={products.length > 2}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.container}
+        >
+          <View style={styles.titleWrapper}>
+            <Text style={styles.cardTitle}>Danh sách sản phẩm</Text>
           </View>
-        ) : (
-          products.map((product) => {
-            const { name, color } = getStatusIcon(product.actual, product.expect);
-            const statusBackground = getStatusBackground(product.actual, product.expect);
 
-            return (
-              <TouchableOpacity
-                key={`product-${product.id}`}
-                activeOpacity={onItemPress ? 0.7 : 1}
-                onPress={() => onItemPress && onItemPress(product)}
-              >
-                <View style={[styles.item, { backgroundColor: "#FFFFFF" }]}>
-                  <View style={styles.productInfo}>
-                    <View style={[styles.iconContainer, { backgroundColor: statusBackground }]}>
-                      <Ionicons name={name} size={18} color={color} />
+          {products.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <Ionicons name="basket-outline" size={40} color="#BDBDBD" />
+              <Text style={styles.emptyText}>Không có sản phẩm nào</Text>
+            </View>
+          ) : (
+            products.map((product) => {
+              const { name, color } = getStatusIcon(
+                product.actual,
+                product.expect
+              );
+              const statusBackground = getStatusBackground(
+                product.actual,
+                product.expect
+              );
+
+              return (
+                <TouchableOpacity
+                  key={`product-${product.id}`}
+                  activeOpacity={onItemPress ? 0.7 : 1}
+                  onPress={() => onItemPress && onItemPress(product)}
+                >
+                  <View style={[styles.item, { backgroundColor: "#FFFFFF" }]}>
+                    <View style={styles.productInfo}>
+                      <View
+                        style={[
+                          styles.iconContainer,
+                          { backgroundColor: statusBackground },
+                        ]}
+                      >
+                        <Ionicons name={name} size={18} color={color} />
+                      </View>
+                      <Text style={styles.productName} numberOfLines={1}>
+                        {product.name}
+                      </Text>
                     </View>
-                    <Text style={styles.productName} numberOfLines={1}>
-                      {product.name}
-                    </Text>
-                  </View>
 
-                  <View style={[styles.quantityContainer, { backgroundColor: statusBackground }]}>
-                    <Text style={[styles.quantity, { color }]}>
-                      {product.actual}
-                      <Text style={styles.slash}>/</Text>
-                      <Text style={styles.expected}>{product.expect}</Text>
-                    </Text>
+                    <View
+                      style={[
+                        styles.quantityContainer,
+                        { backgroundColor: statusBackground },
+                      ]}
+                    >
+                      <Text style={[styles.quantity, { color }]}>
+                        {product.actual}
+                        <Text style={styles.slash}>/</Text>
+                        <Text style={styles.expected}>{product.expect}</Text>
+                      </Text>
+                    </View>
                   </View>
-                </View>
-                <View style={styles.separator} />
-              </TouchableOpacity>
-            );
-          })
-        )}
-      </ScrollView>
+                  <View style={styles.separator} />
+                </TouchableOpacity>
+              );
+            })
+          )}
+        </ScrollView>
+      </View>
     </View>
-  </View>
   );
 };
 
@@ -162,7 +202,7 @@ const styles = StyleSheet.create({
   },
   productName: {
     fontSize: 16,
-    fontWeight: "500",
+    fontWeight: "400",
     color: "#212121",
     flex: 1,
   },
@@ -199,6 +239,17 @@ const styles = StyleSheet.create({
     color: "#757575",
     fontSize: 16,
     marginTop: 8,
+  },
+  titleWrapper: {
+    paddingLeft: 16,
+    marginTop: 16,
+    marginBottom: 10,
+  },
+
+  cardTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#333",
   },
 });
 
