@@ -297,10 +297,17 @@ function ExportListComponent() {
               year: "numeric",
             })}
           />
+          
         )}
+           <InfoRow
+          icon="time-outline"
+          title="Thời gian dự xuất"
+          value={request?.exportTime}
+        />
       </View>
 
       {/* Footer phiếu xuất */}
+     {/*
       {(() => {
         let buttonLabel = "Xem chi tiết phiếu xuất";
         let icon = "eye-outline";
@@ -339,7 +346,7 @@ function ExportListComponent() {
             <Text style={styles.buttonText}>{buttonLabel}</Text>
           </TouchableOpacity>
         );
-      })()}
+      })()} */}
     </TouchableOpacity>
   );
 
