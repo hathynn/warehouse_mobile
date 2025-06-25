@@ -183,14 +183,14 @@ const SignReceiveScreen = () => {
           Người nhận hàng ký
         </Text>
       </View>
-      <View style={styles.card}>
+      {/* <View style={styles.card}>
         <Text style={styles.cardTitle}>Thông tin chi tiết yêu cầu</Text>
 
         <View style={styles.row}>
-          {/* <Text style={styles.label}>Mã phiếu xuất</Text>
+          <Text style={styles.label}>Mã phiếu xuất</Text>
             <Text style={styles.valueBlue}>
               {exportRequest?.exportRequestId}
-            </Text> */}
+            </Text>
           <Text style={styles.label}>Mã phiếu</Text>
           <View style={styles.badgeBlue}>
             <Text style={styles.badgeText}>
@@ -245,14 +245,14 @@ const SignReceiveScreen = () => {
           <Text style={styles.value}>{exportRequest?.receiverPhone}</Text>
         </View>
 
-        {/* <View style={styles.row}>
+        <View style={styles.row}>
             <Text style={styles.label}>Tình trạng yêu cầu</Text>
             <Text style={styles.valueRed}>
               <StatusBadge status={exportRequest?.status || "UNKNOWN"} />
             </Text>
-          </View> */}
-      </View>
-      <View style={{ paddingHorizontal: 16 }}>
+          </View>
+      </View> */}
+      <View style={{ paddingHorizontal: 16, paddingTop:16 }}>
         <SimpleProductList
           products={exportDetails.map((item) => ({
             id: item.id,
@@ -362,7 +362,7 @@ const SignReceiveScreen = () => {
               {isLoading ? (
                 <ActivityIndicator color="white" />
               ) : (
-                <Text style={{ color: "white" }}>Tạo chứng từ</Text>
+                <Text style={{ color: "white" }}>Xác nhận</Text>
               )}
             </TouchableOpacity>
           </View>
