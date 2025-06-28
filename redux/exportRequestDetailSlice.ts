@@ -1,13 +1,19 @@
-// exportRequestDetailSlice.ts
 import { ExportRequestDetailType } from "@/types/exportRequestDetail.type";
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 
+interface ScanMapping {
+  inventoryItemId: string;
+  exportRequestDetailId: string;
+}
+
 interface ExportRequestDetailState {
   details: ExportRequestDetailType[];
+  scanMappings: ScanMapping[];
 }
 
 const initialState: ExportRequestDetailState = {
   details: [],
+  scanMappings: [],
 };
 
 const exportRequestDetailSlice = createSlice({
@@ -32,9 +38,13 @@ const exportRequestDetailSlice = createSlice({
         item.inventoryItemIds.push(inventoryItemId);
       }
     },
+
+    setScanMappings: (state, action: PayloadAction<ScanMapping[]>) => {
+      state.scanMappings = action.payload;
+    },
   },
 });
 
-export const { setExportRequestDetail, updateActualQuantity } =
+export const { setExportRequestDetail, updateActualQuantity, setScanMappings } =
   exportRequestDetailSlice.actions;
 export default exportRequestDetailSlice.reducer;

@@ -36,6 +36,10 @@ export default function ScanQrScreen() {
     null
   );
 
+  const scanMappings = useSelector(
+    (state: RootState) => state.exportRequestDetail.scanMappings
+  );
+
   const [beepSound, setBeepSound] = useState<Audio.Sound | null>(null);
 
   useEffect(() => {
@@ -90,49 +94,44 @@ export default function ScanQrScreen() {
     setIsProcessing(true);
 
     try {
-      const keyValuePairs = data.split(";");
-      const parsed: Record<string, string> = {};
-      keyValuePairs.forEach((pair) => {
-        const [key, value] = pair.split("=");
-        if (key && value) {
-          parsed[key.trim()] = value.trim();
-        }
-      });
+      const rawInventoryItemId = data.trim(); // chỉ 1 dòng QR
+      const normalizedId = rawInventoryItemId.toLowerCase(); // hoặc .toUpperCase() nếu Redux lưu là UPPERCASE
 
-      const exportRequestDetailId = parsed.exportRequestDetailId;
-      const inventoryItemId = parsed.inventoryItemId;
+      console.log("📦 Raw QR data:", data);
+      console.log("🔍 inventoryItemId:", normalizedId);
 
-      if (!exportRequestDetailId || !inventoryItemId) {
-        throw new Error("QR không hợp lệ: Thiếu dữ liệu.");
-      }
-
-      const matched = exportDetails.find(
-        (detail) => detail.id.toString() === exportRequestDetailId
+      const mapping = scanMappings.find(
+        (m) => m.inventoryItemId.toLowerCase() === normalizedId
       );
+      const exportRequestDetailId = mapping.exportRequestDetailId;
+      const inventoryItemIdForApi = mapping.inventoryItemId;
+
+      const matched = exportDetails.find((d) => d.id === exportRequestDetailId);
 
       if (!matched) {
-        throw new Error(
-          "Không tìm thấy exportRequestDetailId trong danh sách."
-        );
+        throw new Error("Không tìm thấy exportRequestDetail trong danh sách.");
       }
 
       if (matched.actualQuantity >= matched.quantity) {
-        throw new Error("Sản phẩm này đã được quét đủ số lượng.");
+        throw new Error("Sản phẩm đã được quét đủ.");
       }
+
+      console.log("🔍 Gửi API với:", {
+        exportRequestDetailId,
+        inventoryItemIdForApi,
+      });
 
       const success = await updateActualQuantity(
         exportRequestDetailId,
-        inventoryItemId
+        inventoryItemIdForApi.toUpperCase()
       );
 
-      if (!success) {
-        throw new Error("Lỗi khi cập nhật số liệu thực tế của sản phẩm.");
-      }
+      if (!success) throw new Error("Lỗi cập nhật số lượng");
 
       await playBeep();
       setLastScannedProduct(matched);
       setErrorMessage(null);
-      setTimeout(() => setLastScannedProduct(null), 2000);
+      setTimeout(() => setLastScannedProduct(null), 4000);
     } catch (err: any) {
       const message =
         err?.response?.data?.message || err?.message || "Lỗi không xác định";
@@ -150,8 +149,8 @@ export default function ScanQrScreen() {
       setErrorMessage(displayMessage);
     } finally {
       setIsProcessing(false);
-      
-      setTimeout(() => setScanningEnabled(true), 3500); 
+
+      setTimeout(() => setScanningEnabled(true), 3500);
     }
   };
 
