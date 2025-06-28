@@ -13,7 +13,7 @@ import useExportRequest from "@/services/useExportRequestService";
 import useExportRequestDetail from "@/services/useExportRequestDetailService";
 import { router } from "expo-router";
 import { useDispatch, useSelector } from "react-redux";
-import { setExportRequestDetail } from "@/redux/exportRequestDetailSlice";
+import { setExportRequestDetail, setScanMappings } from "@/redux/exportRequestDetailSlice";
 import { RootState, store } from "@/redux/store";
 import { ExportRequestStatus } from "@/types/exportRequest.type";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -64,25 +64,46 @@ const ExportRequestScreen: React.FC = () => {
   const { loading: loadingDetails, fetchExportRequestDetails } =
     useExportRequestDetail();
 
-  useFocusEffect(
-    React.useCallback(() => {
-      if (id) {
-        fetchExportRequestById(id);
-        fetchExportRequestDetails(id, 1, 100).then((newData) => {
-          const refreshedDetails = newData.map((item) => ({
-            ...item,
-            actualQuantity: item.actualQuantity ?? 0,
-            inventoryItemIds: item.inventoryItemIds ?? [],
-          }));
-          dispatch(setExportRequestDetail(refreshedDetails));
-        });
-      }
-    }, [id])
-  );
+    const scanMappings = useSelector(
+  (state: RootState) => state.exportRequestDetail.scanMappings
+);
+
+
+useFocusEffect(
+  React.useCallback(() => {
+    if (id) {
+      fetchExportRequestById(id);
+      fetchExportRequestDetails(id, 1, 100).then((newData) => {
+        const refreshedDetails = newData.map((item) => ({
+          ...item,
+          actualQuantity: item.actualQuantity ?? 0,
+          inventoryItemIds: item.inventoryItemIds ?? [],
+        }));
+
+        dispatch(setExportRequestDetail(refreshedDetails));
+
+        // 👇 Tạo mapping từ inventoryItemId => exportRequestDetailId
+        const mappings = refreshedDetails.flatMap((detail) =>
+          (detail.inventoryItemIds ?? []).map((inventoryItemId: string) => ({
+            inventoryItemId: inventoryItemId.trim().toLowerCase(),
+            exportRequestDetailId: detail.id,
+          }))
+        );
+        dispatch(setScanMappings(mappings));
+      });
+    }
+  }, [id])
+);
+
+
 
   const savedExportRequestDetails = useSelector(
     (state: RootState) => state.exportRequestDetail.details
   );
+// useEffect(() => {
+//   console.log("🟦 [Redux] savedExportRequestDetails:", savedExportRequestDetails);
+//   console.log("🟩 [Redux] scanMappings:", scanMappings);
+// }, [savedExportRequestDetails, scanMappings]);
 
   if (loadingRequest || loadingDetails) {
     return (
