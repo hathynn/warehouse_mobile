@@ -1,35 +1,44 @@
 import { useState, useCallback } from "react";
 import useApiService from "./useApi";
+import { InventoryItemType } from "@/types/inventoryItem.types";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import axios from "axios";
 
-const BASE_URL = "https://warehouse-backend-jlcj5.ondigitalocean.app";
+const INVENTORY_URL =
+  "https://warehouse-backend-jlcj5.ondigitalocean.app/inventory-item/import-order-detail";
 
 const useInventoryService = () => {
   const { callApi, setIsLoading, loading } = useApiService();
+  const [inventoryItems, setInventoryItems] = useState<InventoryItemType[]>([]);
 
   const fetchInventoryItemsByImportOrderDetailId = useCallback(
-    async (importOrderDetailId: string, page = 1, limit = 100) => {
+    async (importOrderDetailId: number, page = 1, limit = 999) => {
       if (!importOrderDetailId) return [];
-      setIsLoading(true);
-     
-      try {
-        const res = await callApi(
-          "get",
-          `${BASE_URL}/inventory-item/import-order-detail/${importOrderDetailId}`,
-          undefined, // không có body cho GET
-          { params: { page, limit } } // → đây mới là config được truyền xuống axios
-        );
-//  console.log("ID:",importOrderDetailId)
-//         console.log("📦 API trả về:", res.metaDataDTO);
 
-        return res.content || [];
-      } catch (err) {
-        console.error("Lỗi khi gọi inventory items:", err);
+      const token = await AsyncStorage.getItem("access_token");
+      setIsLoading(true);
+
+      try {
+        const response = await axios.get(
+          `https://warehouse-backend-jlcj5.ondigitalocean.app/inventory-item/import-order-detail/${importOrderDetailId}`,
+          {
+            params: { page, limit },
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        setInventoryItems(response.data.content || []);
+        return response.data.content || [];
+      } catch (error) {
+        console.error("Lỗi khi lấy inventory items:", error);
         return [];
       } finally {
         setIsLoading(false);
       }
     },
-    [callApi, setIsLoading]
+    [setIsLoading]
   );
 
   return { loading, fetchInventoryItemsByImportOrderDetailId };

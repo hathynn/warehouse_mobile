@@ -42,6 +42,7 @@ const ImportOrderScreen: React.FC = () => {
   const dispatch = useDispatch();
   const { fetchImportOrderDetailById, fetchImportOrderDetails } =
     useImportOrderDetailService();
+    const { updateImportOrderToStored } = useImportOrder();
   const [importOrderDetails, setImportOrderDetails] = useState<any[]>([]);
   const [showTodoList, setShowTodoList] = useState(false);
   const [todoItems, setTodoItems] = useState<TodoItem[]>([
@@ -79,7 +80,7 @@ const ImportOrderScreen: React.FC = () => {
       zone: getPart("Zone"),
       floor: getPart("Floor"),
       row: getPart("Row"),
-      batch: getPart("Batch"),
+      line: getPart("Line"),
     };
   };
 
@@ -143,11 +144,14 @@ const ImportOrderScreen: React.FC = () => {
                     zone: "Không rõ vị trí",
                     floor: "Không rõ vị trí",
                     row: "Không rõ vị trí",
-                    batch: "Không rõ vị trí",
+                    line: "Không rõ vị trí",
                   },
             })),
+            
           };
+          
         })
+        
       );
 
       // 3. Bỏ null nếu có dòng lỗi
@@ -186,7 +190,7 @@ const ImportOrderScreen: React.FC = () => {
         </TouchableOpacity>
         
       
-        {importOrder?.status === ImportOrderStatus.COMPLETED ? (
+        {importOrder?.status === ImportOrderStatus.READYTOSTORED ? (
           <>
             <Text
               style={{
@@ -368,15 +372,26 @@ const ImportOrderScreen: React.FC = () => {
         <ImportOrderDetailsTable importOrderDetails={importOrderDetails} />
       </ScrollView>
 
-      {/* Todo List Modal - chỉ hiển thị khi status là COMPLETED */}
-      {importOrder?.status === ImportOrderStatus.COMPLETED && (
-        <TodoList
-          items={todoItems}
-          visible={showTodoList}
-          onClose={() => setShowTodoList(false)}
-          onItemToggle={handleTodoToggle}
-        />
-      )}
+     
+      {importOrder?.status === ImportOrderStatus.READYTOSTORED && (
+  <TodoList
+    items={todoItems}
+    visible={showTodoList}
+    onClose={() => setShowTodoList(false)}
+    onItemToggle={handleTodoToggle}
+    onSubmit={async () => {
+      try {
+        await updateImportOrderToStored(importOrder.importOrderId);
+        // reload lại dữ liệu để cập nhật status mới là STORED
+        await fetchImportOrderById(importOrder.importOrderId);
+        setShowTodoList(false);
+      } catch (error) {
+        console.error("Cập nhật trạng thái thất bại:", error);
+      }
+    }}
+  />
+)}
+
     </View>
   );
 };

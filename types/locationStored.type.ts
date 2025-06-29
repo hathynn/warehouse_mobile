@@ -3,7 +3,7 @@ export interface StoredLocation {
   zone: string;
   floor: string;
   row: string;
-  batch: string;
+  line: string;
   is_used: boolean;
   is_fulled: boolean;
 }

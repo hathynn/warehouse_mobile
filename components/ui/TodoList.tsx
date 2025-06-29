@@ -12,9 +12,10 @@ interface TodoItem {
 
 interface TodoListProps {
   items: TodoItem[];
-  onItemToggle: (itemId: string) => void;
   visible: boolean;
-  onClose?: () => void;
+  onClose: () => void;
+  onItemToggle: (id: string) => void;
+  onSubmit?: () => void; // mới thêm
 }
 
 export const TodoList: React.FC<TodoListProps> = ({
@@ -22,6 +23,7 @@ export const TodoList: React.FC<TodoListProps> = ({
   onItemToggle,
   visible,
   onClose,
+  onSubmit,
 }) => {
   if (!visible) return null;
 
@@ -77,11 +79,13 @@ export const TodoList: React.FC<TodoListProps> = ({
               )}
             </TouchableOpacity>
           ))}
-          <StyledButton
-            title="Xác nhận"
-            onPress={() => console.log("Xác nhận")}
-            style={{ marginTop: 12 }}
-          />
+          {items.every((item) => item.completed) && (
+            <StyledButton
+              title="Xác nhận"
+              onPress={onSubmit}
+              style={{ marginTop: 12 }}
+            />
+          )}
         </View>
       </View>
     </View>
