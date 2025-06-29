@@ -88,6 +88,22 @@ export default function ReceiptDetail() {
           (order: any) => order.status === ImportOrderStatus.COMPLETED
         ).length,
       },
+      {
+        key: "READYTOSTORED",
+        title: "Chờ nhập kho",
+        status: ImportOrderStatus.READYTOSTORED,
+        count: validOrders.filter(
+          (order: any) => order.status === ImportOrderStatus.COMPLETED
+        ).length,
+      },
+      {
+        key: "STORED",
+        title: "Đã nhập kho",
+        status: ImportOrderStatus.STORED,
+        count: validOrders.filter(
+          (order: any) => order.status === ImportOrderStatus.COMPLETED
+        ).length,
+      },
     ];
   };
 

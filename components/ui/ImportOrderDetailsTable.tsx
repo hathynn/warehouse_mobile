@@ -26,7 +26,7 @@ interface ImportOrderDetailItem {
       zone: string;
       floor: string;
       row: string;
-      batch: string;
+      line: string;
     };
   }[];
 }
@@ -80,7 +80,7 @@ const ImportOrderDetailsTable: React.FC<ImportOrderDetailsTableProps> = ({
         zone: "Không rõ vị trí",
         floor: "Không rõ vị trí",
         row: "Không rõ vị trí",
-        batch: "Không rõ vị trí",
+        line: "Không rõ vị trí",
       };
     }
 
@@ -95,7 +95,7 @@ const ImportOrderDetailsTable: React.FC<ImportOrderDetailsTableProps> = ({
         const rowCompare = sortFloorRow(a.row, b.row);
         if (rowCompare !== 0) return rowCompare;
 
-        return naturalSort(a.batch, b.batch);
+        return naturalSort(a.line, b.line);
       }
     );
 
@@ -126,7 +126,7 @@ const ImportOrderDetailsTable: React.FC<ImportOrderDetailsTableProps> = ({
     return naturalSort(a, b);
   };
 
-  //Zone -> Floor -> Row -> Batch
+  //Zone -> Floor -> Row -> line
   const sortedByLocation = useMemo(() => {
     return [...importOrderDetails].sort((a, b) => {
       // Nếu cả 2 items đều chưa COMPLETED, sort theo ID số tăng dần
@@ -173,8 +173,8 @@ const ImportOrderDetailsTable: React.FC<ImportOrderDetailsTableProps> = ({
       const rowCompare = sortFloorRow(aLocation.row, bLocation.row);
       if (rowCompare !== 0) return rowCompare;
 
-      const batchCompare = naturalSort(aLocation.batch, bLocation.batch);
-      if (batchCompare !== 0) return batchCompare;
+      const lineCompare = naturalSort(aLocation.line, bLocation.line);
+      if (lineCompare !== 0) return lineCompare;
 
       return naturalSort(a.productName, b.productName);
     });
@@ -211,7 +211,12 @@ const ImportOrderDetailsTable: React.FC<ImportOrderDetailsTableProps> = ({
 
   const renderDetailItem = ({ item }: { item: ImportOrderDetailItem }) => {
     const isCompleted = item.status === ImportOrderStatus.COMPLETED;
-
+  // console.log("🔍 line", {
+  //   id: item.id,
+  //   productName: item.productName,
+  //   totalProducts: item.products.length,
+  //   products: item.products
+  // });
     const progressPercentage = Math.round(
       (item.countedQuantity / item.expectedQuantity) * 100
     );
@@ -226,33 +231,33 @@ const ImportOrderDetailsTable: React.FC<ImportOrderDetailsTableProps> = ({
 
     // Group products by location and format location string
     const locationGroups = item.products.reduce((acc, product) => {
-      const { zone, floor, row, batch } = product.location;
+      const { zone, floor, row, line } = product.location;
 
-      const isUnknown = [zone, floor, row, batch].every(
+      const isUnknown = [zone, floor, row, line].every(
         (v) => v === "Không rõ vị trí"
       );
 
       const locationKey = isUnknown
         ? "Không rõ vị trí"
-        : `${zone} - ${floor} - ${row} - ${batch}`;
+        : `${zone} - ${floor} - ${row} - ${line}`;
 
       if (!acc[locationKey]) acc[locationKey] = 0;
       acc[locationKey]++;
       return acc;
     }, {} as Record<string, number>);
 
-    // Sort location groups by zone -> floor -> row -> batch
+    // Sort location groups by zone -> floor -> row -> line
     const sortedLocationGroups = Object.entries(locationGroups).sort(
       ([a], [b]) => {
         if (a === "Không rõ vị trí") return 1;
         if (b === "Không rõ vị trí") return -1;
 
-        const [zoneA, floorA, rowA, batchA] = a.split(" - ");
-        const [zoneB, floorB, rowB, batchB] = b.split(" - ");
+        const [zoneA, floorA, rowA, lineA] = a.split(" - ");
+        const [zoneB, floorB, rowB, lineB] = b.split(" - ");
         console.log(
           "🧾 So sánh:",
-          { zoneA, floorA, rowA, batchA },
-          { zoneB, floorB, rowB, batchB }
+          { zoneA, floorA, rowA, lineA },
+          { zoneB, floorB, rowB, lineB }
         );
 
         const zoneCompare = sortZones(zoneA, zoneB);
@@ -264,7 +269,7 @@ const ImportOrderDetailsTable: React.FC<ImportOrderDetailsTableProps> = ({
         const rowCompare = sortFloorRow(rowA, rowB);
         if (rowCompare !== 0) return rowCompare;
 
-        return naturalSort(batchA, batchB);
+        return naturalSort(lineA, lineB);
       }
     );
 

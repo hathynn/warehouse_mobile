@@ -11,8 +11,11 @@ const getStatusStyle = (status: string) => {
       return { backgroundColor: "#213448", textColor: "#fff", label: "Chờ xác nhận" };
     case "COMPLETED":
       return { backgroundColor: "#52c41a", textColor: "#fff", label: "Hoàn tất" };
-    case "CANCELLED":
-      return { backgroundColor: "#FFEBEE", textColor: "#F44336", label: "Đã huỷ" };
+    case "READYTOSTORED":
+      return { backgroundColor: "#213448", textColor: "#fff", label: "Chờ nhập kho" };
+      case "COMPLETED":
+      return { backgroundColor: "#52c41a", textColor: "#fff", label: "Đã nhập kho" };
+  
 
     // 🚚 EXPORT STATUS
     case "COUNT_CONFIRMED":
@@ -22,6 +25,8 @@ const getStatusStyle = (status: string) => {
     case "WAITING_EXPORT":
       return { backgroundColor: "#faad14", textColor: "#fff", label: "Chờ xuất kho" };
 
+    case "CANCELLED":
+      return { backgroundColor: "#FFEBEE", textColor: "#F44336", label: "Đã huỷ" };
     default:
       return { backgroundColor: "#d9d9d9", textColor: "#000", label: "Không rõ" };
   }
