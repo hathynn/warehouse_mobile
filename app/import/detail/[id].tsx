@@ -190,7 +190,7 @@ const ImportOrderScreen: React.FC = () => {
         </TouchableOpacity>
         
       
-        {importOrder?.status === ImportOrderStatus.READYTOSTORED ? (
+        {importOrder?.status === ImportOrderStatus.READY_TO_STORE ? (
           <>
             <Text
               style={{
@@ -373,7 +373,7 @@ const ImportOrderScreen: React.FC = () => {
       </ScrollView>
 
      
-      {importOrder?.status === ImportOrderStatus.READYTOSTORED && (
+      {importOrder?.status === ImportOrderStatus.READY_TO_STORE && (
   <TodoList
     items={todoItems}
     visible={showTodoList}
