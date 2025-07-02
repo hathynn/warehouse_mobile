@@ -11,10 +11,12 @@ const getStatusStyle = (status: string) => {
       return { backgroundColor: "#213448", textColor: "#fff", label: "Chờ xác nhận" };
     case "COMPLETED":
       return { backgroundColor: "#52c41a", textColor: "#fff", label: "Hoàn tất" };
-    case "READYTOSTORED":
+    case "READY_TO_STORE":
       return { backgroundColor: "#213448", textColor: "#fff", label: "Chờ nhập kho" };
-      case "COMPLETED":
+    case "STORED":
       return { backgroundColor: "#52c41a", textColor: "#fff", label: "Đã nhập kho" };
+      case "COMPLETED":
+      return { backgroundColor: "#52c41a", textColor: "#fff", label: "Hoàn tất" };
   
 
     // 🚚 EXPORT STATUS

@@ -89,9 +89,9 @@ export default function ReceiptDetail() {
         ).length,
       },
       {
-        key: "READYTOSTORED",
+        key: "READY_TO_STORE",
         title: "Chờ nhập kho",
-        status: ImportOrderStatus.READYTOSTORED,
+        status: ImportOrderStatus.READY_TO_STORE,
         count: validOrders.filter(
           (order: any) => order.status === ImportOrderStatus.COMPLETED
         ).length,

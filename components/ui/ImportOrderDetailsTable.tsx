@@ -210,7 +210,7 @@ const ImportOrderDetailsTable: React.FC<ImportOrderDetailsTableProps> = ({
 
 
   const renderDetailItem = ({ item }: { item: ImportOrderDetailItem }) => {
-    const isCompleted = item.status === ImportOrderStatus.COMPLETED;
+    const isCompleted = item.status === ImportOrderStatus.READY_TO_STORE;
   // console.log("🔍 line", {
   //   id: item.id,
   //   productName: item.productName,
