@@ -49,6 +49,8 @@ const ExportRequestScreen: React.FC = () => {
         return "Xuất lẻ";
       case "PRODUCTION":
         return "Xuất sản xuất";
+      case "SELLING":
+        return "Xuất bán";
       default:
         return "Không xác định";
     }
@@ -100,10 +102,10 @@ useFocusEffect(
   const savedExportRequestDetails = useSelector(
     (state: RootState) => state.exportRequestDetail.details
   );
-// useEffect(() => {
-//   console.log("🟦 [Redux] savedExportRequestDetails:", savedExportRequestDetails);
-//   console.log("🟩 [Redux] scanMappings:", scanMappings);
-// }, [savedExportRequestDetails, scanMappings]);
+useEffect(() => {
+  console.log("🟦 [Redux] savedExportRequestDetails:", savedExportRequestDetails);
+  console.log("🟩 [Redux] scanMappings:", scanMappings);
+}, [savedExportRequestDetails, scanMappings]);
 
   if (loadingRequest || loadingDetails) {
     return (
@@ -255,7 +257,7 @@ useFocusEffect(
       case ExportRequestStatus.WAITING_EXPORT:
         return (
           <StyledButton
-            title="Tạo chứng từ"
+            title="Xác nhận xuất kho"
             onPress={() => router.push(`/export/sign/warehouse-sign?id=${id}`)}
             style={{ marginTop: 12 }}
           />
@@ -363,7 +365,7 @@ useFocusEffect(
           <View style={styles.row}>
             <Text style={styles.label}>Tình trạng yêu cầu</Text>
             <Text style={styles.valueRed}>
-              <StatusBadge status={exportRequest?.status || "UNKNOWN"} />
+              <StatusBadge status={exportRequest?.status || "UNKNOWN"} flow="export"/>
             </Text>
           </View>
         </View>

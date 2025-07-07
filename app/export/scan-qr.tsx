@@ -103,9 +103,16 @@ export default function ScanQrScreen() {
       const mapping = scanMappings.find(
         (m) => m.inventoryItemId.toLowerCase() === normalizedId
       );
+
+      console.log("🔍 Mapping found:", mapping);
+      if (!mapping) {
+        throw new Error(
+          `Không tìm thấy mapping tương ứng cho mã QR: ${normalizedId}`
+        );
+      }
+
       const exportRequestDetailId = mapping.exportRequestDetailId;
       const inventoryItemIdForApi = mapping.inventoryItemId;
-
       const matched = exportDetails.find((d) => d.id === exportRequestDetailId);
 
       if (!matched) {

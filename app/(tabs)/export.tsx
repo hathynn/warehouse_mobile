@@ -73,7 +73,7 @@ const StatusBadge = ({ status }: { status: ExportRequestStatus }) => {
         };
       case ExportRequestStatus.COUNTED:
         return {
-          label: "Chờ xác nhận",
+          label: "Đã đóng gói",
           color: "#FFF",
           bgColor: "#03A9F4",
         };
@@ -165,7 +165,7 @@ function ExportListComponent() {
       },
       {
         key: "COUNTED",
-        title: "Chờ xác nhận",
+        title: "Đã đóng gói",
         status: ExportRequestStatus.COUNTED,
         count: validRequests.filter(
           (request: ExportRequestType) =>
@@ -299,11 +299,7 @@ function ExportListComponent() {
           />
           
         )}
-           <InfoRow
-          icon="time-outline"
-          title="Thời gian dự xuất"
-          value={request?.exportTime}
-        />
+      
       </View>
 
       {/* Footer phiếu xuất */}
