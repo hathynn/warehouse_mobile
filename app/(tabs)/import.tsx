@@ -226,7 +226,7 @@ export default function ReceiptDetail() {
           <Ionicons name="cube-outline" size={20} color="#1677ff" />
           <Text style={styles.orderId}>{order.importOrderId}</Text>
         </View>
-        <StatusBadge status={order.status} />
+        <StatusBadge status={order.status} flow="import"/>
       </View>
 
       {/* Nội dung đơn nhập */}

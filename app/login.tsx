@@ -49,7 +49,7 @@ const LoginScreen = () => {
 
       // ✅ Replace sang tab import và truyền userId
       setTimeout(() => {
-        router.replace("/(tabs)/import");
+        router.replace("/(tabs)/home");
       }, 200);
     } catch (error: any) {
       console.error("Login error:", error?.response?.data || error.message);

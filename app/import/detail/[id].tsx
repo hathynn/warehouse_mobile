@@ -266,7 +266,7 @@ const ImportOrderScreen: React.FC = () => {
             <Text style={styles.label}>Tình trạng</Text>
             <View>
               {importOrder?.status && (
-                <StatusBadge status={importOrder.status} />
+                <StatusBadge status={importOrder.status} flow="import" />
               )}
             </View>
           </View>
