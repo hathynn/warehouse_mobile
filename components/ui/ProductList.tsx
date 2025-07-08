@@ -95,7 +95,7 @@ const SimpleProductList: React.FC<Props> = ({
 
   return (
     <View style={[styles.listContainer, style]}>
-      <View style={{ maxHeight: 305 }}>
+      <View style={{ maxHeight: 230 }}>
         <ScrollView
           scrollEnabled={products.length > 2}
           showsVerticalScrollIndicator={false}
@@ -243,11 +243,11 @@ const styles = StyleSheet.create({
   titleWrapper: {
     paddingLeft: 16,
     marginTop: 16,
-    marginBottom: 10,
+    marginBottom:4,
   },
 
   cardTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: "600",
     color: "#333",
   },

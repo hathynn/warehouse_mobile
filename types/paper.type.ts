@@ -1,7 +1,7 @@
 export interface PaperType {
     id?: number | ""; 
     signProviderUrl: string; 
-    signWarehouseUrl: string; 
+    signReceiverUrl: string; 
     description: string; 
     importOrderId: number; 
     exportRequestId: number; 

@@ -87,7 +87,7 @@ export default function PaperDetailScreen() {
           <View>
             <Text className="mb-1 text-gray-600 text-center pt-5 pb-3">Chữ ký người nhận</Text>
             <Image
-              source={{ uri: paper.signWarehouseUrl }}
+              source={{ uri: paper.signReceiverUrl }}
               style={{ width: "100%", height: 300 }}
               resizeMode="contain"
               className="border rounded-xl border-gray-300"

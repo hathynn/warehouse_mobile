@@ -5,7 +5,9 @@ interface PaperState {
     importOrderId: string | null;
     exportRequestId: string | null;
     signProviderUrl: string | null; // Lưu Base64 string
-    signWarehouseUrl: string | null; // Lưu Base64 string
+    signReceiverUrl: string | null; // Lưu Base64 string
+    signProviderName: string | null;
+    signReceiverName: string | null;
     description: string;
   }
   
@@ -14,7 +16,9 @@ const initialState: PaperState = {
   importOrderId: null,
   exportRequestId: null,
   signProviderUrl: null,
-  signWarehouseUrl: null,
+  signReceiverUrl: null,
+  signProviderName: null,
+  signReceiverName:null,
   description: "",
 };
 
