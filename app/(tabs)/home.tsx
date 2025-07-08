@@ -8,6 +8,7 @@ const formatDate = (date) => {
 };
 import { RootState } from "@/redux/store";
 import useAccountService from "@/services/useAccountService";
+import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useState, useEffect } from "react";
 import {
@@ -155,7 +156,7 @@ const MainDashboard = () => {
       {/* Date Section */}
       <View style={styles.dateSection}>
         <View style={styles.dateContainer}>
-          <Text style={styles.dateIcon}>📅</Text>
+          <Ionicons name="calendar" size={17} color="white" />
           <Text style={styles.dateText}>{formatDate(currentTime)}</Text>
         </View>
       </View>
@@ -291,6 +292,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   dateContainer: {
+    gap: 7,
     flexDirection: "row",
     alignItems: "center",
   },

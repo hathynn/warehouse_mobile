@@ -6,6 +6,7 @@ import {
   Text,
   ScrollView,
   StyleSheet,
+  TextInput,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Signature, { SignatureViewRef } from "react-native-signature-canvas";
@@ -30,6 +31,8 @@ const SignDeliverScreen = () => {
   const [scrollEnabled, setScrollEnabled] = useState(true);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [signature, setSignature] = useState<string | null>(null);
+  const [providerName, setProviderName] = useState<string>("");
+  
   const selectProducts = (state: RootState) => state.product.products;
   const selectImportOrderId = (state: RootState) => state.paper.importOrderId;
   const selectProductsByImportOrderId = createSelector(
@@ -106,6 +109,11 @@ const SignDeliverScreen = () => {
     }
   };
 
+  const handleProviderNameChange = (text: string) => {
+    setProviderName(text);
+    dispatch(setPaperData({ signProviderName: text }));
+  };
+
   return (
     <View style={{ flex: 1 }}>
       <View
@@ -137,11 +145,13 @@ const SignDeliverScreen = () => {
         </Text>
       </View>
 
-      <View style={{ paddingHorizontal: 16, paddingTop:16 }}>
+      <View style={{ paddingHorizontal: 16, paddingTop: 16 }}>
         <ProductListAccordion products={products} />
       </View>
 
       <View style={{ padding: 16 }}>
+       
+
         {/* Chọn phương thức ký */}
         <View style={{ alignItems: "center", marginBottom: 13 }}>
           <Text style={styles.label1}>
@@ -202,6 +212,18 @@ const SignDeliverScreen = () => {
           </View>
         </View>
 
+         {/* Input tên người giao hàng */}
+        <View style={{ marginBottom: 15}}>
+        
+          <TextInput
+            style={styles.textInput}
+            value={providerName}
+            onChangeText={handleProviderNameChange}
+            placeholder="Nhập tên người giao hàng"
+            placeholderTextColor="#999"
+          />
+        </View>
+
         {/* Khu vực ký */}
         {signMethod === "draw" ? (
           <View style={styles.signatureBox}>
@@ -245,67 +267,34 @@ const SignDeliverScreen = () => {
         )}
 
         {/* Hành động */}
-        {/* <View style={styles.actions}>
-          <Button onPress={handleClear} flex={1}>
-            Xóa
-          </Button>
-          <Button
-            onPress={() => router.push("/import/sign/receive-sign")}
-            flex={1}
-            style={{}}
-            backgroundColor="#1677ff"
-          >
-            Tiếp tục
-          </Button>
+        <View
+          style={{
+            flexDirection: "row",
+            justifyContent: "center",
+            marginVertical: 20,
+          }}
+        >
           <TouchableOpacity
-            onPress={() => router.push("/import/sign/receive-sign")}
+            onPress={handleClear}
             style={{
               flex: 1,
               paddingVertical: 12,
-              backgroundColor: "#1677ff",
+              backgroundColor: "#DDDDDD",
               borderRadius: 8,
-              marginLeft: 5,
+              marginRight: 5,
               alignItems: "center",
             }}
           >
             <Text
               style={{
-                color: "white",
+                color: "black",
               }}
             >
-              Chụp ảnh chữ ký
+              Xóa
             </Text>
           </TouchableOpacity>
-        </View> */}
 
-         <View
-            style={{
-              flexDirection: "row",
-              justifyContent: "center",
-              marginVertical: 20,
-            }}
-          >
-            <TouchableOpacity
-              onPress={handleClear}
-              style={{
-                flex: 1,
-                paddingVertical: 12,
-                backgroundColor: "#DDDDDD",
-                borderRadius: 8,
-                marginRight: 5,
-                alignItems: "center",
-              }}
-            >
-              <Text
-                style={{
-                  color: "black",
-                }}
-              >
-                Xóa
-              </Text>
-            </TouchableOpacity>
-
-        <TouchableOpacity
+          <TouchableOpacity
             onPress={() => router.push("/import/sign/receive-sign")}
             style={{
               flex: 1,
@@ -324,13 +313,29 @@ const SignDeliverScreen = () => {
               Tiếp tục
             </Text>
           </TouchableOpacity>
-          </View>
+        </View>
       </View>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
+  inputLabel: {
+    fontSize: 14,
+    fontWeight: "500",
+    marginBottom: 8,
+    color: "#333",
+  },
+  textInput: {
+    borderWidth: 1,
+    borderColor: "#ddd",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    fontSize: 16,
+    backgroundColor: "white",
+    color: "#333",
+  },
   label1: {
     fontWeight: "300",
     fontStyle: "italic",
@@ -338,7 +343,6 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     textAlign: "center",
   },
-
   signatureBox: {
     height: 300,
     borderWidth: 1,

@@ -28,6 +28,7 @@ import usePaperService from "@/services/usePaperService";
 import * as ImageManipulator from "expo-image-manipulator";
 import useImportOrder from "@/services/useImportOrderService";
 import StatusBadge from "@/components/StatusBadge";
+import useAccountService from "@/services/useAccountService";
 
 const SignReceiveScreen = () => {
   const insets = useSafeAreaInsets();
@@ -53,6 +54,32 @@ const SignReceiveScreen = () => {
   const importOrderId = useSelector(selectImportOrderId);
   const products = useSelector(selectProductsByImportOrderId);
   const paperData = useSelector((state: RootState) => state.paper);
+
+  const { getAccountByEmail } = useAccountService();
+
+  const email = useSelector((state: RootState) => state.auth.user?.email);
+  const [user, setUser] = useState({
+    name: "",
+    email: email || "",
+    phone: "",
+  });
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      if (email) {
+        const res = await getAccountByEmail(email);
+        if (res?.content) {
+          setUser((prev) => ({
+            ...prev,
+            name: res.content.fullName,
+            email: res.content.email,
+            phone: res.content.phone || "",
+          }));
+        }
+      }
+    };
+    fetchUser();
+  }, [email]);
   const {
     loading: loadingOrder,
     importOrder,
@@ -77,12 +104,12 @@ const SignReceiveScreen = () => {
   const handleEnd = async () => {
     const img = await signatureRef.current?.readSignature();
     if (img) {
-      dispatch(setPaperData({ signWarehouseUrl: img }));
+      dispatch(setPaperData({ signReceiverUrl: img }));
     }
   };
 
   const handleClear = () => {
-    dispatch(setPaperData({ signWarehouseUrl: null }));
+    dispatch(setPaperData({ signReceiverUrl: null }));
     signatureRef.current?.clearSignature();
   };
 
@@ -106,12 +133,13 @@ const SignReceiveScreen = () => {
       );
 
       setCapturedImage(manipulated.uri);
-      dispatch(setPaperData({ signWarehouseUrl: manipulated.uri }));
+      dispatch(setPaperData({ signReceiverUrl: manipulated.uri }));
     }
   };
 
   const handleConfirm = async () => {
-    if (!paperData.signProviderUrl || !paperData.signWarehouseUrl) {
+ 
+    if (!paperData.signProviderUrl || !paperData.signReceiverUrl) {
       console.log("❌ Chưa có đủ chữ ký, vui lòng ký trước khi xác nhận.");
       return;
     }
@@ -136,7 +164,12 @@ const SignReceiveScreen = () => {
       console.log("Cập nhật số lượng thành công");
       if (updateResponse) {
         // console.log("🔍 paperData gửi lên:", paperData);
-        const paperResponse = await createPaper(paperData);
+        const paperResponse = await createPaper({
+          ...paperData,
+          signProviderName: paperData.signProviderName || "",
+          signReceiverName: user.name || "",
+        });
+
         if (paperResponse) {
           console.log("✅ Tạo paper thành công");
           router.push("/(tabs)/import");
@@ -182,9 +215,7 @@ const SignReceiveScreen = () => {
         </Text>
       </View>
 
-
-
-      <View style={{ paddingHorizontal: 16, paddingTop:16 }}>
+      <View style={{ paddingHorizontal: 16, paddingTop: 16 }}>
         {/* <Label>Xác nhận thông tin sản phẩm</Label> */}
         <ProductListAccordion products={products} />
       </View>
@@ -203,7 +234,7 @@ const SignReceiveScreen = () => {
               ref={signatureRef}
               onBegin={() => setScrollEnabled(false)}
               onOK={(signature) => {
-                dispatch(setPaperData({ signWarehouseUrl: signature }));
+                dispatch(setPaperData({ signReceiverUrl: signature }));
               }}
               onEnd={() => {
                 setScrollEnabled(true);
@@ -239,11 +270,11 @@ const SignReceiveScreen = () => {
         )}
 
         {/* Hiển thị chữ ký */}
-        {/* {paperData.signWarehouseUrl && (
+        {/* {paperData.signReceiverUrl && (
             <View>
               <View className="w-full bg-white p-3 rounded-2xl mt-4 items-center">
                 <Image
-                  source={{ uri: paperData.signWarehouseUrl }}
+                  source={{ uri: paperData.signReceiverUrl }}
                   className="w-full h-64 rounded-md"
                   resizeMode="contain"
                 />
@@ -253,7 +284,7 @@ const SignReceiveScreen = () => {
 
         {/* Nút thao tác */}
 
-        {paperData.signWarehouseUrl && (
+        {paperData.signReceiverUrl && (
           <View
             style={{
               flexDirection: "row",
@@ -297,9 +328,7 @@ const SignReceiveScreen = () => {
               {isLoading ? (
                 <ActivityIndicator color="white" />
               ) : (
-                <Text style={{ color: "white" }}>
-                  Xác nhận
-                </Text>
+                <Text style={{ color: "white" }}>Xác nhận</Text>
               )}
             </TouchableOpacity>
           </View>

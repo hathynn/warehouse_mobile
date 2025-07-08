@@ -222,6 +222,8 @@ const SignWarehouseScreen = () => {
           {/* Tiêu đề chữ ký */}
           <Text style={styles.label1}>Người giao hàng kiểm tra thông tin và ký tên tại đây</Text>
 
+          
+
           {/* Vùng ký */}
           <View style={styles.signatureBox}>
             <Signature

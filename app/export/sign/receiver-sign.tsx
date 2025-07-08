@@ -9,6 +9,7 @@ import {
   ScrollView,
   StyleSheet,
   ActivityIndicator,
+  TextInput,
 } from "react-native";
 import {
   SafeAreaView,
@@ -24,8 +25,8 @@ import usePaperService from "@/services/usePaperService";
 import SimpleProductList from "@/components/ui/ProductList";
 import { ExportRequestDetailType } from "@/types/exportRequestDetail.type";
 import useExportRequest from "@/services/useExportRequestService";
-import StatusBadge from "@/components/StatusBadge";
 import { useFocusEffect } from "@react-navigation/native";
+import useAccountService from "@/services/useAccountService";
 
 const SignReceiveScreen = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -38,6 +39,11 @@ const SignReceiveScreen = () => {
   const [exportDetails, setExportDetails] = useState<ExportRequestDetailType[]>(
     []
   );
+  const [providerName, setProviderName] = useState<string>("");
+  const handleProviderNameChange = (text: string) => {
+    setProviderName(text);
+    dispatch(setPaperData({ signProviderName: text }));
+  };
 
   const { fetchExportRequestDetails, updateActualQuantity } =
     useExportRequestDetail();
@@ -46,6 +52,31 @@ const SignReceiveScreen = () => {
   const { exportRequest, updateExportRequestStatus, fetchExportRequestById } =
     useExportRequest();
   const exportRequestId = paperData.exportRequestId;
+  const { getAccountByEmail } = useAccountService();
+
+  const email = useSelector((state: RootState) => state.auth.user?.email);
+  const [user, setUser] = useState({
+    name: "",
+    email: email || "",
+    phone: "",
+  });
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      if (email) {
+        const res = await getAccountByEmail(email);
+        if (res?.content) {
+          setUser((prev) => ({
+            ...prev,
+            name: res.content.fullName,
+            email: res.content.email,
+            phone: res.content.phone || "",
+          }));
+        }
+      }
+    };
+    fetchUser();
+  }, [email]);
 
   // useEffect(() => {
   //   console.log("EXPORT ID ", exportRequestId);
@@ -78,19 +109,19 @@ const SignReceiveScreen = () => {
   const handleClear = () => {
     setSignature(null);
     signatureRef.current?.clearSignature();
-    dispatch(setPaperData({ signWarehouseUrl: null }));
+    dispatch(setPaperData({ signReceiverUrl: null }));
   };
 
   const handleEnd = async () => {
     const img = await signatureRef.current?.readSignature();
     if (img) {
       setSignature(img);
-      dispatch(setPaperData({ signWarehouseUrl: img }));
+      dispatch(setPaperData({ signReceiverUrl: img }));
     }
   };
 
   const handleConfirm = async () => {
-    if (!paperData.signProviderUrl || !paperData.signWarehouseUrl) {
+    if (!paperData.signProviderUrl || !paperData.signReceiverUrl) {
       console.warn("Cần đủ 2 chữ ký trước khi xác nhận.");
       return;
     }
@@ -102,8 +133,12 @@ const SignReceiveScreen = () => {
 
     try {
       setIsLoading(true);
-      console.log("Dataaaaaaa:", paperData);
-      const response = await createPaper(paperData);
+
+      const response = await createPaper({
+        ...paperData,
+        signProviderName: user.name || "",
+        signReceiverName: paperData.signProviderName || "",
+      });
       console.log("Responseeeeee", response);
       if (response) {
         console.log("✅ Tạo phiếu thành công");
@@ -252,7 +287,7 @@ const SignReceiveScreen = () => {
             </Text>
           </View>
       </View> */}
-      <View style={{ paddingHorizontal: 16, paddingTop:16 }}>
+      <View style={{ paddingHorizontal: 16, paddingTop: 16 }}>
         <SimpleProductList
           products={exportDetails.map((item) => ({
             id: item.id,
@@ -297,11 +332,22 @@ const SignReceiveScreen = () => {
           Người nhận hàng kiểm tra thông tin và ký tên tại đây
         </Text>
 
+        {/* Input tên người giao hàng */}
+        <View style={{ marginBottom: 15 }}>
+          <TextInput
+            style={styles.textInput}
+            value={providerName}
+            onChangeText={handleProviderNameChange}
+            placeholder="Nhập tên người giao hàng"
+            placeholderTextColor="#999"
+          />
+        </View>
+
         <View style={styles.signatureBox}>
           <Signature
             ref={signatureRef}
             onBegin={() => setScrollEnabled(false)}
-            onOK={(img) => dispatch(setPaperData({ signWarehouseUrl: img }))}
+            onOK={(img) => dispatch(setPaperData({ signReceiverUrl: img }))}
             onEnd={() => {
               setScrollEnabled(true);
               handleEnd();
@@ -318,7 +364,7 @@ const SignReceiveScreen = () => {
           />
         </View>
 
-        {paperData.signWarehouseUrl && (
+        {paperData.signReceiverUrl && (
           <View
             style={{
               flexDirection: "row",
@@ -388,6 +434,16 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     backgroundColor: "white",
     marginTop: 8,
+  },
+  textInput: {
+    borderWidth: 1,
+    borderColor: "#ddd",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    fontSize: 16,
+    backgroundColor: "white",
+    color: "#333",
   },
   actions: {
     flexDirection: "row",
