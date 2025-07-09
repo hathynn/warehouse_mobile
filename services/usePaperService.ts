@@ -112,7 +112,30 @@ const usePaperService = () => {
     }
   }, []);
 
-  return { createPaper, getPaperById };
+  const resetPaperById = useCallback(async (paperId: number | string) => {
+    try {
+      const token = await AsyncStorage.getItem("access_token");
+      if (!token) throw new Error("Không tìm thấy access token");
+
+      const response = await axios.put(
+        `https://warehouse-backend-jlcj5.ondigitalocean.app/paper/reset/${paperId}`,
+        {}, 
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      return response.data;
+    } catch (error: any) {
+      console.error(
+        "❌ Lỗi reset paper:",
+        error.response?.data || error.message
+      );
+      return null;
+    }
+  }, []);
+
+  return { createPaper, getPaperById, resetPaperById };
 };
 
 export default usePaperService;

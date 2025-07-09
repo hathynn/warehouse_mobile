@@ -23,6 +23,7 @@ import { useDispatch } from "react-redux";
 import { setProducts } from "@/redux/productSlice";
 import { setPaperData } from "@/redux/paperSlice";
 import { TodoList } from "@/components/ui/TodoList";
+import usePaperService from "@/services/usePaperService";
 
 interface RouteParams {
   id: string;
@@ -42,24 +43,26 @@ const ImportOrderScreen: React.FC = () => {
   const dispatch = useDispatch();
   const { fetchImportOrderDetailById, fetchImportOrderDetails } =
     useImportOrderDetailService();
-    const { updateImportOrderToStored } = useImportOrder();
+  const { updateImportOrderToStored } = useImportOrder();
   const [importOrderDetails, setImportOrderDetails] = useState<any[]>([]);
   const [showTodoList, setShowTodoList] = useState(false);
+  const { resetPaperById } = usePaperService();
+
   const [todoItems, setTodoItems] = useState<TodoItem[]>([
     {
-      id: 'scan-qr',
-      title: 'Dán QR Code',
+      id: "scan-qr",
+      title: "Dán QR Code",
       completed: false,
-      enabled: true, 
+      enabled: true,
     },
     {
-      id: 'store-location',
-      title: 'Cất hàng đúng vị trí',
+      id: "store-location",
+      title: "Cất hàng đúng vị trí",
       completed: false,
-      enabled: false, 
+      enabled: false,
     },
   ]);
-  
+
   const { fetchInventoryItemsByImportOrderDetailId } = useInventoryService();
 
   const {
@@ -85,8 +88,8 @@ const ImportOrderScreen: React.FC = () => {
   };
 
   const handleTodoToggle = (itemId: string) => {
-    setTodoItems(prev => {
-      const newItems = prev.map(item => {
+    setTodoItems((prev) => {
+      const newItems = prev.map((item) => {
         if (item.id === itemId && item.enabled) {
           return { ...item, completed: !item.completed };
         }
@@ -94,10 +97,12 @@ const ImportOrderScreen: React.FC = () => {
       });
 
       // Logic tuần tự: chỉ enable bước tiếp theo khi bước trước hoàn thành
-      const scanQrCompleted = newItems.find(item => item.id === 'scan-qr')?.completed;
-      
-      return newItems.map(item => {
-        if (item.id === 'store-location') {
+      const scanQrCompleted = newItems.find(
+        (item) => item.id === "scan-qr"
+      )?.completed;
+
+      return newItems.map((item) => {
+        if (item.id === "store-location") {
           return { ...item, enabled: scanQrCompleted || false };
         }
         return item;
@@ -105,7 +110,6 @@ const ImportOrderScreen: React.FC = () => {
     });
 
     // Điều hướng khi click vào todo item
-  
   };
 
   useEffect(() => {
@@ -120,8 +124,9 @@ const ImportOrderScreen: React.FC = () => {
       // 2. Lấy thông tin chi tiết và inventory theo từng ID
       const enrichedDetails = await Promise.all(
         order.importOrderDetails.map(async (detail: any) => {
-          
-          const detailData = await fetchImportOrderDetailById(detail.importOrderDetailId);
+          const detailData = await fetchImportOrderDetailById(
+            detail.importOrderDetailId
+          );
           if (!detailData) return null;
 
           const inventoryItems = await fetchInventoryItemsByImportOrderDetailId(
@@ -147,11 +152,8 @@ const ImportOrderScreen: React.FC = () => {
                     line: "Không rõ vị trí",
                   },
             })),
-            
           };
-          
         })
-        
       );
 
       // 3. Bỏ null nếu có dòng lỗi
@@ -188,8 +190,7 @@ const ImportOrderScreen: React.FC = () => {
         >
           <Ionicons name="arrow-back" size={24} color="white" />
         </TouchableOpacity>
-        
-      
+
         {importOrder?.status === ImportOrderStatus.READY_TO_STORE ? (
           <>
             <Text
@@ -366,32 +367,71 @@ const ImportOrderScreen: React.FC = () => {
           >
             <Text style={styles.tamaButtonText}>Xem chữ ký chứng từ</Text>
           </TouchableOpacity>
+        ) : importOrder?.status === ImportOrderStatus.COUNTED &&
+          importOrder?.paperIds ? (
+          <TouchableOpacity
+            style={[
+              styles.tamaButton,
+              { backgroundColor: "#1a88ff", marginTop: 10 },
+            ]}
+            activeOpacity={0.8}
+            onPress={async () => {
+              try {
+
+                if (!importOrder.paperIds) {
+                  throw new Error("Không tìm thấy paperId để reset");
+                }
+
+                await resetPaperById(importOrder.paperIds);
+
+                const response = await fetchImportOrderDetails(
+                  importOrder.importOrderId
+                );
+
+                const products = response.map((item: any) => ({
+                  id: item.itemId,
+                  name: item.itemName,
+                  expect: item.expectQuantity,
+                  actual: item.actualQuantity || 0,
+                  importOrderId: importOrder.importOrderId,
+                }));
+
+                dispatch(setProducts(products));
+                dispatch(
+                  setPaperData({ importOrderId: importOrder.importOrderId })
+                );
+
+                router.push(`/import/confirm/${importOrder.importOrderId}`);
+              } catch (error) {
+                console.error("❌ Lỗi khi reset và kiểm đếm lại:", error);
+              }
+            }}
+          >
+            <Text style={styles.tamaButtonText}>Kiểm đếm lại số lượng</Text>
+          </TouchableOpacity>
         ) : null}
 
         {/* Danh sách chi tiết đơn nhập */}
         <ImportOrderDetailsTable importOrderDetails={importOrderDetails} />
       </ScrollView>
 
-     
       {importOrder?.status === ImportOrderStatus.READY_TO_STORE && (
-  <TodoList
-    items={todoItems}
-    visible={showTodoList}
-    onClose={() => setShowTodoList(false)}
-    onItemToggle={handleTodoToggle}
-    onSubmit={async () => {
-      try {
-        await updateImportOrderToStored(importOrder.importOrderId);
-        // reload lại dữ liệu để cập nhật status mới là STORED
-        await fetchImportOrderById(importOrder.importOrderId);
-        setShowTodoList(false);
-      } catch (error) {
-        console.error("Cập nhật trạng thái thất bại:", error);
-      }
-    }}
-  />
-)}
-
+        <TodoList
+          items={todoItems}
+          visible={showTodoList}
+          onClose={() => setShowTodoList(false)}
+          onItemToggle={handleTodoToggle}
+          onSubmit={async () => {
+            try {
+              await updateImportOrderToStored(importOrder.importOrderId);
+              await fetchImportOrderById(importOrder.importOrderId);
+              setShowTodoList(false);
+            } catch (error) {
+              console.error("Cập nhật trạng thái thất bại:", error);
+            }
+          }}
+        />
+      )}
     </View>
   );
 };
@@ -432,67 +472,67 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   checklistHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 16,
   },
   checklistTitle: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
+    fontWeight: "600",
+    color: "#333",
   },
   viewChecklistButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   viewChecklistText: {
     fontSize: 14,
-    color: '#1677ff',
+    color: "#1677ff",
     marginRight: 4,
   },
   quickChecklist: {
     gap: 12,
   },
   quickCheckItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   quickCheckbox: {
     width: 20,
     height: 20,
     borderRadius: 10,
     borderWidth: 1.5,
-    borderColor: '#dee2e6',
-    backgroundColor: 'white',
-    justifyContent: 'center',
-    alignItems: 'center',
+    borderColor: "#dee2e6",
+    backgroundColor: "white",
+    justifyContent: "center",
+    alignItems: "center",
     marginRight: 12,
   },
   quickCheckboxCompleted: {
-    backgroundColor: '#1677ff',
-    borderColor: '#1677ff',
+    backgroundColor: "#1677ff",
+    borderColor: "#1677ff",
   },
   quickCheckboxDisabled: {
-    borderColor: '#ccc',
-    backgroundColor: '#f5f5f5',
+    borderColor: "#ccc",
+    backgroundColor: "#f5f5f5",
   },
   quickCheckNumber: {
     fontSize: 10,
-    fontWeight: '600',
-    color: '#999',
+    fontWeight: "600",
+    color: "#999",
   },
   quickCheckText: {
     fontSize: 14,
-    color: '#333',
+    color: "#333",
     flex: 1,
   },
   quickCheckTextCompleted: {
-    textDecorationLine: 'line-through',
-    color: '#6c757d',
+    textDecorationLine: "line-through",
+    color: "#6c757d",
   },
   quickCheckTextDisabled: {
-    color: '#adb5bd',
+    color: "#adb5bd",
   },
   row: {
     flexDirection: "row",
