@@ -52,12 +52,12 @@ const Confirm = () => {
   const dispatch = useDispatch();
 
   const [modalVisible, setModalVisible] = useState(false);
-  const [selectedProductId, setSelectedProductId] = useState<number | null>(
+  const [selectedProductId, setSelectedProductId] = useState<string | null>(
     null
   );
   const [inputValue, setInputValue] = useState("");
 
-  const handleUpdateQuantity = (productId: number) => {
+  const handleUpdateQuantity = (productId: string) => {
     setSelectedProductId(productId);
     setInputValue(""); // reset input
     setModalVisible(true);
@@ -73,7 +73,7 @@ const Confirm = () => {
 
   return (
     <View className="flex-1">
-      <StatusBar backgroundColor="#1677ff" style="light" />
+      <StatusBar backgroundColor="#1677ff" />
 
       {/* HEADER */}
       <View

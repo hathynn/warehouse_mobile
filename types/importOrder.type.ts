@@ -10,7 +10,7 @@ export interface ImportOrderType {
   updatedBy: string | null;
   createdDate: string;
   updatedDate: string | null;
-  paperIds: number[] | null;
+  paperIds: number | null;
   assignedWareHouseKeeperId: number;
 }
 

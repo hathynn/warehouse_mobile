@@ -10,7 +10,7 @@ import {
 import { Camera, CameraView } from "expo-camera";
 import { router, useLocalSearchParams } from "expo-router";
 import { useDispatch, useSelector } from "react-redux";
-import { RootState } from "@/redux/store"; // update path nếu khác
+import { RootState } from "@/redux/store";
 import { Button } from "tamagui";
 import { updateProduct } from "@/redux/productSlice";
 import { Dimensions } from "react-native";
@@ -33,6 +33,7 @@ export default function ScanQrScreen() {
   const [canScan, setCanScan] = useState(true);
   const isFocused = useIsFocused();
   const scanInProgress = useRef(false);
+  const alertShowing = useRef(false); // Thêm flag để track Alert
 
   const importOrderId = useSelector(
     (state: RootState) => state.paper.importOrderId
@@ -64,27 +65,65 @@ export default function ScanQrScreen() {
     loadBeep();
 
     return () => {
-      beepSound?.unloadAsync(); // cleanup khi unmount
+      beepSound?.unloadAsync();
     };
   }, []);
+
+  // Reset khi màn hình focus lại
+  useEffect(() => {
+    if (isFocused) {
+      scanInProgress.current = false;
+      alertShowing.current = false;
+      setCanScan(true);
+    }
+  }, [isFocused]);
 
   const playBeep = async () => {
     try {
       if (beepSound) {
-        await beepSound.stopAsync(); // dừng nếu đang phát
-        await beepSound.setPositionAsync(0); // quay lại đầu
-        await beepSound.playAsync(); // phát lại
+        await beepSound.stopAsync();
+        await beepSound.setPositionAsync(0);
+        await beepSound.playAsync();
       }
     } catch (err) {
       console.warn("Không thể phát âm thanh:", err);
     }
   };
 
+  const showAlert = (title: string, message: string) => {
+    if (alertShowing.current) return; // Không show Alert nếu đang có Alert khác
+    
+    alertShowing.current = true;
+    setCanScan(false);
+    
+    Alert.alert(
+      title,
+      message,
+      [
+        {
+          text: "OK",
+          onPress: () => {
+            alertShowing.current = false;
+            scanInProgress.current = false;
+  
+            setTimeout(() => {
+              setCanScan(true);
+            }, 1000);
+          },
+        },
+      ],
+      { cancelable: false }
+    );
+  };
+
   const handleBarCodeScanned = async ({ data }: { data: string }) => {
-    if (!isFocused || !canScan || scanInProgress.current) return;
+    // Kiểm tra các điều kiện để ngăn quét liên tục
+    if (!isFocused || !canScan || scanInProgress.current || alertShowing.current) {
+      return;
+    }
 
     scanInProgress.current = true;
-    setCanScan(false); // chặn thêm
+    setCanScan(false);
 
     try {
       const qrData = JSON.parse(decodeURIComponent(data));
@@ -93,9 +132,7 @@ export default function ScanQrScreen() {
       );
 
       if (!foundProduct) {
-        Alert.alert("⚠️ Sản phẩm không có trong đơn nhập.");
-        scanInProgress.current = false;
-        setCanScan(true);
+        showAlert("Sản phẩm không có trong đơn nhập.", "⚠️");
         return;
       }
 
@@ -113,24 +150,27 @@ export default function ScanQrScreen() {
         actual: foundProduct.actual + 1,
       });
 
+      // Reset sau khi quét thành công
       setTimeout(() => {
         setLastScannedProduct(null);
         scanInProgress.current = false;
         setCanScan(true);
       }, 2000);
+      
     } catch (error) {
-      Alert.alert("❌ Mã QR không hợp lệ.");
-      scanInProgress.current = false;
-      setCanScan(true);
+      showAlert("Mã QR không hợp lệ.", "❌");
     }
   };
 
-  // Bấm tiếp tục
   const handleScanAgain = () => {
     setError(null);
     setLastScannedProduct(null);
-    setIsScanning(true); // Cho phép scan lại
+    setIsScanning(true);
+    scanInProgress.current = false;
+    alertShowing.current = false;
+    setCanScan(true);
   };
+
   const handleManualEntry = () => {
     console.log("importOrderId", importOrderId);
     router.push(`/import/confirm-manual/${importOrderId}`);
@@ -143,7 +183,7 @@ export default function ScanQrScreen() {
         params: { id: lastScannedProduct.id.toString() },
       });
     } else {
-      Alert.alert("Không thể điều hướng", "Không tìm thấy mã sản phẩm.");
+      showAlert("Lỗi", "Không tìm thấy mã sản phẩm.");
     }
   };
 
@@ -167,23 +207,9 @@ export default function ScanQrScreen() {
           barcodeScannerSettings={{
             barcodeTypes: ["qr", "ean13", "code128"],
           }}
-          onBarcodeScanned={handleBarCodeScanned}
+          onBarcodeScanned={canScan ? handleBarCodeScanned : undefined}
           style={StyleSheet.absoluteFillObject}
         />
-
-        {/* Thanh trạng thái quét */}
-        {/* <View
-          style={[
-            styles.scanStatus,
-            {
-              backgroundColor: remainingProducts === 0 ? "#2ECC71" : "#E74C3C",
-            },
-          ]}
-        >
-          <Text style={styles.scanStatusText}>
-            Đã quét: {productsScanned}/{totalProductsToScan}
-          </Text>
-        </View> */}
 
         {/* Thông tin sản phẩm vừa quét */}
         {lastScannedProduct && (
@@ -200,14 +226,6 @@ export default function ScanQrScreen() {
               </View>
 
               <View className="flex-row">
-                {/* <Button
-                  onPress={handleScanAgain}
-                  style={[styles.confirmButton, { marginLeft: 10 }]}
-                  backgroundColor="#f0f0f0"
-                >
-                  →
-                </Button> */}
-
                 <Button
                   backgroundColor="#1677ff"
                   color="white"
@@ -219,6 +237,15 @@ export default function ScanQrScreen() {
                 </Button>
               </View>
             </View>
+          </View>
+        )}
+
+        {/* Hiển thị trạng thái khi không thể quét */}
+        {!canScan && !lastScannedProduct && (
+          <View style={styles.scanningStatus}>
+            <Text style={styles.scanningText}>
+              {alertShowing.current ? "Đang xử lý..." : "Chờ quét tiếp..."}
+            </Text>
           </View>
         )}
       </View>
@@ -258,7 +285,6 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     zIndex: 10,
     position: "absolute",
-
     width: width - 40,
     alignItems: "center",
   },
@@ -274,9 +300,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     zIndex: 10,
   },
-
   productBox: {
-    flexDirection: "row", // <-- Hiển thị theo hàng ngang
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     backgroundColor: "white",
@@ -289,7 +314,6 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 4,
   },
-
   productTitle: {
     fontSize: 16,
     fontWeight: "bold",
@@ -302,5 +326,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 8,
+  },
+  scanningStatus: {
+    position: "absolute",
+    top: 100,
+    left: 0,
+    right: 0,
+    alignItems: "center",
+    zIndex: 10,
+  },
+  scanningText: {
+    backgroundColor: "rgba(0,0,0,0.7)",
+    color: "white",
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 20,
+    fontSize: 16,
   },
 });
