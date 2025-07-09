@@ -15,7 +15,11 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "permissions": [
+        "android.permission.CAMERA"
+      ],
+      "package": "com.hathyn.WarehouseManagement_Mobile"
     },
     "web": {
       "bundler": "metro",
@@ -33,10 +37,17 @@
           "backgroundColor": "#ffffff"
         }
       ],
-      "expo-barcode-scanner"
+
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "21408706-48f2-4299-b042-2c916d5c5509"
+      }
     }
   }
 }
