@@ -215,6 +215,7 @@ export default function ScanQrScreen() {
         {lastScannedProduct && (
           <View style={styles.bottomBox}>
             <View style={styles.productBox}>
+              
               <View style={{ flex: 1 }}>
                 <Text style={styles.productTitle}>
                   {lastScannedProduct.id} - ({lastScannedProduct.actual}/
