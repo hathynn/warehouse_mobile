@@ -28,3 +28,25 @@ export const EXPORT_REQUEST_CANCELLED_EVENT = 'export-request-cancelled';
 export const EXPORT_REQUEST_EXTENDED_EVENT = 'export-request-extended';
 export const EXPORT_REQUEST_COMPLETED_EVENT = 'export-request-completed';
 export const EXPORT_REQUEST_ASSIGNED_EVENT = 'export-request-assigned';
+
+// Static events - events that don't have dynamic IDs
+export const staticAppEvents = [
+  IMPORT_ORDER_CREATED_EVENT,
+  IMPORT_ORDER_CONFIRMED_EVENT,
+  IMPORT_ORDER_CANCELLED_EVENT,
+  IMPORT_ORDER_EXTENDED_EVENT,
+  IMPORT_ORDER_COMPLETED_EVENT,
+  IMPORT_ORDER_ASSIGNED_EVENT,
+  EXPORT_REQUEST_CREATED_EVENT,
+  EXPORT_REQUEST_CONFIRMED_EVENT,
+  EXPORT_REQUEST_CANCELLED_EVENT,
+  EXPORT_REQUEST_EXTENDED_EVENT,
+  EXPORT_REQUEST_COMPLETED_EVENT,
+  EXPORT_REQUEST_ASSIGNED_EVENT
+];
+
+// Dynamic events - events that have dynamic IDs appended
+export const dynamicAppEvents = [
+  IMPORT_ORDER_COUNTED_EVENT,
+  EXPORT_REQUEST_COUNTED_EVENT
+];

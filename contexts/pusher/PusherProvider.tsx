@@ -3,11 +3,7 @@ import { NotificationEvent, PusherContext, PusherContextType } from "./PusherCon
 import { useSelector } from "react-redux";
 import { RootState } from "@/redux/store";
 import { createPusherClient } from "@/config/pusher";
-import { IMPORT_ORDER_CREATED_EVENT, IMPORT_ORDER_COUNTED_EVENT, IMPORT_ORDER_CONFIRMED_EVENT, IMPORT_ORDER_COMPLETED_EVENT, IMPORT_ORDER_EXTENDED_EVENT, IMPORT_ORDER_CANCELLED_EVENT, IMPORT_ORDER_ASSIGNED_EVENT, PRIVATE_STAFF_CHANNEL } from "../../constants/channelsNEvents";
-import { PRIVATE_ACCOUNTING_CHANNEL } from "../../constants/channelsNEvents";
-import { PRIVATE_DEPARTMENT_CHANNEL } from "../../constants/channelsNEvents";
-import { PRIVATE_ADMIN_CHANNEL } from "../../constants/channelsNEvents";
-import { PRIVATE_WAREHOUSE_MANAGER_CHANNEL } from "../../constants/channelsNEvents";
+import { staticAppEvents, dynamicAppEvents, PRIVATE_STAFF_CHANNEL, PRIVATE_ACCOUNTING_CHANNEL, PRIVATE_DEPARTMENT_CHANNEL, PRIVATE_ADMIN_CHANNEL, PRIVATE_WAREHOUSE_MANAGER_CHANNEL } from "../../constants/channelsNEvents";
 import { AccountRole } from "../../types/account.type";
 
 
@@ -45,6 +41,11 @@ export const PusherProvider = ({ children }: { children: ReactNode }) => {
     setLatestNotification({ type: eventType, data, timestamp: Date.now() });
   };
 
+  // Handler for dynamic notification events (with IDs)
+  const handleDynamicNotificationEvent = (data: any, eventName: string) => {
+    setLatestNotification({ type: eventName, data, timestamp: Date.now() });
+  };
+
   useEffect(() => {
     // Only set up Pusher if user is authenticated and has a role
     if (!isLoggedIn || !user) {
@@ -64,6 +65,10 @@ export const PusherProvider = ({ children }: { children: ReactNode }) => {
 
     // Determine Pusher channel for this role
     const channelName = getChannelForRole(user.role as AccountRole, Number(user.id));
+    if (!channelName) {
+      setConnectionError(`No channel defined for role: ${user.role}`);
+      return undefined;
+    }
 
     try {
       // Create Pusher instance if it doesn't exist
@@ -87,7 +92,6 @@ export const PusherProvider = ({ children }: { children: ReactNode }) => {
 
       // Subscribe to the channel and bind events
       const channel = pusherRef.current.subscribe(channelName);
-      console.log("channelName", channelName);
       channelRef.current = channel;
       channel.bind('pusher:subscription_succeeded', () => {
         setConnectionError(null);
@@ -95,13 +99,26 @@ export const PusherProvider = ({ children }: { children: ReactNode }) => {
       channel.bind('pusher:subscription_error', (error: any) => {
         setConnectionError(`Subscription error: ${error.message || 'Unknown error'}`);
       });
-      channel.bind(IMPORT_ORDER_CREATED_EVENT, (data: any) => handleNotificationEvent(data, IMPORT_ORDER_CREATED_EVENT));
-      channel.bind(IMPORT_ORDER_COUNTED_EVENT, (data: any) => handleNotificationEvent(data, IMPORT_ORDER_COUNTED_EVENT));
-      channel.bind(IMPORT_ORDER_CONFIRMED_EVENT, (data: any) => handleNotificationEvent(data, IMPORT_ORDER_CONFIRMED_EVENT));
-      channel.bind(IMPORT_ORDER_CANCELLED_EVENT, (data: any) => handleNotificationEvent(data, IMPORT_ORDER_CANCELLED_EVENT));
-      channel.bind(IMPORT_ORDER_EXTENDED_EVENT, (data: any) => handleNotificationEvent(data, IMPORT_ORDER_EXTENDED_EVENT));
-      channel.bind(IMPORT_ORDER_COMPLETED_EVENT, (data: any) => handleNotificationEvent(data, IMPORT_ORDER_COMPLETED_EVENT));
-      channel.bind(IMPORT_ORDER_ASSIGNED_EVENT, (data: any) => handleNotificationEvent(data, IMPORT_ORDER_ASSIGNED_EVENT));
+      // Use bind_global to handle all application events
+      channel.bind_global((eventName: string, data: any) => {
+        // Skip pusher system events
+        if (eventName.startsWith('pusher:')) return;
+        
+        // Handle static events
+        if (staticAppEvents.includes(eventName)) {
+          handleNotificationEvent(data, eventName);
+          return;
+        }
+        
+        // Handle dynamic events with IDs
+        const isDynamicEvent = dynamicAppEvents.some(event => 
+          eventName.startsWith(event + '-')
+        );
+        
+        if (isDynamicEvent) {
+          handleDynamicNotificationEvent(data, eventName);
+        }
+      });
     } catch (error) {
       setConnectionError(`Setup error: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
