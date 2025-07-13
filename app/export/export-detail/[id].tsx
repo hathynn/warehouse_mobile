@@ -6,11 +6,14 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
+  FlatList,
+  Image,
 } from "react-native";
 import { useFocusEffect, useRoute } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import useExportRequest from "@/services/useExportRequestService";
 import useExportRequestDetail from "@/services/useExportRequestDetailService";
+import usePaperService from "@/services/usePaperService";
 import { router } from "expo-router";
 import { useDispatch, useSelector } from "react-redux";
 import { setExportRequestDetail, setScanMappings } from "@/redux/exportRequestDetailSlice";
@@ -36,6 +39,15 @@ const ExportRequestScreen: React.FC = () => {
   const [manualModalVisible, setManualModalVisible] = useState(false);
   const [manualItemId, setManualItemId] = useState("");
   const [manualInventoryItemId, setManualInventoryItemId] = useState("");
+  const [paper, setPaper] = useState<any>(null);
+  const [paperLoading, setPaperLoading] = useState(false);
+  
+  // New state for inventory items modal
+  const [inventoryModalVisible, setInventoryModalVisible] = useState(false);
+  const [selectedInventoryItems, setSelectedInventoryItems] = useState<string[]>([]);
+  const [selectedItemCode, setSelectedItemCode] = useState("");
+
+  const { getPaperById } = usePaperService();
 
   const getExportTypeLabel = (type: string | undefined) => {
     switch (type) {
@@ -66,46 +78,62 @@ const ExportRequestScreen: React.FC = () => {
   const { loading: loadingDetails, fetchExportRequestDetails } =
     useExportRequestDetail();
 
-    const scanMappings = useSelector(
-  (state: RootState) => state.exportRequestDetail.scanMappings
-);
+  const scanMappings = useSelector(
+    (state: RootState) => state.exportRequestDetail.scanMappings
+  );
 
+  useFocusEffect(
+    React.useCallback(() => {
+      if (id) {
+        fetchExportRequestById(id);
+        fetchExportRequestDetails(id, 1, 100).then((newData) => {
+          const refreshedDetails = newData.map((item) => ({
+            ...item,
+            actualQuantity: item.actualQuantity ?? 0,
+            inventoryItemIds: item.inventoryItemIds ?? [],
+          }));
 
-useFocusEffect(
-  React.useCallback(() => {
-    if (id) {
-      fetchExportRequestById(id);
-      fetchExportRequestDetails(id, 1, 100).then((newData) => {
-        const refreshedDetails = newData.map((item) => ({
-          ...item,
-          actualQuantity: item.actualQuantity ?? 0,
-          inventoryItemIds: item.inventoryItemIds ?? [],
-        }));
+          dispatch(setExportRequestDetail(refreshedDetails));
 
-        dispatch(setExportRequestDetail(refreshedDetails));
+          // 👇 Tạo mapping từ inventoryItemId => exportRequestDetailId
+          const mappings = refreshedDetails.flatMap((detail) =>
+            (detail.inventoryItemIds ?? []).map((inventoryItemId: string) => ({
+              inventoryItemId: inventoryItemId.trim().toLowerCase(),
+              exportRequestDetailId: detail.id,
+            }))
+          );
+          dispatch(setScanMappings(mappings));
+        });
+      }
+    }, [id])
+  );
 
-        // 👇 Tạo mapping từ inventoryItemId => exportRequestDetailId
-        const mappings = refreshedDetails.flatMap((detail) =>
-          (detail.inventoryItemIds ?? []).map((inventoryItemId: string) => ({
-            inventoryItemId: inventoryItemId.trim().toLowerCase(),
-            exportRequestDetailId: detail.id,
-          }))
-        );
-        dispatch(setScanMappings(mappings));
-      });
+  // Fetch paper data when exportRequest has paperId and status is COMPLETED
+  useEffect(() => {
+    if (exportRequest?.paperId && exportRequest?.status === ExportRequestStatus.COMPLETED) {
+      console.log('🔍 Fetching paper with ID:', exportRequest.paperId);
+      setPaperLoading(true);
+      getPaperById(exportRequest.paperId)
+        .then((data: any) => {
+          console.log('✅ Paper data received:', data);
+          setPaper(data);
+        })
+        .catch((error) => {
+          console.error('❌ Lỗi lấy chứng từ:', error);
+          setPaper(null);
+        })
+        .finally(() => setPaperLoading(false));
     }
-  }, [id])
-);
-
-
+  }, [exportRequest?.paperId, exportRequest?.status]);
 
   const savedExportRequestDetails = useSelector(
     (state: RootState) => state.exportRequestDetail.details
   );
-useEffect(() => {
-  console.log("🟦 [Redux] savedExportRequestDetails:", savedExportRequestDetails);
-  console.log("🟩 [Redux] scanMappings:", scanMappings);
-}, [savedExportRequestDetails, scanMappings]);
+
+  useEffect(() => {
+    console.log("🟦 [Redux] savedExportRequestDetails:", savedExportRequestDetails);
+    console.log("🟩 [Redux] scanMappings:", scanMappings);
+  }, [savedExportRequestDetails, scanMappings]);
 
   if (loadingRequest || loadingDetails) {
     return (
@@ -115,20 +143,6 @@ useEffect(() => {
       </View>
     );
   }
-  // const updateAllActualQuantities = async (): Promise<boolean> => {
-  //   let allSuccess = true;
-
-  //   for (const p of savedExportRequestDetails) {
-  //     const success = await updateActualQuantity(p.id, p.actualQuantity ?? 0);
-  //     if (!success) {
-  //       console.warn(`⚠️ Không thể cập nhật item ID: ${p.id}`);
-  //       allSuccess = false;
-  //       break;
-  //     }
-  //   }
-
-  //   return allSuccess;
-  // };
 
   const handleManualUpdate = () => {
     console.log("🔍 manualItemId:", manualItemId);
@@ -173,21 +187,6 @@ useEffect(() => {
     setManualInventoryItemId("");
   };
 
-  // const handleSaveDraft = async () => {
-  //   try {
-  //     const success = await updateAllActualQuantities();
-
-  //     if (success) {
-  //       alert("Lưu nháp thành công")
-  //       console.log("✅ Lưu nháp thành công (chưa cập nhật trạng thái)");
-  //     } else {
-  //       console.warn("❌ Lưu nháp thất bại ở một số dòng.");
-  //     }
-  //   } catch (error) {
-  //     console.error("❌ Lỗi khi lưu nháp:", error);
-  //   }
-  // };
-
   const handleConfirm = async () => {
     try {
       const statusUpdate = await updateExportRequestStatus(
@@ -205,6 +204,19 @@ useEffect(() => {
     }
   };
 
+  // Handle row press to show inventory items
+  const handleRowPress = (detail: any) => {
+    setSelectedInventoryItems(detail.inventoryItemIds || []);
+    setSelectedItemCode(detail.itemId || "");
+    setInventoryModalVisible(true);
+  };
+
+  const renderInventoryItem = ({ item }: { item: string }) => (
+    <View style={styles.inventoryItemRow}>
+      <Text style={styles.inventoryItemText}>{item}</Text>
+    </View>
+  );
+
   const renderActionButton = () => {
     if (!exportRequest) return null;
     const status = exportRequest.status;
@@ -213,17 +225,6 @@ useEffect(() => {
       case ExportRequestStatus.IN_PROGRESS:
         return (
           <View>
-            {/* <StyledButton
-              title="Cập nhật thủ công"
-              onPress={() => setManualModalVisible(true)}
-              style={{ backgroundColor: "#e0e0e0" }}
-            /> */}
-            {/* <StyledButton
-              title="Lưu nháp"
-              onPress={handleSaveDraft}
-              style={{ marginTop: 12, backgroundColor: "#ccc" }}
-            /> */}
-
             <StyledButton
               title="Xác nhận số lượng"
               onPress={handleConfirm}
@@ -231,28 +232,6 @@ useEffect(() => {
             />
           </View>
         );
-
-      // case ExportRequestStatus.COUNTED:
-      //   return (
-      //     <View>
-      //       <StyledButton
-      //         title="Cập nhật thủ công"
-      //         onPress={() => setManualModalVisible(true)}
-      //         style={{ backgroundColor: "#e0e0e0" }}
-      //       />
-      //       <StyledButton
-      //         title="Lưu nháp"
-      //         onPress={handleSaveDraft}
-      //         style={{ marginTop: 12, backgroundColor: "#ccc" }}
-      //       />
-
-      //       <StyledButton
-      //         title="Xác nhận số lượng"
-      //         onPress={handleConfirm}
-      //         style={{ marginTop: 12 }}
-      //       />
-      //     </View>
-      //   );
 
       case ExportRequestStatus.WAITING_EXPORT:
         return (
@@ -262,21 +241,74 @@ useEffect(() => {
             style={{ marginTop: 12 }}
           />
         );
-      case ExportRequestStatus.CONFIRMED:
+      // case ExportRequestStatus.CONFIRMED:
+      //   return (
+      //     <StyledButton
+      //       title="Xem chữ ký chứng từ"
+      //       onPress={() => {
+      //         router.push(`/import/paper-detail/${exportRequest.paperId}`);
+      //       }}
+      //       style={{ marginTop: 12 }}
+      //     />
+      //   );
       case ExportRequestStatus.COMPLETED:
-        return (
-          <StyledButton
-            title="Xem chữ ký chứng từ"
-            onPress={() => {
-              router.push(`/import/paper-detail/${exportRequest.paperId}`);
-            }}
-          
-            style={{ marginTop: 12 }}
-          />
-        );
+        return null; // Không hiển thị button cho trạng thái COMPLETED
       default:
         return null;
     }
+  };
+
+  const renderSignatureSection = () => {
+    if (exportRequest?.status !== ExportRequestStatus.COMPLETED || !exportRequest?.paperId) return null;
+
+    return (
+      <View style={styles.signatureContainer}>
+        {/* <Text style={styles.signatureTitle}>CHỮ KÝ CHỨNG TỪ</Text> */}
+        
+        <View style={styles.signatureWrapper}>
+          <View style={styles.signatureItem}>
+            <Text style={styles.signatureLabel}>  Người giao hàng: {paper?.signProviderName || "Chưa rõ"}</Text>
+            <View style={styles.signatureImageContainer}>
+              {paper?.signProviderUrl ? (
+                <Image
+                  source={{ uri: paper.signProviderUrl }}
+                  style={styles.signatureImage}
+                  resizeMode="contain"
+                />
+              ) : (
+                <View style={styles.noSignature}>
+                  <Ionicons name="document-text-outline" size={40} color="#ccc" />
+                  <Text style={styles.noSignatureText}>Chưa có chữ ký</Text>
+                </View>
+              )}
+            </View>
+          </View>
+
+          <View style={styles.signatureItem}>
+            <Text style={styles.signatureLabel}>Người nhận hàng: {paper?.signReceiverName || "Chưa rõ"}</Text>
+            <View style={styles.signatureImageContainer}>
+              {paper?.signReceiverUrl ? (
+                <Image
+                  source={{ uri: paper.signReceiverUrl }}
+                  style={styles.signatureImage}
+                  resizeMode="contain"
+                />
+              ) : (
+                <View style={styles.noSignature}>
+                  <Ionicons name="document-text-outline" size={40} color="#ccc" />
+                  <Text style={styles.noSignatureText}>Chưa có chữ ký</Text>
+                </View>
+              )}
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.completedBadge}>
+          <Ionicons name="checkmark-circle" size={20} color="#28a745" />
+          <Text style={styles.completedText}>Đơn hàng đã hoàn thành</Text>
+        </View>
+      </View>
+    );
   };
 
   return (
@@ -314,10 +346,6 @@ useEffect(() => {
           <Text style={styles.cardTitle}>Thông tin chi tiết yêu cầu</Text>
 
           <View style={styles.row}>
-            {/* <Text style={styles.label}>Mã phiếu xuất</Text>
-            <Text style={styles.valueBlue}>
-              {exportRequest?.exportRequestId}
-            </Text> */}
             <Text style={styles.label}>Mã phiếu</Text>
             <View style={styles.badgeBlue}>
               <Text style={styles.badgeText}>
@@ -383,54 +411,69 @@ useEffect(() => {
             )}
           </View>
 
-          {savedExportRequestDetails.map((detail: any) => {
+          {savedExportRequestDetails.map((detail: any, index: number) => {
             const isDisabled = detail.quantity === detail.actualQuantity;
+            const isLastItem = index === savedExportRequestDetails.length - 1;
 
             return (
-              <View key={detail.id} style={styles.tableRow}>
-                <Text style={[styles.cellCode]}>{detail.itemId}</Text>
-                <Text style={[styles.cellAlignRight]}>{detail.quantity}</Text>
-                <Text style={[styles.cellAlignRight]}>
-                  {detail.actualQuantity}
-                </Text>
+              <View key={detail.id}>
+                <TouchableOpacity
+                  style={styles.tableRow}
+                  onPress={() => handleRowPress(detail)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.cellCode]}>{detail.itemId}</Text>
+                  <Text style={[styles.cellAlignRight]}>{detail.quantity}</Text>
+                  <Text style={[styles.cellAlignRight]}>
+                    {detail.actualQuantity}
+                  </Text>
 
-                {[
-                  ExportRequestStatus.IN_PROGRESS,
-                  ExportRequestStatus.COUNTED,
-                ].includes(exportRequest?.status as ExportRequestStatus) && (
-                  <View style={styles.scanCell}>
-                    <TouchableOpacity
-                      style={[
-                        styles.scanButton,
-                        isDisabled && styles.scanButtonDisabled,
-                      ]}
-                      disabled={isDisabled}
-                      onPress={() => {
-                        router.push(
-                          `/export/scan-qr?id=${exportRequest?.exportRequestId}`
-                        );
-                      }}
-                    >
-                      {isDisabled ? (
-                        <Text style={styles.scanText}>Đã đủ</Text>
-                      ) : (
-                        <Ionicons
-                          name="qr-code-outline"
-                          size={18}
-                          color="white"
-                        />
-                      )}
-                    </TouchableOpacity>
-                  </View>
-                )}
+                  {[
+                    ExportRequestStatus.IN_PROGRESS,
+                    ExportRequestStatus.COUNTED,
+                  ].includes(exportRequest?.status as ExportRequestStatus) && (
+                    <View style={styles.scanCell}>
+                      <TouchableOpacity
+                        style={[
+                          styles.scanButton,
+                          isDisabled && styles.scanButtonDisabled,
+                        ]}
+                        disabled={isDisabled}
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          router.push(
+                            `/export/scan-qr?id=${exportRequest?.exportRequestId}`
+                          );
+                        }}
+                      >
+                        {isDisabled ? (
+                          <Text style={styles.scanText}>Đã đủ</Text>
+                        ) : (
+                          <Ionicons
+                            name="qr-code-outline"
+                            size={18}
+                            color="white"
+                          />
+                        )}
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                </TouchableOpacity>
+                
+                {/* Divider - không hiển thị cho item cuối cùng */}
+                {!isLastItem && <View style={styles.divider} />}
               </View>
             );
           })}
         </View>
 
         <View className="p-5">{renderActionButton()}</View>
+
+        {/* Signature Section - only show when COMPLETED */}
+        {renderSignatureSection()}
       </ScrollView>
 
+      {/* Manual Update Modal */}
       <Modal visible={manualModalVisible} transparent animationType="slide">
         <View
           style={{
@@ -484,6 +527,43 @@ useEffect(() => {
                 style={{ flex: 1 }}
               />
             </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Inventory Items Modal */}
+      <Modal visible={inventoryModalVisible} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>
+                Danh sách sản phẩm tồn kho (Mã hàng #{selectedItemCode})
+              </Text>
+              <TouchableOpacity
+                onPress={() => setInventoryModalVisible(false)}
+                style={styles.closeButton}
+              >
+                <Ionicons name="close" size={24} color="#666" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.searchContainer}>
+              <Ionicons name="search" size={20} color="#666" style={styles.searchIcon} />
+              <RNTextInput
+                placeholder="Tìm kiếm theo mã sản phẩm tồn kho"
+                style={styles.searchInput}
+              />
+            </View>
+
+            <Text style={styles.sectionTitle}>Mã sản phẩm tồn kho</Text>
+
+            <FlatList
+              data={selectedInventoryItems}
+              renderItem={renderInventoryItem}
+              keyExtractor={(item, index) => `${item}-${index}`}
+              style={styles.inventoryList}
+              showsVerticalScrollIndicator={false}
+            />
           </View>
         </View>
       </Modal>
@@ -565,11 +645,14 @@ const styles = StyleSheet.create({
   },
   tableRow: {
     flexDirection: "row",
-    paddingVertical: 10,
+    paddingVertical: 12,
     paddingHorizontal: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
     alignItems: "center",
+  },
+  divider: {
+    height: 1,
+    backgroundColor: "#e0e0e0",
+    marginHorizontal: 12,
   },
   scanHeader: {
     width: 60,
@@ -633,6 +716,152 @@ const styles = StyleSheet.create({
     borderColor: "#ddd",
     marginBottom: 12,
     fontSize: 14,
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalContainer: {
+    width: "90%",
+    maxHeight: "80%",
+    backgroundColor: "white",
+    borderRadius: 12,
+    padding: 0,
+    elevation: 5,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f0f0f0",
+  },
+  modalTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    flex: 1,
+    marginRight: 16,
+  },
+  closeButton: {
+    padding: 4,
+  },
+  searchContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginHorizontal: 16,
+    backgroundColor: "#f8f9fa",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  searchIcon: {
+    marginRight: 8,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 14,
+    color: "#333",
+  },
+  sectionTitle: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#666",
+    marginHorizontal: 16,
+    marginBottom: 8,
+  },
+  inventoryList: {
+    maxHeight: 300,
+  },
+  inventoryItemRow: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f0f0f0",
+  },
+  inventoryItemText: {
+    fontSize: 14,
+    color: "#333",
+  },
+  // Signature Section Styles
+  signatureContainer: {
+    backgroundColor: "white",
+    margin: 16,
+   
+    padding: 25,
+    borderRadius: 12,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+  signatureTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    textAlign: 'center',
+    marginBottom: 20,
+    paddingBottom: 10,
+    borderBottomWidth: 2,
+    borderBottomColor: '#1677ff',
+  },
+  signatureWrapper: {
+    marginBottom: 20,
+  },
+  signatureItem: {
+    marginBottom: 20,
+  },
+  signatureLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  signatureImageContainer: {
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    borderRadius: 8,
+    backgroundColor: '#f9f9f9',
+    height: 200,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  signatureImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 8,
+  },
+  noSignature: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: '100%',
+  },
+  noSignatureText: {
+    fontSize: 12,
+    color: '#ccc',
+    marginTop: 8,
+  },
+  completedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f0f8f0',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#28a745',
+  },
+  completedText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#28a745',
+    marginLeft: 8,
   },
 });
 

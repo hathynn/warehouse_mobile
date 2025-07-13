@@ -14943,10 +14943,7 @@
                 "...size": "Function"
               }
             },
-            "defaultVariants": {
-              "unstyled": false
-            },
-            "componentName": "PopperContent",
+            "componentName": "Popover",
             "isReactNative": false,
             "isText": false,
             "isStyledHOC": false,
@@ -15164,7 +15161,7 @@
             "isHOC": true
           }
         },
-        "PopperArrow": {
+        "PopperArrowFrame": {
           "staticConfig": {
             "acceptsClassName": true,
             "defaultProps": {
@@ -15381,9 +15378,7 @@
             "componentName": "PopperArrow",
             "isReactNative": false,
             "isText": false,
-            "isStyledHOC": false,
-            "neverFlatten": true,
-            "isHOC": true
+            "isStyledHOC": false
           }
         },
         "PopperContentFrame": {

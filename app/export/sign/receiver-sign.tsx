@@ -10,6 +10,8 @@ import {
   StyleSheet,
   ActivityIndicator,
   TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import {
   SafeAreaView,
@@ -188,233 +190,148 @@ const SignReceiveScreen = () => {
   };
 
   return (
-    <View style={{ flex: 1 }}>
-      {/* Header */}
-      <View
-        style={{
-          backgroundColor: "#1677ff",
-          paddingTop: insets.top,
-          paddingBottom: 16,
-          paddingHorizontal: 17,
-          flexDirection: "row",
-          justifyContent: "space-between",
-          alignItems: "center",
-        }}
-      >
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={{ marginTop: 7 }}
-        >
-          <Ionicons name="arrow-back" size={24} color="white" />
-        </TouchableOpacity>
-        <Text
+    <KeyboardAvoidingView 
+
+      style={{ flex: 1 }} 
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+      
+    >
+      <View style={{ flex: 1 }}>
+        {/* Header */}
+        <View
           style={{
-            color: "white",
-            fontSize: 16,
-            fontWeight: "bold",
-            marginTop: 7,
+            backgroundColor: "#1677ff",
+            paddingTop: insets.top,
+            paddingBottom: 16,
+            paddingHorizontal: 17,
+            flexDirection: "row",
+            justifyContent: "space-between",
+            alignItems: "center",
           }}
         >
-          Người nhận hàng ký
-        </Text>
-      </View>
-      {/* <View style={styles.card}>
-        <Text style={styles.cardTitle}>Thông tin chi tiết yêu cầu</Text>
-
-        <View style={styles.row}>
-          <Text style={styles.label}>Mã phiếu xuất</Text>
-            <Text style={styles.valueBlue}>
-              {exportRequest?.exportRequestId}
-            </Text>
-          <Text style={styles.label}>Mã phiếu</Text>
-          <View style={styles.badgeBlue}>
-            <Text style={styles.badgeText}>
-              {" "}
-              {exportRequest?.exportRequestId}
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.row}>
-          <Text style={styles.label}>Ngày tạo đơn</Text>
-          <Text style={styles.value}>
-            {" "}
-            {exportRequest?.exportDate
-              ? new Date(exportRequest?.exportDate).toLocaleString("vi-VN", {
-                  day: "2-digit",
-                  month: "2-digit",
-                  year: "numeric",
-                })
-              : "--"}
-          </Text>
-        </View>
-
-        <View style={styles.row}>
-          <Text style={styles.label}>Ngày mong muốn xuất</Text>
-          <Text style={styles.value}>
-            {" "}
-            {exportRequest?.exportDate
-              ? new Date(exportRequest?.exportDate).toLocaleString("vi-VN", {
-                  day: "2-digit",
-                  month: "2-digit",
-                  year: "numeric",
-                })
-              : "--"}
-          </Text>
-        </View>
-
-        <View style={styles.row}>
-          <Text style={styles.label}>Loại xuất</Text>
-          <Text style={styles.value}>
-            {getExportTypeLabel(exportRequest?.type)}
-          </Text>
-        </View>
-
-        <View style={styles.row}>
-          <Text style={styles.label}>Người nhận hàng</Text>
-          <Text style={styles.value}>{exportRequest?.receiverName}</Text>
-        </View>
-
-        <View style={styles.row}>
-          <Text style={styles.label}>SĐT người nhận hàng</Text>
-          <Text style={styles.value}>{exportRequest?.receiverPhone}</Text>
-        </View>
-
-        <View style={styles.row}>
-            <Text style={styles.label}>Tình trạng yêu cầu</Text>
-            <Text style={styles.valueRed}>
-              <StatusBadge status={exportRequest?.status || "UNKNOWN"} />
-            </Text>
-          </View>
-      </View> */}
-      <View style={{ paddingHorizontal: 16, paddingTop: 16 }}>
-        <SimpleProductList
-          products={exportDetails.map((item) => ({
-            id: item.id,
-            name: `Sản phẩm #${item.itemId}`,
-            actual: item.actualQuantity,
-            expect: item.quantity,
-          }))}
-        />
-      </View>
-
-      <View style={{ padding: 16 }}>
-        {/* Danh sách sản phẩm */}
-
-        {/* Chữ ký người giao hàng
-          {paperData.signProviderUrl && (
-            <>
-              <Text style={[styles.label, { marginTop: 24 }]}>
-                Chữ ký người giao hàng
-              </Text>
-              <View
-                style={{
-                  backgroundColor: "#fff",
-                  padding: 12,
-                  borderRadius: 10,
-                }}
-              >
-                <Image
-                  source={{ uri: paperData.signProviderUrl }}
-                  style={{
-                    width: "100%",
-                    height: 220,
-                    borderRadius: 10,
-                  }}
-                  resizeMode="contain"
-                />
-              </View>
-            </>
-          )} */}
-
-        {/* Ký tên */}
-        <Text style={styles.label1}>
-          Người nhận hàng kiểm tra thông tin và ký tên tại đây
-        </Text>
-
-        {/* Input tên người giao hàng */}
-        <View style={{ marginBottom: 15 }}>
-          <TextInput
-            style={styles.textInput}
-            value={providerName}
-            onChangeText={handleProviderNameChange}
-            placeholder="Nhập tên người giao hàng"
-            placeholderTextColor="#999"
-          />
-        </View>
-
-        <View style={styles.signatureBox}>
-          <Signature
-            ref={signatureRef}
-            onBegin={() => setScrollEnabled(false)}
-            onOK={(img) => dispatch(setPaperData({ signReceiverUrl: img }))}
-            onEnd={() => {
-              setScrollEnabled(true);
-              handleEnd();
-            }}
-            descriptionText="Ký tên tại đây"
-            imageType="image/png"
-            webStyle={`
-                .m-signature-pad { height: 100% !important; }
-                .m-signature-pad--body { height: 100% !important; }
-                .m-signature-pad--footer { display: none; }
-                body, html { height: 100%; margin: 0; padding: 0; }
-              `}
-            style={{ flex: 1, height: 300 }}
-          />
-        </View>
-
-        {paperData.signReceiverUrl && (
-          <View
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={{ marginTop: 7 }}
+          >
+            <Ionicons name="arrow-back" size={24} color="white" />
+          </TouchableOpacity>
+          <Text
             style={{
-              flexDirection: "row",
-              justifyContent: "center",
-              marginVertical: 20,
+              color: "white",
+              fontSize: 16,
+              fontWeight: "bold",
+              marginTop: 7,
             }}
           >
-            <TouchableOpacity
-              onPress={handleClear}
-              style={{
-                flex: 1,
-                paddingVertical: 12,
-                backgroundColor: "#DDDDDD",
-                borderRadius: 8,
-                marginRight: 5,
-                alignItems: "center",
-              }}
-            >
-              <Text
+            Người nhận hàng ký
+          </Text>
+        </View>
+
+        <ScrollView style={{ flex: 1 }} keyboardShouldPersistTaps="handled" scrollEnabled={scrollEnabled}>
+          <View style={{ paddingHorizontal: 16, paddingTop: 16 }}>
+            <SimpleProductList
+              products={exportDetails.map((item) => ({
+                id: item.id,
+                name: `Sản phẩm #${item.itemId}`,
+                actual: item.actualQuantity,
+                expect: item.quantity,
+              }))}
+            />
+          </View>
+
+          <View style={{ padding: 16 }}>
+            {/* Ký tên */}
+            <Text style={styles.label1}>
+              Người nhận hàng kiểm tra thông tin và ký tên tại đây
+            </Text>
+
+            <View style={styles.signatureBox}>
+              <Signature
+                ref={signatureRef}
+                onBegin={() => setScrollEnabled(false)}
+                onOK={(img) => dispatch(setPaperData({ signReceiverUrl: img }))}
+                onEnd={() => {
+                  setScrollEnabled(true);
+                  handleEnd();
+                }}
+                descriptionText="Ký tên tại đây"
+                imageType="image/png"
+                webStyle={`
+                    .m-signature-pad { height: 100% !important; }
+                    .m-signature-pad--body { height: 100% !important; }
+                    .m-signature-pad--footer { display: none; }
+                    body, html { height: 100%; margin: 0; padding: 0; }
+                  `}
+                style={{ flex: 1, height: 300 }}
+              />
+            </View>
+
+            {/* Input tên người giao hàng */}
+            <View style={{ marginTop: 15 }}>
+              <TextInput
+                style={styles.textInput}
+                value={providerName}
+                onChangeText={handleProviderNameChange}
+                placeholder="Nhập tên người giao hàng"
+                placeholderTextColor="#999"
+                returnKeyType="done"
+              />
+            </View>
+
+            {paperData.signReceiverUrl && (
+              <View
                 style={{
-                  color: "black",
+                  flexDirection: "row",
+                  justifyContent: "center",
+                  marginVertical: 20,
                 }}
               >
-                Xóa
-              </Text>
-            </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={handleClear}
+                  style={{
+                    flex: 1,
+                    paddingVertical: 12,
+                    backgroundColor: "#DDDDDD",
+                    borderRadius: 8,
+                    marginRight: 5,
+                    alignItems: "center",
+                  }}
+                >
+                  <Text
+                    style={{
+                      color: "black",
+                    }}
+                  >
+                    Xóa
+                  </Text>
+                </TouchableOpacity>
 
-            <TouchableOpacity
-              onPress={handleConfirm}
-              disabled={isLoading}
-              style={{
-                flex: 1,
-                paddingVertical: 12,
-                backgroundColor: isLoading ? "#a0c4ff" : "#1677ff", // màu nhạt khi loading
-                borderRadius: 8,
-                marginLeft: 5,
-                alignItems: "center",
-                opacity: isLoading ? 0.6 : 1,
-              }}
-            >
-              {isLoading ? (
-                <ActivityIndicator color="white" />
-              ) : (
-                <Text style={{ color: "white" }}>Xác nhận</Text>
-              )}
-            </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={handleConfirm}
+                  disabled={isLoading}
+                  style={{
+                    flex: 1,
+                    paddingVertical: 12,
+                    backgroundColor: isLoading ? "#a0c4ff" : "#1677ff", // màu nhạt khi loading
+                    borderRadius: 8,
+                    marginLeft: 5,
+                    alignItems: "center",
+                    opacity: isLoading ? 0.6 : 1,
+                  }}
+                >
+                  {isLoading ? (
+                    <ActivityIndicator color="white" />
+                  ) : (
+                    <Text style={{ color: "white" }}>Xác nhận</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
-        )}
+        </ScrollView>
       </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 };
 
