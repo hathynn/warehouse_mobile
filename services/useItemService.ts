@@ -1,115 +1,33 @@
 import { useState, useCallback } from "react";
-import axios from "axios";
-import { ItemType } from "@/types/item.type";
-
-const BASE_URL = "https://warehouse-backend-jlcj5.ondigitalocean.app/items";
-
-
+import useApiService from "./useApi";
+import { ItemType } from "@/types/item.type"; 
 const useItemService = () => {
-  const [loading, setLoading] = useState(false);
-  const [items, setItems] = useState<ItemType[]>([]);
+  const { loading, callApi, setIsLoading } = useApiService();
   const [item, setItem] = useState<ItemType | null>(null);
 
-  // Fetch danh sách items
-// Fetch danh sách items
-const fetchItems = async (page = 1, limit = 10) => {
-  setLoading(true);
-  try {
-    const response = await axios.get(BASE_URL, {
-      params: {
-        page,
-        limit,
-      },
-    });
-    const data = response.data?.content || [];
-    setItems(data);
-    return data;
-  } catch (error) {
-    if (axios.isAxiosError(error)) {
-      console.error("Lỗi khi lấy danh sách sản phẩm:", {
-        status: error.response?.status,
-        message: error.response?.data?.message || error.message,
-      });
-    } else {
-      console.error("Lỗi không xác định:", error);
-    }
-    
-    return [];
-  } finally {
-    setLoading(false);
-  }
-};
+  const getItemDetailById = useCallback(
+    async (itemId: string) => {
+      if (!itemId) return null;
 
-
-  // Fetch item theo id
-  const fetchItemById = useCallback(async (id: string) => {
-    setLoading(true);
-    try {
-      const response = await axios.get(`${BASE_URL}/${id}`);
-      setItem(response.data);
-      return response.data;
-    } catch (error) {
-      console.error("Lỗi khi lấy item:", error);
-      return null;
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  // Tạo mới item
-  const createItem = useCallback(async (newItem: Omit<ItemType, "id">) => {
-    setLoading(true);
-    try {
-      const response = await axios.post(BASE_URL, newItem);
-      return response.data;
-    } catch (error) {
-      console.error("Lỗi khi tạo item:", error);
-      return null;
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  // Cập nhật item
-  const updateItem = useCallback(
-    async (id: string, updatedData: Partial<ItemType>) => {
-      setLoading(true);
+      setIsLoading(true);
       try {
-        const response = await axios.put(`${BASE_URL}/${id}`, updatedData);
-        return response.data;
+        const response = await callApi("get", `/item/${itemId}`);
+        setItem(response.content);
+        return response.content;
       } catch (error) {
-        console.error("Lỗi khi cập nhật item:", error);
+        console.error("Lỗi khi lấy chi tiết item:", error);
         return null;
       } finally {
-        setLoading(false);
+        setIsLoading(false);
       }
     },
-    []
+    [callApi, setIsLoading]
   );
-
-  // Xóa item
-  const deleteItem = useCallback(async (id: string) => {
-    setLoading(true);
-    try {
-      await axios.delete(`${BASE_URL}/${id}`);
-      return true;
-    } catch (error) {
-      console.error("Lỗi khi xóa item:", error);
-      return false;
-    } finally {
-      setLoading(false);
-    }
-  }, []);
 
   return {
     loading,
-    items,
     item,
-    fetchItems,
-    fetchItemById,
-    createItem,
-    updateItem,
-    deleteItem,
+    getItemDetailById,
   };
 };
 

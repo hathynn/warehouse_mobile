@@ -97,6 +97,14 @@ export default function ReceiptDetail() {
         ).length,
       },
       {
+        key: "COUNT_AGAIN_REQUESTED",
+        title: "Cần kiểm đếm lại",
+        status: ImportOrderStatus.COUNT_AGAIN_REQUESTED,
+        count: validOrders.filter(
+          (order: any) => order.status === ImportOrderStatus.COUNT_AGAIN_REQUESTED
+        ).length,
+      },
+      {
         key: "STORED",
         title: "Đã nhập kho",
         status: ImportOrderStatus.STORED,

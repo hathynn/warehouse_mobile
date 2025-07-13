@@ -367,7 +367,7 @@ const ImportOrderScreen: React.FC = () => {
           >
             <Text style={styles.tamaButtonText}>Xem chữ ký chứng từ</Text>
           </TouchableOpacity>
-        ) : importOrder?.status === ImportOrderStatus.COUNTED &&
+        ) : importOrder?.status === ImportOrderStatus.COUNT_AGAIN_REQUESTED &&
           importOrder?.paperIds ? (
           <TouchableOpacity
             style={[

@@ -1,17 +1,20 @@
 export interface ItemType {
-  id: number; 
+  id: string; 
   name: string;
   description?: string;
   measurementUnit: string; 
+  measurementValue: number;
   totalMeasurementValue: number;
-  unitType: string; 
-  daysUntilDue: number; 
-  minimumStockQuantity: number; 
-  maximumStockQuantity: number; 
-  categoryId: number; 
-  providerId: number;
+  quantity: number;
+  unitType: string;
+  daysUntilDue: number;
+  minimumStockQuantity: number;
+  maximumStockQuantity: number;
+  categoryId: number;
+  providerIds: number[];
   importOrderDetailIds: number[];
   importRequestDetailIds: number[];
   exportRequestDetailIds: number[];
-  inventoryItemIds: number[];
+  inventoryItemIds: string[];
+  numberOfAvailableItems: number;
 }
