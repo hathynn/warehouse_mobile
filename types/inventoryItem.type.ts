@@ -1,18 +1,19 @@
 export interface InventoryItem {
-  id: number;
+  id: string;
   reasonForDisposal: string | null;
   measurementValue: number;
   status: string | null;
-  expiredDate: string; // ISO date string
-  importedDate: string; // ISO date string
-  updatedDate: string; // ISO date string
+  expiredDate: string; 
+  importedDate: string;
+  updatedDate: string; 
   parentId: number | null;
   childrenIds: number[];
-  itemId: number;
+  itemId: string; 
   itemName: string;
   itemCode: string | null;
   exportRequestDetailId: number | null;
   importOrderDetailId: number;
   storedLocationId: number | null;
   storedLocationName: string | null;
+  isTrackingForExport: boolean;
 }

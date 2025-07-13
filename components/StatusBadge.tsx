@@ -12,6 +12,9 @@ const getStatusStyle = (status: string, flow: "import" | "export") => {
     case "IN_PROGRESS":
       return { backgroundColor: "#1677ff", textColor: "#fff", label: "Cần kiểm đếm" };
 
+      case "COUNT_AGAIN_REQUESTED":
+      return { backgroundColor: "#213448", textColor: "#fff", label: "Cần kiểm đếm lại" };
+
     case "COUNTED":
       return flow === "import"
         ? { backgroundColor: "#213448", textColor: "#fff", label: "Đã kiểm đếm" }

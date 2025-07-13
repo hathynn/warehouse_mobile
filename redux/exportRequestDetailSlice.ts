@@ -42,9 +42,46 @@ const exportRequestDetailSlice = createSlice({
     setScanMappings: (state, action: PayloadAction<ScanMapping[]>) => {
       state.scanMappings = action.payload;
     },
+
+    // Thêm action mới để cập nhật inventoryItemId
+    updateInventoryItemId: (
+      state,
+      action: PayloadAction<{
+        exportRequestDetailId: string;
+        oldInventoryItemId: string;
+        newInventoryItemId: string;
+      }>
+    ) => {
+      const { exportRequestDetailId, oldInventoryItemId, newInventoryItemId } = action.payload;
+      
+      // Cập nhật trong details
+      const detail = state.details.find((item) => item.id === exportRequestDetailId);
+      if (detail && detail.inventoryItemIds) {
+        const index = detail.inventoryItemIds.indexOf(oldInventoryItemId);
+        if (index !== -1) {
+          detail.inventoryItemIds[index] = newInventoryItemId;
+        }
+      }
+
+      // Cập nhật trong scanMappings
+      const mappingIndex = state.scanMappings.findIndex(
+        (mapping) => 
+          mapping.exportRequestDetailId === exportRequestDetailId && 
+          mapping.inventoryItemId === oldInventoryItemId.trim().toLowerCase()
+      );
+      
+      if (mappingIndex !== -1) {
+        state.scanMappings[mappingIndex].inventoryItemId = newInventoryItemId.trim().toLowerCase();
+      }
+    },
   },
 });
 
-export const { setExportRequestDetail, updateActualQuantity, setScanMappings } =
-  exportRequestDetailSlice.actions;
+export const { 
+  setExportRequestDetail, 
+  updateActualQuantity, 
+  setScanMappings,
+  updateInventoryItemId 
+} = exportRequestDetailSlice.actions;
+
 export default exportRequestDetailSlice.reducer;

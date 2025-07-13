@@ -1274,7 +1274,8 @@
             "acceptsClassName": true,
             "defaultProps": {
               "flexDirection": "column",
-              "tag": "fieldset"
+              "tag": "fieldset",
+              "borderWidth": 0
             },
             "validStyles": {
               "backfaceVisibility": true,
@@ -3776,7 +3777,8 @@
             "componentName": "Avatar",
             "isReactNative": false,
             "isText": false,
-            "isStyledHOC": false
+            "isStyledHOC": false,
+            "memo": true
           }
         },
         "Button": {
@@ -19409,7 +19411,8 @@
             "componentName": "Square",
             "isReactNative": false,
             "isText": false,
-            "isStyledHOC": false
+            "isStyledHOC": false,
+            "memo": true
           }
         },
         "Circle": {
@@ -19715,7 +19718,8 @@
             "componentName": "Circle",
             "isReactNative": false,
             "isText": false,
-            "isStyledHOC": false
+            "isStyledHOC": false,
+            "memo": true
           }
         },
         "Frame": {
@@ -28277,13 +28281,34 @@
       },
       "usePresence": "Function",
       "ResetPresence": "Function",
-      "supportsCSSVars": true,
+      "supportsCSS": true,
       "useAnimatedNumber": "Function",
       "useAnimatedNumberReaction": "Function",
       "useAnimatedNumberStyle": "Function",
       "useAnimations": "Function"
     },
     "media": {
+      "maxXs": {
+        "maxWidth": 460
+      },
+      "max2xs": {
+        "maxWidth": 340
+      },
+      "maxSm": {
+        "maxWidth": 640
+      },
+      "maxMd": {
+        "maxWidth": 768
+      },
+      "maxLg": {
+        "maxWidth": 1024
+      },
+      "maxXl": {
+        "maxWidth": 1280
+      },
+      "max2Xl": {
+        "maxWidth": 1536
+      },
       "2xl": {
         "minWidth": 1536
       },
