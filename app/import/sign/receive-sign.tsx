@@ -7,6 +7,8 @@ import {
   ScrollView,
   ActivityIndicator,
   StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import {
   SafeAreaView,
@@ -138,7 +140,6 @@ const SignReceiveScreen = () => {
   };
 
   const handleConfirm = async () => {
- 
     if (!paperData.signProviderUrl || !paperData.signReceiverUrl) {
       console.log("❌ Chưa có đủ chữ ký, vui lòng ký trước khi xác nhận.");
       return;
@@ -185,92 +186,97 @@ const SignReceiveScreen = () => {
   };
 
   return (
-    <View className="flex-1">
-      <View
-        style={{
-          backgroundColor: "#1677ff",
-          paddingTop: insets.top,
-          paddingBottom: 16,
-          paddingHorizontal: 17,
-          flexDirection: "row",
-          justifyContent: "space-between",
-          alignItems: "center",
-        }}
-      >
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={{ paddingRight: 12, marginTop: 7 }}
-        >
-          <Ionicons name="arrow-back" size={24} color="white" />
-        </TouchableOpacity>
-        <Text
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
+    >
+      <View className="flex-1">
+        <View
           style={{
-            color: "white",
-            fontSize: 16,
-            fontWeight: "bold",
-            marginTop: 7,
+            backgroundColor: "#1677ff",
+            paddingTop: insets.top,
+            paddingBottom: 16,
+            paddingHorizontal: 17,
+            flexDirection: "row",
+            justifyContent: "space-between",
+            alignItems: "center",
           }}
         >
-          Người nhận hàng ký
-        </Text>
-      </View>
-
-      <View style={{ paddingHorizontal: 16, paddingTop: 16 }}>
-        {/* <Label>Xác nhận thông tin sản phẩm</Label> */}
-        <ProductListAccordion products={products} />
-      </View>
-
-      <View style={{ padding: 16 }}>
-        {/* Chọn phương thức ký */}
-        <View style={{ alignItems: "center" }}>
-          <Text style={styles.label1}>
-            Người nhận hàng kiểm tra thông tin và ký tên tại đây
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={{ paddingRight: 12, marginTop: 7 }}
+          >
+            <Ionicons name="arrow-back" size={24} color="white" />
+          </TouchableOpacity>
+          <Text
+            style={{
+              color: "white",
+              fontSize: 16,
+              fontWeight: "bold",
+              marginTop: 7,
+            }}
+          >
+            Người nhận hàng ký
           </Text>
         </View>
 
-        {signMethod === "draw" ? (
-          <View style={styles.signatureBox}>
-            <Signature
-              ref={signatureRef}
-              onBegin={() => setScrollEnabled(false)}
-              onOK={(signature) => {
-                dispatch(setPaperData({ signReceiverUrl: signature }));
-              }}
-              onEnd={() => {
-                setScrollEnabled(true);
-                handleEnd();
-              }}
-              descriptionText="Ký tên tại đây"
-              imageType="image/png"
-              webStyle={`
+        <View style={{ paddingHorizontal: 16, paddingTop: 16 }}>
+          {/* <Label>Xác nhận thông tin sản phẩm</Label> */}
+          <ProductListAccordion products={products} />
+        </View>
+
+        <View style={{ padding: 16 }}>
+          {/* Chọn phương thức ký */}
+          <View style={{ alignItems: "center" }}>
+            <Text style={styles.label1}>
+              Người nhận hàng kiểm tra thông tin và ký tên tại đây
+            </Text>
+          </View>
+
+          {signMethod === "draw" ? (
+            <View style={styles.signatureBox}>
+              <Signature
+                ref={signatureRef}
+                onBegin={() => setScrollEnabled(false)}
+                onOK={(signature) => {
+                  dispatch(setPaperData({ signReceiverUrl: signature }));
+                }}
+                onEnd={() => {
+                  setScrollEnabled(true);
+                  handleEnd();
+                }}
+                descriptionText="Ký tên tại đây"
+                imageType="image/png"
+                webStyle={`
                   .m-signature-pad { height: 100% !important; }
                   .m-signature-pad--body { height: 100% !important; }
                   .m-signature---fopadoter { display: none; }
                   body, html { height: 100%; margin: 0; padding: 0; }
                 `}
-              style={{ flex: 1, height: 400 }}
-            />
-          </View>
-        ) : (
-          <View style={{ alignItems: "center" }}>
-            <Button onPress={takePhoto}>Chụp lại 📷</Button>
-            {capturedImage && (
-              <Image
-                source={{ uri: capturedImage }}
-                style={{
-                  width: "100%",
-                  height: 400,
-                  marginTop: 16,
-                  borderRadius: 12,
-                }}
-                resizeMode="contain"
+                style={{ flex: 1, height: 400 }}
               />
-            )}
-          </View>
-        )}
+            </View>
+          ) : (
+            <View style={{ alignItems: "center" }}>
+              <Button onPress={takePhoto}>Chụp lại 📷</Button>
+              {capturedImage && (
+                <Image
+                  source={{ uri: capturedImage }}
+                  style={{
+                    width: "100%",
+                    height: 400,
+                    marginTop: 16,
+                    borderRadius: 12,
+                  }}
+                  resizeMode="contain"
+                />
+              )}
+            </View>
+          )}
 
-        {/* Hiển thị chữ ký */}
-        {/* {paperData.signReceiverUrl && (
+          {/* Hiển thị chữ ký */}
+          {/* {paperData.signReceiverUrl && (
             <View>
               <View className="w-full bg-white p-3 rounded-2xl mt-4 items-center">
                 <Image
@@ -282,59 +288,60 @@ const SignReceiveScreen = () => {
             </View>
           )} */}
 
-        {/* Nút thao tác */}
+          {/* Nút thao tác */}
 
-        {paperData.signReceiverUrl && (
-          <View
-            style={{
-              flexDirection: "row",
-              justifyContent: "center",
-              marginVertical: 20,
-            }}
-          >
-            <TouchableOpacity
-              onPress={handleClear}
+          {paperData.signReceiverUrl && (
+            <View
               style={{
-                flex: 1,
-                paddingVertical: 12,
-                backgroundColor: "#DDDDDD",
-                borderRadius: 8,
-                marginRight: 5,
-                alignItems: "center",
+                flexDirection: "row",
+                justifyContent: "center",
+                marginVertical: 20,
               }}
             >
-              <Text
+              <TouchableOpacity
+                onPress={handleClear}
                 style={{
-                  color: "black",
+                  flex: 1,
+                  paddingVertical: 12,
+                  backgroundColor: "#DDDDDD",
+                  borderRadius: 8,
+                  marginRight: 5,
+                  alignItems: "center",
                 }}
               >
-                Xóa
-              </Text>
-            </TouchableOpacity>
+                <Text
+                  style={{
+                    color: "black",
+                  }}
+                >
+                  Xóa
+                </Text>
+              </TouchableOpacity>
 
-            <TouchableOpacity
-              onPress={handleConfirm}
-              disabled={isLoading}
-              style={{
-                flex: 1,
-                paddingVertical: 12,
-                backgroundColor: isLoading ? "#a0c4ff" : "#1677ff", // màu nhạt khi loading
-                borderRadius: 8,
-                marginLeft: 5,
-                alignItems: "center",
-                opacity: isLoading ? 0.6 : 1,
-              }}
-            >
-              {isLoading ? (
-                <ActivityIndicator color="white" />
-              ) : (
-                <Text style={{ color: "white" }}>Xác nhận</Text>
-              )}
-            </TouchableOpacity>
-          </View>
-        )}
+              <TouchableOpacity
+                onPress={handleConfirm}
+                disabled={isLoading}
+                style={{
+                  flex: 1,
+                  paddingVertical: 12,
+                  backgroundColor: isLoading ? "#a0c4ff" : "#1677ff", // màu nhạt khi loading
+                  borderRadius: 8,
+                  marginLeft: 5,
+                  alignItems: "center",
+                  opacity: isLoading ? 0.6 : 1,
+                }}
+              >
+                {isLoading ? (
+                  <ActivityIndicator color="white" />
+                ) : (
+                  <Text style={{ color: "white" }}>Xác nhận</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
       </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 };
 
