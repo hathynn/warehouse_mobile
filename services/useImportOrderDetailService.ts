@@ -1,8 +1,9 @@
 import { useState, useCallback } from "react";
 import axios from "axios";
 import { ImportOrderDetailType } from "@/types/importOrderDetail.type";
-import { InventoryItemType } from "@/types/inventoryItem.types";
+
 import useApiService from "./useApi";
+import { InventoryItem } from "@/types/inventoryItem.type";
 
 const INVENTORY_URL = "https://warehouse-backend-jlcj5.ondigitalocean.app/inventory-item/import-order-detail";
 
@@ -12,7 +13,7 @@ const useImportOrderDetail = () => {
   const [loading, setLoading] = useState(false);
   const [importOrderDetails, setImportOrderDetails] = useState<ImportOrderDetailType[]>([]);
   const [importOrderDetail, setImportOrderDetail] = useState<ImportOrderDetailType | null>(null);
-  const [inventoryItems, setInventoryItems] = useState<InventoryItemType[]>([]);
+  const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
 
 
   const fetchInventoryItemsByImportOrderDetailId = useCallback(
