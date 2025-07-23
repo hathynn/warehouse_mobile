@@ -12,6 +12,8 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
+  Modal,
+  FlatList,
 } from "react-native";
 import {
   SafeAreaView,
@@ -29,6 +31,8 @@ import { ExportRequestDetailType } from "@/types/exportRequestDetail.type";
 import useExportRequest from "@/services/useExportRequestService";
 import { useFocusEffect } from "@react-navigation/native";
 import useAccountService from "@/services/useAccountService";
+import { DepartmentType } from "@/types/department.type";
+import useDepartment from "@/services/useDepartmentService";
 
 const SignReceiveScreen = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -38,21 +42,24 @@ const SignReceiveScreen = () => {
   const signatureRef = useRef<SignatureViewRef>(null);
   const [signature, setSignature] = useState<string | null>(null);
   const [scrollEnabled, setScrollEnabled] = useState(true);
-  const [exportDetails, setExportDetails] = useState<ExportRequestDetailType[]>(
-    []
-  );
+  const [exportDetails, setExportDetails] = useState<ExportRequestDetailType[]>([]);
   const [providerName, setProviderName] = useState<string>("");
+  
+  // ✅ New states for department selection
+  const [selectedDepartment, setSelectedDepartment] = useState<DepartmentType | null>(null);
+  const [departmentModalVisible, setDepartmentModalVisible] = useState(false);
+  const [departmentSearchText, setDepartmentSearchText] = useState("");
+
   const handleProviderNameChange = (text: string) => {
     setProviderName(text);
     dispatch(setPaperData({ signProviderName: text }));
   };
 
-  const { fetchExportRequestDetails, updateActualQuantity } =
-    useExportRequestDetail();
+  const { fetchExportRequestDetails, updateActualQuantity } = useExportRequestDetail();
   const { createPaper } = usePaperService();
+  const { fetchDepartments, departments, loading: departmentLoading } = useDepartment();
   const paperData = useSelector((state: RootState) => state.paper);
-  const { exportRequest, updateExportRequestStatus, fetchExportRequestById } =
-    useExportRequest();
+  const { exportRequest, updateExportRequestStatus, fetchExportRequestById } = useExportRequest();
   const exportRequestId = paperData.exportRequestId;
   const { getAccountByEmail } = useAccountService();
 
@@ -62,6 +69,13 @@ const SignReceiveScreen = () => {
     email: email || "",
     phone: "",
   });
+
+  // ✅ Load departments when component mounts (only for non-SELLING exports)
+  useEffect(() => {
+    if (exportRequest?.type && exportRequest.type !== "SELLING") {
+      fetchDepartments(1, 100);
+    }
+  }, [exportRequest?.type]);
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -79,10 +93,6 @@ const SignReceiveScreen = () => {
     };
     fetchUser();
   }, [email]);
-
-  // useEffect(() => {
-  //   console.log("EXPORT ID ", exportRequestId);
-  // }, [exportRequestId]);
 
   useEffect(() => {
     if (exportRequestId) {
@@ -106,6 +116,21 @@ const SignReceiveScreen = () => {
         fetchExportRequestById(id);
       }
     }, [id])
+  );
+
+  // ✅ Handle department selection
+  const handleDepartmentSelect = (department: DepartmentType) => {
+    setSelectedDepartment(department);
+    setProviderName(department.departmentResponsible);
+    dispatch(setPaperData({ signProviderName: department.departmentResponsible }));
+    setDepartmentModalVisible(false);
+    setDepartmentSearchText("");
+  };
+
+  // ✅ Filter departments based on search text
+  const filteredDepartments = departments.filter((dept) =>
+    dept.departmentName.toLowerCase().includes(departmentSearchText.toLowerCase()) ||
+    dept.departmentResponsible.toLowerCase().includes(departmentSearchText.toLowerCase())
   );
 
   const handleClear = () => {
@@ -133,14 +158,21 @@ const SignReceiveScreen = () => {
       return;
     }
 
+    // ✅ Validation for provider name
+    if (!providerName.trim()) {
+      console.warn("Cần nhập tên người giao hàng.");
+      return;
+    }
+
     try {
       setIsLoading(true);
 
       const response = await createPaper({
         ...paperData,
         signProviderName: user.name || "",
-        signReceiverName: paperData.signProviderName || "",
+        signReceiverName: providerName.trim(),
       });
+      
       console.log("Responseeeeee", response);
       if (response) {
         console.log("✅ Tạo phiếu thành công");
@@ -189,13 +221,27 @@ const SignReceiveScreen = () => {
     }
   };
 
+  // ✅ Render department item for modal
+  const renderDepartmentItem = ({ item }: { item: DepartmentType }) => (
+    <TouchableOpacity
+      style={styles.departmentItem}
+      onPress={() => handleDepartmentSelect(item)}
+    >
+      <View style={styles.departmentContent}>
+        <Text style={styles.departmentName}>{item.departmentName}</Text>
+        <Text style={styles.departmentResponsible}>
+          Người đại diện: {item.departmentResponsible}
+        </Text>
+        <Text style={styles.departmentLocation}>Vị trí: {item.location}</Text>
+      </View>
+    </TouchableOpacity>
+  );
+
   return (
     <KeyboardAvoidingView 
-
       style={{ flex: 1 }} 
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
-      
     >
       <View style={{ flex: 1 }}>
         {/* Header */}
@@ -267,16 +313,48 @@ const SignReceiveScreen = () => {
               />
             </View>
 
-            {/* Input tên người giao hàng */}
+            {/* ✅ Conditional input based on export type */}
             <View style={{ marginTop: 15 }}>
-              <TextInput
-                style={styles.textInput}
-                value={providerName}
-                onChangeText={handleProviderNameChange}
-                placeholder="Nhập tên người giao hàng"
-                placeholderTextColor="#999"
-                returnKeyType="done"
-              />
+              {exportRequest?.type === "SELLING" ? (
+                // SELLING: Manual text input
+                <TextInput
+                  style={styles.textInput}
+                  value={providerName}
+                  onChangeText={handleProviderNameChange}
+                  placeholder="Nhập tên người nhận hàng"
+                  placeholderTextColor="#999"
+                  returnKeyType="done"
+                />
+              ) : (
+                // Other types: Department selection
+                <View>
+                  <TouchableOpacity
+                    style={styles.departmentSelector}
+                    onPress={() => setDepartmentModalVisible(true)}
+                  >
+                    <Text style={[
+                      styles.departmentSelectorText,
+                      !selectedDepartment && styles.placeholderText
+                    ]}>
+                      {selectedDepartment 
+                        ? selectedDepartment.departmentName 
+                        : "Chọn phòng ban nhận hàng"
+                      }
+                    </Text>
+                    <Ionicons name="chevron-down" size={20} color="#666" />
+                  </TouchableOpacity>
+                  
+                  {/* Display selected department representative */}
+                  {selectedDepartment && (
+                    <View style={styles.selectedDepartmentInfo}>
+                      <Text style={styles.representativeLabel}>Người đại diện:</Text>
+                      <Text style={styles.representativeName}>
+                        {selectedDepartment.departmentResponsible}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              )}
             </View>
 
             {paperData.signReceiverUrl && (
@@ -298,26 +376,20 @@ const SignReceiveScreen = () => {
                     alignItems: "center",
                   }}
                 >
-                  <Text
-                    style={{
-                      color: "black",
-                    }}
-                  >
-                    Xóa
-                  </Text>
+                  <Text style={{ color: "black" }}>Xóa</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
                   onPress={handleConfirm}
-                  disabled={isLoading}
+                  disabled={isLoading || !providerName.trim()}
                   style={{
                     flex: 1,
                     paddingVertical: 12,
-                    backgroundColor: isLoading ? "#a0c4ff" : "#1677ff", // màu nhạt khi loading
+                    backgroundColor: (isLoading || !providerName.trim()) ? "#a0c4ff" : "#1677ff",
                     borderRadius: 8,
                     marginLeft: 5,
                     alignItems: "center",
-                    opacity: isLoading ? 0.6 : 1,
+                    opacity: (isLoading || !providerName.trim()) ? 0.6 : 1,
                   }}
                 >
                   {isLoading ? (
@@ -330,6 +402,70 @@ const SignReceiveScreen = () => {
             )}
           </View>
         </ScrollView>
+
+        {/* ✅ Department Selection Modal */}
+        <Modal
+          visible={departmentModalVisible}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setDepartmentModalVisible(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContainer}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Chọn phòng ban</Text>
+                <TouchableOpacity
+                  onPress={() => {
+                    setDepartmentModalVisible(false);
+                    setDepartmentSearchText("");
+                  }}
+                  style={styles.closeButton}
+                >
+                  <Ionicons name="close" size={24} color="#666" />
+                </TouchableOpacity>
+              </View>
+
+              {/* Search bar */}
+              <View style={styles.searchContainer}>
+                <Ionicons name="search" size={20} color="#666" style={styles.searchIcon} />
+                <TextInput
+                  style={styles.searchInput}
+                  value={departmentSearchText}
+                  onChangeText={setDepartmentSearchText}
+                  placeholder="Tìm kiếm phòng ban hoặc người đại diện..."
+                  placeholderTextColor="#999"
+                  returnKeyType="search"
+                />
+              </View>
+
+              {departmentLoading ? (
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator size="large" color="#1677ff" />
+                  <Text style={styles.loadingText}>Đang tải danh sách phòng ban...</Text>
+                </View>
+              ) : (
+                <FlatList
+                  data={filteredDepartments}
+                  renderItem={renderDepartmentItem}
+                  keyExtractor={(item) => item.id.toString()}
+                  style={styles.departmentList}
+                  showsVerticalScrollIndicator={false}
+                  ListEmptyComponent={
+                    <View style={styles.emptyContainer}>
+                      <Ionicons name="business-outline" size={48} color="#ccc" />
+                      <Text style={styles.emptyText}>
+                        {departmentSearchText 
+                          ? "Không tìm thấy phòng ban phù hợp" 
+                          : "Không có phòng ban nào"
+                        }
+                      </Text>
+                    </View>
+                  }
+                />
+              )}
+            </View>
+          </View>
+        </Modal>
       </View>
     </KeyboardAvoidingView>
   );
@@ -362,6 +498,148 @@ const styles = StyleSheet.create({
     backgroundColor: "white",
     color: "#333",
   },
+  // ✅ New styles for department selection
+  departmentSelector: {
+    borderWidth: 1,
+    borderColor: "#ddd",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    backgroundColor: "white",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  departmentSelectorText: {
+    fontSize: 16,
+    color: "#333",
+    flex: 1,
+  },
+  placeholderText: {
+    color: "#999",
+  },
+  selectedDepartmentInfo: {
+    marginTop: 8,
+    padding: 12,
+    backgroundColor: "white",
+    borderRadius: 8,
+    borderLeftWidth: 3,
+    borderLeftColor: "#1677ff",
+  },
+  representativeLabel: {
+    fontSize: 12,
+    color: "#666",
+    marginBottom: 2,
+  },
+  representativeName: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#333",
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalContainer: {
+    width: "90%",
+    height: "70%",
+    backgroundColor: "white",
+    borderRadius: 12,
+    elevation: 5,
+    flexDirection: "column",
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f0f0f0",
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    flex: 1,
+    marginRight: 16,
+  },
+  closeButton: {
+    padding: 4,
+  },
+  searchContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginHorizontal: 16,
+    marginVertical: 12,
+    backgroundColor: "#f8f9fa",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  searchIcon: {
+    marginRight: 8,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 14,
+    color: "#333",
+  },
+  departmentList: {
+    flex: 1,
+    marginHorizontal: 16,
+    marginBottom: 16,
+  },
+  departmentItem: {
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f0f0f0",
+    backgroundColor: "white",
+  },
+  departmentContent: {
+    flex: 1,
+  },
+  departmentName: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#333",
+    marginBottom: 4,
+  },
+  departmentResponsible: {
+    fontSize: 14,
+    color: "#666",
+    marginBottom: 2,
+  },
+  departmentLocation: {
+    fontSize: 12,
+    color: "#999",
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: 40,
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 14,
+    color: "#555",
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: 40,
+  },
+  emptyText: {
+    fontSize: 14,
+    color: "#999",
+    marginTop: 12,
+    textAlign: "center",
+  },
+  // Keep existing styles
   actions: {
     flexDirection: "row",
     justifyContent: "space-between",

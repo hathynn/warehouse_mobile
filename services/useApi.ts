@@ -5,6 +5,7 @@ type HttpMethod = "get" | "post" | "put" | "delete" | "patch";
 
 interface CallApiOptions {
   headers?: Record<string, string>;
+  params?: Record<string, any>; // ✅ Thêm params vào options
 }
 
 const useApi = () => {
@@ -24,21 +25,27 @@ const useApi = () => {
 
         // Khởi tạo header cơ bản
         const headers: Record<string, string> = {
-          // Mặc định: application/json
           "Content-Type": "application/json",
           ...options?.headers,
         };
 
-        // Nếu data là FormData (ví dụ FormData từ usePaperService),
-        // thì bỏ hẳn Content-Type để Axios tự thêm boundary multipart
+        // Nếu data là FormData, bỏ Content-Type để Axios tự thêm boundary
         if (data instanceof FormData) {
           delete headers["Content-Type"];
         }
 
-        const axiosConfig = { headers };
+        // ✅ Tạo config hoàn chỉnh với params
+        const axiosConfig = { 
+          headers,
+          ...(options?.params && { params: options.params }) // Thêm params nếu có
+        };
 
         if (method === "get" || method === "delete") {
-          // GET/DELETE không dùng body, chỉ truyền config
+          // ✅ Với GET/DELETE, data có thể chứa params
+          if (data && typeof data === 'object' && data.params) {
+            axiosConfig.params = { ...axiosConfig.params, ...data.params };
+          }
+          
           const response = await api[method]<any>(url, axiosConfig);
           if (message) console.log(message);
           return response.data;
