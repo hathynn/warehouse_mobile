@@ -1,8 +1,5 @@
 import { useState, useCallback } from "react";
 import useApiService from "./useApi";
-
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import axios from "axios";
 import { InventoryItem } from "@/types/inventoryItem.type";
 
 const useInventoryService = () => {
@@ -13,97 +10,76 @@ const useInventoryService = () => {
     async (importOrderDetailId: number, page = 1, limit = 999) => {
       if (!importOrderDetailId) return [];
 
-      const token = await AsyncStorage.getItem("access_token");
-      setIsLoading(true);
-
       try {
-        const response = await axios.get(
-          `https://warehouse-backend-jlcj5.ondigitalocean.app/inventory-item/import-order-detail/${importOrderDetailId}`,
-          {
-            params: { page, limit },
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
+        const response = await callApi(
+          "get",
+          `/inventory-item/import-order-detail/${importOrderDetailId}`,
+          undefined, // data = undefined cho GET request
+          { params: { page, limit } }, // params qua options
+          `✅ Lấy inventory items cho import order detail ${importOrderDetailId}`
         );
 
-        setInventoryItems(response.data.content || []);
-        return response.data.content || [];
+        setInventoryItems(response.content || []);
+        return response.content || [];
       } catch (error) {
-        console.error("Lỗi khi lấy inventory items:", error);
+        console.error("❌ Lỗi khi lấy inventory items:", error);
         return [];
-      } finally {
-        setIsLoading(false);
       }
     },
-    [setIsLoading]
+    [callApi]
   );
 
   const fetchInventoryItemsByExportRequestDetailId = useCallback(
     async (exportRequestDetailId: number, page = 1, limit = 999) => {
       if (!exportRequestDetailId) return [];
 
-      const token = await AsyncStorage.getItem("access_token");
-      setIsLoading(true);
-
       try {
-        const response = await axios.get(
-          `https://warehouse-backend-jlcj5.ondigitalocean.app/inventory-item/export-request-detail/${exportRequestDetailId}`,
-          {
-            params: { page, limit },
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
+        const response = await callApi(
+          "get",
+          `/inventory-item/export-request-detail/${exportRequestDetailId}`,
+          undefined, // data = undefined cho GET request
+          { params: { page, limit } }, // params qua options
+          `✅ Lấy inventory items cho export request detail ${exportRequestDetailId}`
         );
 
-        setInventoryItems(response.data.content || []);
-        return response.data.content || [];
+        setInventoryItems(response.content || []);
+        return response.content || [];
       } catch (error) {
-        console.error("Lỗi khi lấy export inventory items:", error);
+        console.error("❌ Lỗi khi lấy export inventory items:", error);
         return [];
-      } finally {
-        setIsLoading(false);
       }
     },
-    [setIsLoading]
+    [callApi]
   );
 
   const autoChangeInventoryItem = useCallback(
-  async (inventoryItemId: string) => {
-    if (!inventoryItemId) return;
+    async (inventoryItemId: string) => {
+      if (!inventoryItemId) return;
 
-    const token = await AsyncStorage.getItem("access_token");
-    setIsLoading(true);
+      try {
+        const response = await callApi(
+          "put",
+          `/inventory-item/auto-change/${inventoryItemId}`,
+          {}, // empty body cho PUT request
+          undefined, // no additional options
+          `✅ Auto-change inventory item ${inventoryItemId}`
+        );
 
-    try {
-      const response = await axios.put(
-        `https://warehouse-backend-jlcj5.ondigitalocean.app/inventory-item/auto-change/${inventoryItemId}`,
-        {},
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      return response.data;
-    } catch (error) {
-      console.error("❌ Lỗi khi gọi auto-change:", error);
-      throw error;
-    } finally {
-      setIsLoading(false);
-    }
-  },
-  [setIsLoading]
-);
-
+        return response;
+      } catch (error) {
+        console.error("❌ Lỗi khi gọi auto-change:", error);
+        throw error;
+      }
+    },
+    [callApi]
+  );
 
   return {
     loading,
+    inventoryItems,
     fetchInventoryItemsByImportOrderDetailId,
     fetchInventoryItemsByExportRequestDetailId,
-    autoChangeInventoryItem
+    autoChangeInventoryItem,
   };
 };
 

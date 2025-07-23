@@ -2,8 +2,6 @@ import { useState, useCallback } from "react";
 import { ExportRequestType } from "../types/exportRequest.type";
 import useApiService from "./useApi";
 
-const BASE_URL =
-  "https://warehouse-backend-jlcj5.ondigitalocean.app/export-request";
 
 const useExportRequest = () => {
   const { loading, callApi, setIsLoading } = useApiService();

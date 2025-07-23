@@ -82,85 +82,139 @@ export default function ScanQrScreen() {
 
   const [canScan, setCanScan] = useState(true);
 
-  const handleBarCodeScanned = async ({ data }: { data: string }) => {
-    if (__DEV__) {
-      console.warn = () => {};
-      console.error = () => {};
+const handleBarCodeScanned = async ({ data }: { data: string }) => {
+  if (__DEV__) {
+    console.warn = () => {};
+    console.error = () => {};
+  }
+
+  // ✅ Chặt chẽ hơn với việc check scanning state
+  if (!scanningEnabled || isProcessing) {
+    console.log("🚫 Scan disabled or processing, ignoring scan");
+    return;
+  }
+
+  const rawInventoryItemId = data.trim();
+  const normalizedId = rawInventoryItemId.toLowerCase();
+  
+  console.log(`📱 Scanning QR: ${normalizedId}`);
+  console.log(`📋 Previously scanned: ${JSON.stringify(scannedIds)}`);
+  
+  // ✅ Check duplicate scan ngay lập tức
+  if (scannedIds.includes(normalizedId)) {
+    console.log("🚫 Already scanned this QR:", normalizedId);
+    setErrorMessage("Sản phẩm này đã được quét trước đó!");
+    setTimeout(() => setErrorMessage(null), 3000);
+    return;
+  }
+
+  // ✅ Disable scanning và processing ngay lập tức - NGAY TẠI ĐÂY
+  console.log("🔒 Disabling scan and setting processing");
+  setScanningEnabled(false);
+  setIsProcessing(true);
+  
+  // ✅ Thêm vào scannedIds NGAY LẬP TỨC để tránh duplicate
+  setScannedIds(prev => {
+    const newIds = [...prev, normalizedId];
+    console.log(`📝 Updated scannedIds: ${JSON.stringify(newIds)}`);
+    return newIds;
+  });
+  
+  // ✅ Clear previous messages
+  setErrorMessage(null);
+  setLastScannedProduct(null);
+
+  try {
+    console.log("📦 Raw QR data:", data);
+    console.log("🔍 inventoryItemId:", normalizedId);
+
+    const mapping = scanMappings.find(
+      (m) => m.inventoryItemId.toLowerCase() === normalizedId
+    );
+
+    console.log("🔍 Mapping found:", mapping);
+    if (!mapping) {
+      throw new Error("Không tìm thấy sản phẩm tương ứng với mã QR");
     }
 
-    if (!scanningEnabled) return;
-    setScanningEnabled(false);
+    const exportRequestDetailId = mapping.exportRequestDetailId;
+    const inventoryItemIdForApi = mapping.inventoryItemId;
+    const matched = exportDetails.find((d) => d.id === exportRequestDetailId);
 
-    setIsProcessing(true);
+    if (!matched) {
+      throw new Error("Không tìm thấy sản phẩm tương ứng với mã QR.");
+    }
 
-    try {
-      const rawInventoryItemId = data.trim(); // chỉ 1 dòng QR
-      const normalizedId = rawInventoryItemId.toLowerCase(); // hoặc .toUpperCase() nếu Redux lưu là UPPERCASE
+    if (matched.actualQuantity >= matched.quantity) {
+      throw new Error("Sản phẩm đã được quét đủ.");
+    }
 
-      console.log("📦 Raw QR data:", data);
-      console.log("🔍 inventoryItemId:", normalizedId);
+    console.log("🔄 Call API với:", {
+      exportRequestDetailId,
+      inventoryItemIdForApi,
+    });
 
-      const mapping = scanMappings.find(
-        (m) => m.inventoryItemId.toLowerCase() === normalizedId
-      );
+    const success = await updateActualQuantity(
+      exportRequestDetailId,
+      inventoryItemIdForApi.toUpperCase()
+    );
 
-      console.log("🔍 Mapping found:", mapping);
-      if (!mapping) {
-        throw new Error(
-          `Không tìm thấy mapping tương ứng cho mã QR: ${normalizedId}`
-        );
-      }
+    if (!success) throw new Error("Lỗi cập nhật số lượng");
 
-      const exportRequestDetailId = mapping.exportRequestDetailId;
-      const inventoryItemIdForApi = mapping.inventoryItemId;
-      const matched = exportDetails.find((d) => d.id === exportRequestDetailId);
+    // ✅ Success - hiển thị thông báo thành công
+    await playBeep();
+    setLastScannedProduct(matched);
+    
+    // ✅ Clear success message sau 4s
+    setTimeout(() => setLastScannedProduct(null), 4000);
+    
+    console.log("✅ Scan successful for:", normalizedId);
 
-      if (!matched) {
-        throw new Error("Không tìm thấy exportRequestDetail trong danh sách.");
-      }
+  } catch (err: any) {
+    console.error("❌ Scan error:", err);
+    
+    // ✅ Nếu có lỗi, remove khỏi scannedIds để có thể thử lại
+    setScannedIds(prev => {
+      const filteredIds = prev.filter(id => id !== normalizedId);
+      console.log(`🗑️ Removed from scannedIds due to error: ${JSON.stringify(filteredIds)}`);
+      return filteredIds;
+    });
+    
+    const message = err?.response?.data?.message || err?.message || "Lỗi không xác định";
+    let displayMessage = "QR không hợp lệ.";
 
-      if (matched.actualQuantity >= matched.quantity) {
-        throw new Error("Sản phẩm đã được quét đủ.");
-      }
-
-      console.log("🔍 Gửi API với:", {
-        exportRequestDetailId,
-        inventoryItemIdForApi,
+    if (message.toLowerCase().includes("has been tracked")) {
+      displayMessage = "Sản phẩm này đã được quét trước đó!";
+      // ✅ Nếu API báo đã tracked, add lại vào scannedIds
+      setScannedIds(prev => {
+        if (!prev.includes(normalizedId)) {
+          const newIds = [...prev, normalizedId];
+          console.log(`🔄 Re-added to scannedIds (API tracked): ${JSON.stringify(newIds)}`);
+          return newIds;
+        }
+        return prev;
       });
-
-      const success = await updateActualQuantity(
-        exportRequestDetailId,
-        inventoryItemIdForApi.toUpperCase()
-      );
-
-      if (!success) throw new Error("Lỗi cập nhật số lượng");
-
-      await playBeep();
-      setLastScannedProduct(matched);
-      setErrorMessage(null);
-      setTimeout(() => setLastScannedProduct(null), 4000);
-    } catch (err: any) {
-      const message =
-        err?.response?.data?.message || err?.message || "Lỗi không xác định";
-
-      let displayMessage = "QR không hợp lệ.";
-
-      if (message.toLowerCase().includes("has been tracked")) {
-        displayMessage = "Sản phẩm này đã được quét trước đó!";
-      } else if (message.toLowerCase().includes("not stable")) {
-        displayMessage = "Sản phẩm không hợp lệ.";
-      } else {
-        displayMessage = `${message}`;
-      }
-
-      setErrorMessage(displayMessage);
-    } finally {
-      setIsProcessing(false);
-
-      setTimeout(() => setScanningEnabled(true), 3500);
+    } else if (message.toLowerCase().includes("not stable")) {
+      displayMessage = "Sản phẩm không hợp lệ.";
+    } else {
+      displayMessage = `${message}`;
     }
-  };
 
+    setErrorMessage(displayMessage);
+    
+    // ✅ Clear error message sau 4s
+    setTimeout(() => setErrorMessage(null), 4000);
+    
+  } finally {
+    setIsProcessing(false);
+    
+    // ✅ Re-enable scanning sau 2s
+    setTimeout(() => {
+      setScanningEnabled(true);
+      console.log("✅ Scanning re-enabled");
+    }, 2000);
+  }
+};
   // const handleBarCodeScanned = async ({ data }: { data: string }) => {
   //   if (__DEV__) {
   //     console.warn = () => {};

@@ -64,9 +64,11 @@ const ExportRequestScreen: React.FC = () => {
     useState<number | null>(null);
   const [searchText, setSearchText] = useState("");
   const [itemUnitType, setItemUnitType] = useState<string>("");
-  
+
   // New state for auto-change loading
-  const [autoChangeLoading, setAutoChangeLoading] = useState<string | null>(null);
+  const [autoChangeLoading, setAutoChangeLoading] = useState<string | null>(
+    null
+  );
 
   const { getPaperById } = usePaperService();
 
@@ -190,10 +192,14 @@ const ExportRequestScreen: React.FC = () => {
   // Function to refresh inventory items
   const refreshInventoryItems = async () => {
     if (!selectedExportRequestDetailId) return;
-    
+
     try {
-      console.log(`🔄 Refreshing inventory items for exportRequestDetailId: ${selectedExportRequestDetailId}`);
-      const inventoryItems = await fetchInventoryItemsByExportRequestDetailId(selectedExportRequestDetailId);
+      console.log(
+        `🔄 Refreshing inventory items for exportRequestDetailId: ${selectedExportRequestDetailId}`
+      );
+      const inventoryItems = await fetchInventoryItemsByExportRequestDetailId(
+        selectedExportRequestDetailId
+      );
       setSelectedInventoryItems(inventoryItems);
       console.log(`✅ Refreshed ${inventoryItems.length} inventory items`);
     } catch (error) {
@@ -202,102 +208,134 @@ const ExportRequestScreen: React.FC = () => {
   };
 
   // Handle auto-change inventory item
-// Handle auto-change inventory item với debug
-const handleAutoChange = async (inventoryItemId: string) => {
-  try {
-    setAutoChangeLoading(inventoryItemId);
-    
-    Alert.alert(
-      "Xác nhận đổi mã",
-      `Bạn có chắc chắn muốn đổi mã inventory item: ${inventoryItemId}?`,
-      [
-        {
-          text: "Hủy",
-          style: "cancel",
-          onPress: () => setAutoChangeLoading(null),
-        },
-        {
-          text: "Đồng ý",
-          onPress: async () => {
-            try {
-              console.log(`🔄 Auto-changing inventory item: ${inventoryItemId}`);
-              
-              // Lưu lại danh sách inventory items trước khi đổi để so sánh
-              const oldInventoryItems = [...selectedInventoryItems];
-              console.log("📦 Old inventory items:", oldInventoryItems.map(item => item.id));
-              
-              // Gọi API để đổi mã
-              const result = await autoChangeInventoryItem(inventoryItemId);
-              console.log("🔍 API autoChangeInventoryItem result:", result);
-              
-              // Refresh inventory items để lấy dữ liệu mới
-              await refreshInventoryItems();
-              
-              // So sánh để tìm inventoryItemId mới
-              // Chờ một chút để đảm bảo selectedInventoryItems đã được cập nhật
-              setTimeout(() => {
-                const newInventoryItems = selectedInventoryItems;
-                console.log("📦 New inventory items:", newInventoryItems.map(item => item.id));
-                
-                // Tìm item mới (item có trong newInventoryItems nhưng không có trong oldInventoryItems)
-                const newItem = newInventoryItems.find(newItem => 
-                  !oldInventoryItems.some(oldItem => oldItem.id === newItem.id)
-                );
-                
-                if (newItem && selectedExportRequestDetailId) {
-                  console.log(`🎯 Found new inventory item: ${newItem.id}`);
-                  
-                  // Cập nhật Redux với inventoryItemId mới
-                  dispatch(updateInventoryItemId({
-                    exportRequestDetailId: selectedExportRequestDetailId.toString(),
-                    oldInventoryItemId: inventoryItemId,
-                    newInventoryItemId: newItem.id,
-                  }));
-                  
-                  console.log(`✅ Updated Redux: ${inventoryItemId} -> ${newItem.id}`);
-                } else {
-                  console.warn("⚠️ Could not find new inventory item after auto-change");
-                  
-                  // Fallback: Thử refresh lại toàn bộ export request details từ API
-                  console.log("🔄 Fallback: Refreshing export request details from API");
-                  fetchExportRequestDetails(id, 1, 100).then((refreshedData) => {
-                    const refreshedDetails = refreshedData.map((item) => ({
-                      ...item,
-                      actualQuantity: item.actualQuantity ?? 0,
-                      inventoryItemIds: item.inventoryItemIds ?? [],
-                    }));
+  // Handle auto-change inventory item với debug
+  const handleAutoChange = async (inventoryItemId: string) => {
+    try {
+      setAutoChangeLoading(inventoryItemId);
 
-                    dispatch(setExportRequestDetail(refreshedDetails));
-
-                    const mappings = refreshedDetails.flatMap((detail) =>
-                      (detail.inventoryItemIds ?? []).map((inventoryItemId: string) => ({
-                        inventoryItemId: inventoryItemId.trim().toLowerCase(),
-                        exportRequestDetailId: detail.id,
-                      }))
-                    );
-                    dispatch(setScanMappings(mappings));
-                    
-                    console.log("✅ Fallback refresh completed");
-                  });
-                }
-              }, 1000); // Đợi 1 giây để đảm bảo state đã được cập nhật
-              
-              Alert.alert("Thành công", "Đã đổi mã inventory item thành công!");
-            } catch (error) {
-              console.error("❌ Error auto-changing inventory item:", error);
-              Alert.alert("Lỗi", "Không thể đổi mã inventory item. Vui lòng thử lại!");
-            } finally {
-              setAutoChangeLoading(null);
-            }
+      Alert.alert(
+        "Xác nhận đổi mã",
+        `Bạn có chắc chắn muốn đổi mã inventory item: ${inventoryItemId}?`,
+        [
+          {
+            text: "Hủy",
+            style: "cancel",
+            onPress: () => setAutoChangeLoading(null),
           },
-        },
-      ]
-    );
-  } catch (error) {
-    console.error("❌ Error in handleAutoChange:", error);
-    setAutoChangeLoading(null);
-  }
-};
+          {
+            text: "Đồng ý",
+            onPress: async () => {
+              try {
+                console.log(
+                  `🔄 Auto-changing inventory item: ${inventoryItemId}`
+                );
+
+                // Lưu lại danh sách inventory items trước khi đổi để so sánh
+                const oldInventoryItems = [...selectedInventoryItems];
+                console.log(
+                  "📦 Old inventory items:",
+                  oldInventoryItems.map((item) => item.id)
+                );
+
+                // Gọi API để đổi mã
+                const result = await autoChangeInventoryItem(inventoryItemId);
+                console.log("🔍 API autoChangeInventoryItem result:", result);
+
+                // Refresh inventory items để lấy dữ liệu mới
+                await refreshInventoryItems();
+
+                // So sánh để tìm inventoryItemId mới
+                // Chờ một chút để đảm bảo selectedInventoryItems đã được cập nhật
+                setTimeout(() => {
+                  const newInventoryItems = selectedInventoryItems;
+                  console.log(
+                    "📦 New inventory items:",
+                    newInventoryItems.map((item) => item.id)
+                  );
+
+                  // Tìm item mới (item có trong newInventoryItems nhưng không có trong oldInventoryItems)
+                  const newItem = newInventoryItems.find(
+                    (newItem) =>
+                      !oldInventoryItems.some(
+                        (oldItem) => oldItem.id === newItem.id
+                      )
+                  );
+
+                  if (newItem && selectedExportRequestDetailId) {
+                    console.log(`🎯 Found new inventory item: ${newItem.id}`);
+
+                    // Cập nhật Redux với inventoryItemId mới
+                    dispatch(
+                      updateInventoryItemId({
+                        exportRequestDetailId:
+                          selectedExportRequestDetailId.toString(),
+                        oldInventoryItemId: inventoryItemId,
+                        newInventoryItemId: newItem.id,
+                      })
+                    );
+
+                    console.log(
+                      `✅ Updated Redux: ${inventoryItemId} -> ${newItem.id}`
+                    );
+                  } else {
+                    console.warn(
+                      "⚠️ Could not find new inventory item after auto-change"
+                    );
+
+                    // Fallback: Thử refresh lại toàn bộ export request details từ API
+                    console.log(
+                      "🔄 Fallback: Refreshing export request details from API"
+                    );
+                    fetchExportRequestDetails(id, 1, 100).then(
+                      (refreshedData) => {
+                        const refreshedDetails = refreshedData.map((item) => ({
+                          ...item,
+                          actualQuantity: item.actualQuantity ?? 0,
+                          inventoryItemIds: item.inventoryItemIds ?? [],
+                        }));
+
+                        dispatch(setExportRequestDetail(refreshedDetails));
+
+                        const mappings = refreshedDetails.flatMap((detail) =>
+                          (detail.inventoryItemIds ?? []).map(
+                            (inventoryItemId: string) => ({
+                              inventoryItemId: inventoryItemId
+                                .trim()
+                                .toLowerCase(),
+                              exportRequestDetailId: detail.id,
+                            })
+                          )
+                        );
+                        dispatch(setScanMappings(mappings));
+
+                        console.log("✅ Fallback refresh completed");
+                      }
+                    );
+                  }
+                }, 1000); // Đợi 1 giây để đảm bảo state đã được cập nhật
+
+                Alert.alert(
+                  "Thành công",
+                  "Đã đổi mã inventory item thành công!"
+                );
+              } catch (error) {
+                console.error("❌ Error auto-changing inventory item:", error);
+                Alert.alert(
+                  "Lỗi",
+                  "Không thể đổi mã inventory item. Vui lòng thử lại!"
+                );
+              } finally {
+                setAutoChangeLoading(null);
+              }
+            },
+          },
+        ]
+      );
+    } catch (error) {
+      console.error("❌ Error in handleAutoChange:", error);
+      setAutoChangeLoading(null);
+    }
+  };
 
   // Updated handle row press to fetch inventory items and item details
   const handleRowPress = async (detail: any) => {
@@ -367,7 +405,7 @@ const handleAutoChange = async (inventoryItemId: string) => {
           <TouchableOpacity
             style={[
               styles.autoChangeButton,
-              autoChangeLoading === item.id && styles.autoChangeButtonDisabled
+              autoChangeLoading === item.id && styles.autoChangeButtonDisabled,
             ]}
             onPress={() => handleAutoChange(item.id)}
             disabled={autoChangeLoading === item.id}
@@ -386,103 +424,118 @@ const handleAutoChange = async (inventoryItemId: string) => {
     </View>
   );
 
-  const renderActionButton = () => {
-    if (!exportRequest) return null;
-    const status = exportRequest.status;
+  // Thay thế renderSignatureSection function hiện tại:
 
-    switch (status) {
-      case ExportRequestStatus.IN_PROGRESS:
-        return (
-          <View>
-            <StyledButton
-              title="Xác nhận số lượng"
-              onPress={handleConfirm}
-              style={{ marginTop: 12 }}
-            />
+const renderSignatureSection = () => {
+  if (
+    exportRequest?.status !== ExportRequestStatus.COMPLETED ||
+    !exportRequest?.paperId
+  )
+    return null;
+
+  return (
+    <View style={styles.signatureContainer}>
+      {/* ✅ Chữ ký ngang hàng */}
+      <View style={styles.signatureRowWrapper}>
+        {/* Người giao hàng */}
+        <View style={styles.signatureItemHorizontal}>
+          <Text style={styles.signatureLabelHorizontal}>
+            Người giao hàng
+          </Text>
+          <Text style={styles.signatureNameHorizontal}>
+            {paper?.signProviderName || "Chưa rõ"}
+          </Text>
+          <View style={styles.signatureImageContainerHorizontal}>
+            {paper?.signProviderUrl ? (
+              <Image
+                source={{ uri: paper.signProviderUrl }}
+                style={styles.signatureImageHorizontal}
+                resizeMode="contain"
+              />
+            ) : (
+              <View style={styles.noSignatureHorizontal}>
+                <Ionicons
+                  name="document-text-outline"
+                  size={30}
+                  color="#ccc"
+                />
+                <Text style={styles.noSignatureTextHorizontal}>Chưa có chữ ký</Text>
+              </View>
+            )}
           </View>
-        );
+        </View>
 
-      case ExportRequestStatus.WAITING_EXPORT:
-        return (
+        {/* Người nhận hàng */}
+        <View style={styles.signatureItemHorizontal}>
+          <Text style={styles.signatureLabelHorizontal}>
+            Người nhận hàng
+          </Text>
+          <Text style={styles.signatureNameHorizontal}>
+            {paper?.signReceiverName || "Chưa rõ"}
+          </Text>
+          <View style={styles.signatureImageContainerHorizontal}>
+            {paper?.signReceiverUrl ? (
+              <Image
+                source={{ uri: paper.signReceiverUrl }}
+                style={styles.signatureImageHorizontal}
+                resizeMode="contain"
+              />
+            ) : (
+              <View style={styles.noSignatureHorizontal}>
+                <Ionicons
+                  name="document-text-outline"
+                  size={30}
+                  color="#ccc"
+                />
+                <Text style={styles.noSignatureTextHorizontal}>Chưa có chữ ký</Text>
+              </View>
+            )}
+          </View>
+        </View>
+      </View>
+
+      {/* Status badge */}
+      {/* <View style={styles.completedBadge}>
+        <Ionicons name="checkmark-circle" size={20} color="#28a745" />
+        <Text style={styles.completedText}>Đơn hàng đã hoàn thành</Text>
+      </View> */}
+    </View>
+  );
+};
+
+// ✅ Cập nhật actionButtonContainer để có margin phù hợp
+const renderActionButton = () => {
+  if (!exportRequest) return null;
+  const status = exportRequest.status;
+
+  switch (status) {
+    case ExportRequestStatus.IN_PROGRESS:
+      return (
+        <View style={styles.actionButtonContainer}>
+          <StyledButton
+            title="Xác nhận số lượng"
+            onPress={handleConfirm}
+            style={{ marginTop: 12 }}
+          />
+        </View>
+      );
+
+    case ExportRequestStatus.WAITING_EXPORT:
+      return (
+        <View style={styles.actionButtonContainer}>
           <StyledButton
             title="Xác nhận xuất kho"
             onPress={() => router.push(`/export/sign/warehouse-sign?id=${id}`)}
             style={{ marginTop: 12 }}
           />
-        );
-      case ExportRequestStatus.COMPLETED:
-        return null;
-      default:
-        return null;
-    }
-  };
-
-  const renderSignatureSection = () => {
-    if (
-      exportRequest?.status !== ExportRequestStatus.COMPLETED ||
-      !exportRequest?.paperId
-    )
+        </View>
+      );
+    case ExportRequestStatus.COMPLETED:
       return null;
-
-    return (
-      <View style={styles.signatureContainer}>
-        <View style={styles.signatureWrapper}>
-          <View style={styles.signatureItem}>
-            <Text style={styles.signatureLabel}>
-              Người giao hàng: {paper?.signProviderName || "Chưa rõ"}
-            </Text>
-            <View style={styles.signatureImageContainer}>
-              {paper?.signProviderUrl ? (
-                <Image
-                  source={{ uri: paper.signProviderUrl }}
-                  style={styles.signatureImage}
-                  resizeMode="contain"
-                />
-              ) : (
-                <View style={styles.noSignature}>
-                  <Ionicons
-                    name="document-text-outline"
-                    size={40}
-                    color="#ccc"
-                  />
-                  <Text style={styles.noSignatureText}>Chưa có chữ ký</Text>
-                </View>
-              )}
-            </View>
-          </View>
-
-          <View style={styles.signatureItem}>
-            <Text style={styles.signatureLabel}>
-              Người nhận hàng: {paper?.signReceiverName || "Chưa rõ"}
-            </Text>
-            <View style={styles.signatureImageContainer}>
-              {paper?.signReceiverUrl ? (
-                <Image
-                  source={{ uri: paper.signReceiverUrl }}
-                  style={styles.signatureImage}
-                  resizeMode="contain"
-                />
-              ) : (
-                <View style={styles.noSignature}>
-                  <Ionicons
-                    name="document-text-outline"
-                    size={40}
-                    color="#ccc"
-                  />
-                  <Text style={styles.noSignatureText}>Chưa có chữ ký</Text>
-                </View>
-              )}
-            </View>
-          </View>
-        </View>
-
-        <View style={styles.completedBadge}>
-          <Ionicons name="checkmark-circle" size={20} color="#28a745" />
-          <Text style={styles.completedText}>Đơn hàng đã hoàn thành</Text>
-        </View>
-      </View>
-    );
-  };
+    default:
+      return null;
+  }
+};
 
   return (
     <View style={{ flex: 1 }}>
@@ -571,7 +624,8 @@ const handleAutoChange = async (inventoryItemId: string) => {
           </View>
         </View>
 
-        <View style={styles.table}>
+        <View style={styles.tableContainer}>
+          {/* Header cố định */}
           <View style={[styles.tableRow, styles.tableHeader]}>
             <Text style={[styles.cellCode]}>Mã hàng</Text>
             <Text style={[styles.cellAlignRight]}>Cần</Text>
@@ -584,61 +638,71 @@ const handleAutoChange = async (inventoryItemId: string) => {
             )}
           </View>
 
-          {savedExportRequestDetails.map((detail: any, index: number) => {
-            const isDisabled = detail.quantity === detail.actualQuantity;
-            const isLastItem = index === savedExportRequestDetails.length - 1;
+          {/* Scrollable content */}
+          <ScrollView
+            style={styles.scrollableTableContent}
+            showsVerticalScrollIndicator={true}
+            nestedScrollEnabled={true}
+          >
+            {savedExportRequestDetails.map((detail: any, index: number) => {
+              const isDisabled = detail.quantity === detail.actualQuantity;
+              const isLastItem = index === savedExportRequestDetails.length - 1;
 
-            return (
-              <View key={detail.id}>
-                <TouchableOpacity
-                  style={styles.tableRow}
-                  onPress={() => handleRowPress(detail)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={[styles.cellCode]}>{detail.itemId}</Text>
-                  <Text style={[styles.cellAlignRight]}>{detail.quantity}</Text>
-                  <Text style={[styles.cellAlignRight]}>
-                    {detail.actualQuantity}
-                  </Text>
+              return (
+                <View key={detail.id}>
+                  <TouchableOpacity
+                    style={styles.tableRow}
+                    onPress={() => handleRowPress(detail)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.cellCode]}>{detail.itemId}</Text>
+                    <Text style={[styles.cellAlignRight]}>
+                      {detail.quantity}
+                    </Text>
+                    <Text style={[styles.cellAlignRight]}>
+                      {detail.actualQuantity}
+                    </Text>
 
-                  {[
-                    ExportRequestStatus.IN_PROGRESS,
-                    ExportRequestStatus.COUNTED,
-                  ].includes(exportRequest?.status as ExportRequestStatus) && (
-                    <View style={styles.scanCell}>
-                      <TouchableOpacity
-                        style={[
-                          styles.scanButton,
-                          isDisabled && styles.scanButtonDisabled,
-                        ]}
-                        disabled={isDisabled}
-                        onPress={(e) => {
-                          e.stopPropagation();
-                          router.push(
-                            `/export/scan-qr?id=${exportRequest?.exportRequestId}`
-                          );
-                        }}
-                      >
-                        {isDisabled ? (
-                          <Text style={styles.scanText}>Đã đủ</Text>
-                        ) : (
-                          <Ionicons
-                            name="qr-code-outline"
-                            size={18}
-                            color="white"
-                          />
-                        )}
-                      </TouchableOpacity>
-                    </View>
-                  )}
-                </TouchableOpacity>
+                    {[
+                      ExportRequestStatus.IN_PROGRESS,
+                      ExportRequestStatus.COUNTED,
+                    ].includes(
+                      exportRequest?.status as ExportRequestStatus
+                    ) && (
+                      <View style={styles.scanCell}>
+                        <TouchableOpacity
+                          style={[
+                            styles.scanButton,
+                            isDisabled && styles.scanButtonDisabled,
+                          ]}
+                          disabled={isDisabled}
+                          onPress={(e) => {
+                            e.stopPropagation();
+                            router.push(
+                              `/export/scan-qr?id=${exportRequest?.exportRequestId}`
+                            );
+                          }}
+                        >
+                          {isDisabled ? (
+                            <Text style={styles.scanText}>Đã đủ</Text>
+                          ) : (
+                            <Ionicons
+                              name="qr-code-outline"
+                              size={18}
+                              color="white"
+                            />
+                          )}
+                        </TouchableOpacity>
+                      </View>
+                    )}
+                  </TouchableOpacity>
 
-                {!isLastItem && <View style={styles.divider} />}
-              </View>
-            );
-          })}
+                  {!isLastItem && <View style={styles.divider} />}
+                </View>
+              );
+            })}
+          </ScrollView>
         </View>
-
         <View style={styles.actionButtonContainer}>{renderActionButton()}</View>
 
         {renderSignatureSection()}
@@ -773,6 +837,31 @@ const styles = StyleSheet.create({
     color: "#e63946",
     fontWeight: "bold",
   },
+  tableContainer: {
+    backgroundColor: "white",
+    marginHorizontal: 16,
+    marginBottom: 16,
+    borderRadius: 12,
+    overflow: "hidden",
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+
+  // Thêm style mới:
+  scrollableTableContent: {
+    maxHeight: 450,
+    backgroundColor: "white",
+  },
+
+  // Cập nhật tableHeader để có border bottom:
+  tableHeader: {
+    backgroundColor: "#f0f0f0",
+    borderBottomWidth: 1,
+    borderBottomColor: "#e0e0e0",
+  },
   table: {
     backgroundColor: "white",
     marginHorizontal: 16,
@@ -780,9 +869,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     overflow: "hidden",
   },
-  tableHeader: {
-    backgroundColor: "#f0f0f0",
-  },
+
   tableRow: {
     flexDirection: "row",
     paddingVertical: 12,
@@ -954,13 +1041,13 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "500",
   },
-    autoChangeButtonContainer: {
+  autoChangeButtonContainer: {
     marginLeft: 12,
     alignItems: "center",
   },
- actionButtonContainer: {
-  marginBottom:35,
-   
+  actionButtonContainer: {
+    marginBottom: 35,
+
     marginHorizontal: 16,
     borderRadius: 12,
     elevation: 2,
@@ -1063,6 +1150,67 @@ const styles = StyleSheet.create({
     color: "#ccc",
     marginTop: 8,
   },
+
+  // ✅ Styles mới cho layout ngang
+  signatureRowWrapper: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 20,
+    gap: 12, // Khoảng cách giữa 2 chữ ký
+  },
+
+  signatureItemHorizontal: {
+    flex: 1,
+    alignItems: "center",
+  },
+
+  signatureLabelHorizontal: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#666",
+    textAlign: "center",
+    marginBottom: 6,
+  },
+
+  signatureNameHorizontal: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#333",
+    textAlign: "center",
+    marginBottom: 10,
+  },
+
+  signatureImageContainerHorizontal: {
+    width: "100%",
+    height: 140, // Giảm height từ 200 xuống 140
+    borderWidth: 1,
+    borderColor: "#e0e0e0",
+    borderRadius: 8,
+    backgroundColor: "#f9f9f9",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  signatureImageHorizontal: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 8,
+  },
+
+  noSignatureHorizontal: {
+    alignItems: "center",
+    justifyContent: "center",
+    height: "100%",
+  },
+
+  noSignatureTextHorizontal: {
+    fontSize: 10,
+    color: "#ccc",
+    marginTop: 6,
+    textAlign: "center",
+  },
+
+  // ✅ Giữ nguyên completedBadge style
   completedBadge: {
     flexDirection: "row",
     alignItems: "center",
@@ -1074,6 +1222,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#28a745",
   },
+
   completedText: {
     fontSize: 14,
     fontWeight: "600",
