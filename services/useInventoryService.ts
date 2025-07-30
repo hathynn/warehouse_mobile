@@ -74,12 +74,35 @@ const useInventoryService = () => {
     [callApi]
   );
 
+  const fetchInventoryItemById = useCallback(
+  async (inventoryItemId: string) => {
+    if (!inventoryItemId) return null;
+
+    try {
+      const response = await callApi(
+        "get",
+        `/inventory-item/${inventoryItemId}`,
+        undefined, 
+        undefined, 
+        `Lấy inventory item theo ID ${inventoryItemId}`
+      );
+
+      return response.content; 
+    } catch (error) {
+      console.error("❌ Lỗi khi lấy inventory item theo ID:", error);
+      return null;
+    }
+  },
+  [callApi]
+);
+
   return {
     loading,
     inventoryItems,
     fetchInventoryItemsByImportOrderDetailId,
     fetchInventoryItemsByExportRequestDetailId,
     autoChangeInventoryItem,
+    fetchInventoryItemById,
   };
 };
 

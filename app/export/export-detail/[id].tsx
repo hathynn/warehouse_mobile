@@ -48,6 +48,7 @@ const ExportRequestScreen: React.FC = () => {
   const {
     fetchInventoryItemsByExportRequestDetailId,
     autoChangeInventoryItem,
+    fetchInventoryItemById,
     loading: inventoryLoading,
   } = useInventoryService();
   const { getItemDetailById } = useItemService();
@@ -69,6 +70,19 @@ const ExportRequestScreen: React.FC = () => {
   const [autoChangeLoading, setAutoChangeLoading] = useState<string | null>(
     null
   );
+
+  const [modalPage, setModalPage] = useState<
+    "main" | "manual_select" | "reason_input"
+  >("main");
+  const [allInventoryItems, setAllInventoryItems] = useState<InventoryItem[]>(
+    []
+  );
+  const [manualSearchText, setManualSearchText] = useState("");
+  const [selectedManualItem, setSelectedManualItem] =
+    useState<InventoryItem | null>(null);
+  const [originalItemId, setOriginalItemId] = useState<string>("");
+  const [changeReason, setChangeReason] = useState("");
+  const [manualChangeLoading, setManualChangeLoading] = useState(false);
 
   const { getPaperById } = usePaperService();
 
@@ -207,6 +221,65 @@ const ExportRequestScreen: React.FC = () => {
     }
   };
 
+  // Function to fetch all inventory items by itemId for manual change
+  // Function to fetch all inventory items by itemId for manual change
+  // Function to fetch all inventory items by itemId for manual change
+  const fetchAllInventoryItemsByItemId = async (itemId: string) => {
+    try {
+      console.log(`🔍 Fetching all inventory items for itemId: ${itemId}`);
+
+      // Get item details to get inventoryItemIds list
+      const itemDetails = await getItemDetailById(itemId);
+      if (
+        !itemDetails ||
+        !itemDetails.inventoryItemIds ||
+        itemDetails.inventoryItemIds.length === 0
+      ) {
+        console.warn("⚠️ No inventory item IDs found for this item");
+        return [];
+      }
+
+      console.log(
+        `📦 Found ${itemDetails.inventoryItemIds.length} inventory item IDs:`,
+        itemDetails.inventoryItemIds
+      );
+
+      // Log each inventory item ID being fetched (như log của bạn)
+      itemDetails.inventoryItemIds.forEach((inventoryItemId: string) => {
+        console.log(`Lấy inventory item theo ID ${inventoryItemId}`);
+      });
+
+      // Fetch details for each inventory item ID using your service
+      const inventoryItems = await Promise.all(
+        itemDetails.inventoryItemIds.map(async (inventoryItemId: string) => {
+          try {
+            // Sử dụng fetchInventoryItemById service của bạn
+            const inventoryItem = await fetchInventoryItemById(inventoryItemId);
+            return inventoryItem;
+          } catch (error) {
+            console.error(
+              `❌ Error fetching inventory item ${inventoryItemId}:`,
+              error
+            );
+            return null;
+          }
+        })
+      );
+
+      // Filter out null results
+      const validInventoryItems = inventoryItems.filter(
+        (item) => item !== null
+      );
+      console.log(
+        `✅ Successfully fetched ${validInventoryItems.length} inventory items`
+      );
+
+      return validInventoryItems;
+    } catch (error) {
+      console.error("❌ Error fetching all inventory items:", error);
+      return [];
+    }
+  };
   // Handle auto-change inventory item
   // Handle auto-change inventory item với debug
   const handleAutoChange = async (inventoryItemId: string) => {
@@ -337,6 +410,131 @@ const ExportRequestScreen: React.FC = () => {
     }
   };
 
+  const handleManualChangePress = async () => {
+    try {
+      console.log(`🔄 Starting manual change for itemId: ${selectedItemCode}`);
+      setModalPage("manual_select");
+
+      // Fetch all inventory items for this itemId
+      const allItems = await fetchAllInventoryItemsByItemId(selectedItemCode);
+      setAllInventoryItems(allItems);
+      setManualSearchText("");
+    } catch (error) {
+      console.error("❌ Error in manual change:", error);
+      Alert.alert("Lỗi", "Không thể tải danh sách inventory items");
+    }
+  };
+
+  // Handle manual item selection - replace the original inventory item ID
+  const handleManualItemSelect = (
+    selectedItem: InventoryItem,
+    originalInventoryItemId: string
+  ) => {
+    setSelectedManualItem(selectedItem);
+    setOriginalItemId(originalInventoryItemId);
+    setModalPage("reason_input");
+    setChangeReason("");
+  };
+
+  // Handle manual change submission
+  const handleManualChangeSubmit = async () => {
+    if (!selectedManualItem || !originalItemId || !changeReason.trim()) {
+      Alert.alert("Lỗi", "Vui lòng nhập lý do đổi item");
+      return;
+    }
+
+    try {
+      setManualChangeLoading(true);
+
+      // Here you would call your API to perform the manual change
+      // await manualChangeInventoryItem(originalItemId, selectedManualItem.id, changeReason);
+
+      console.log(
+        `🔄 Manual change: ${originalItemId} -> ${selectedManualItem.id}`
+      );
+      console.log(`📝 Reason: ${changeReason}`);
+
+      // Update Redux state
+      if (selectedExportRequestDetailId) {
+        dispatch(
+          updateInventoryItemId({
+            exportRequestDetailId: selectedExportRequestDetailId.toString(),
+            oldInventoryItemId: originalItemId,
+            newInventoryItemId: selectedManualItem.id,
+          })
+        );
+      }
+
+      // Refresh data
+      await refreshInventoryItems();
+
+      Alert.alert("Thành công", "Đã đổi item thành công!");
+
+      // Reset modal state
+      setModalPage("main");
+      setSelectedManualItem(null);
+      setOriginalItemId("");
+      setChangeReason("");
+    } catch (error) {
+      console.error("❌ Error in manual change submission:", error);
+      Alert.alert("Lỗi", "Không thể đổi item. Vui lòng thử lại!");
+    } finally {
+      setManualChangeLoading(false);
+    }
+  };
+
+   const enhancedSearch = (item: InventoryItem, searchText: string): boolean => {
+    if (!searchText) return true;
+
+    const searchLower = searchText.toLowerCase().trim();
+    if (!searchLower) return true;
+
+    // Tạo array chứa tất cả text có thể search
+    const searchableFields = [
+      item.id,
+      item.itemId,
+      item.storedLocationName,
+      item.measurementValue?.toString(),
+      itemUnitType,
+    ].filter(Boolean); // Loại bỏ null/undefined
+
+    // Tìm kiếm trong từng field
+    const directMatch = searchableFields.some((field) =>
+      field?.toLowerCase().includes(searchLower)
+    );
+
+    // Tìm kiếm trong các phần của ID (split by special characters)
+    const idParts = item.id?.toLowerCase().split(/[-_.]/) || [];
+    const itemIdParts = item.itemId?.toLowerCase().split(/[-_.]/) || [];
+    const allParts = [...idParts, ...itemIdParts];
+
+    const partsMatch = allParts.some(
+      (part) => part.includes(searchLower) || searchLower.includes(part)
+    );
+
+    // Fuzzy matching cho các trường hợp gõ thiếu
+    const fuzzyMatch = searchableFields.some((field) => {
+      if (!field) return false;
+      const fieldLower = field.toLowerCase();
+
+      // Kiểm tra nếu search text là subsequence của field
+      let searchIndex = 0;
+      for (
+        let i = 0;
+        i < fieldLower.length && searchIndex < searchLower.length;
+        i++
+      ) {
+        if (fieldLower[i] === searchLower[searchIndex]) {
+          searchIndex++;
+        }
+      }
+      return searchIndex === searchLower.length;
+    });
+
+    return directMatch || partsMatch || fuzzyMatch;
+  };
+
+  // Updated handle row press to fetch inventory items and item details
   // Updated handle row press to fetch inventory items and item details
   const handleRowPress = async (detail: any) => {
     if (!detail.id) {
@@ -349,20 +547,19 @@ const ExportRequestScreen: React.FC = () => {
     setInventoryModalVisible(true);
     setSearchText("");
     setItemUnitType("");
+    setModalPage("main"); // Reset to main page
 
     try {
       console.log(
         `🔍 Fetching inventory items for exportRequestDetailId: ${detail.id}`
       );
 
-      // Fetch inventory items
       const inventoryItems = await fetchInventoryItemsByExportRequestDetailId(
         detail.id
       );
       setSelectedInventoryItems(inventoryItems);
       console.log(`✅ Loaded ${inventoryItems.length} inventory items`);
 
-      // Fetch item details để lấy unitType
       if (detail.itemId) {
         console.log(`🔍 Fetching item details for itemId: ${detail.itemId}`);
         const itemDetails = await getItemDetailById(detail.itemId);
@@ -381,45 +578,60 @@ const ExportRequestScreen: React.FC = () => {
   };
 
   // Filter inventory items based on search text
-  const filteredInventoryItems = selectedInventoryItems.filter(
-    (item) =>
-      item.id?.toLowerCase().includes(searchText.toLowerCase()) ||
-      item.itemId?.toLowerCase().includes(searchText.toLowerCase())
-  );
+const filteredInventoryItems = selectedInventoryItems.filter(item => 
+  enhancedSearch(item, searchText)
+);
 
   const renderInventoryItem = ({ item }: { item: InventoryItem }) => (
-  <View style={styles.inventoryItemRow}>
-    <View style={styles.inventoryItemContent}>
-      <Text style={styles.inventoryItemId}>{item.id}</Text>
-      <Text style={styles.inventoryItemSubtext}>Vị trí: {item.storedLocationName}</Text>
-      {exportRequest?.type === "PRODUCTION" && (
-        <Text style={styles.inventoryItemSubtext}>
-          Giá trị cần xuất: {item.measurementValue} {itemUnitType || "đơn vị"}
-        </Text>
-      )}
-    </View>
+    <View style={styles.inventoryItemContainer}>
+      {/* Thông tin item */}
+      <View style={styles.inventoryItemRow}>
+        <View style={styles.inventoryItemContent}>
+          <Text style={styles.inventoryItemId}>{item.id}</Text>
+          <Text style={styles.inventoryItemSubtext}>
+            Vị trí: {item.storedLocationName}
+          </Text>
+          {exportRequest?.type === "PRODUCTION" && (
+            <Text style={styles.inventoryItemSubtext}>
+              Giá trị cần xuất: {item.measurementValue}{" "}
+              {itemUnitType || "đơn vị"}
+            </Text>
+          )}
+        </View>
 
-    {/* Dual buttons for items not being tracked for export */}
-    {!item.isTrackingForExport && (
-      <View style={styles.dualButtonContainer}>
-        {/* Scan QR Button */}
-        <TouchableOpacity
-          style={styles.scanQrButton}
-          onPress={() => {
-            // Close modal and navigate to QR scan
-            setInventoryModalVisible(false);
-            router.push(`/export/scan-qr?id=${exportRequest?.exportRequestId}`);
-          }}
-        >
-          <Ionicons name="qr-code-outline" size={16} color="white" />
-          <Text style={styles.scanQrButtonText}>Scan</Text>
-        </TouchableOpacity>
+        {/* Status indicator for items being tracked */}
+        {item.isTrackingForExport && (
+          <View style={styles.trackingStatusContainer}>
+            <Ionicons name="checkmark-circle" size={20} color="#28a745" />
+            <Text style={styles.trackingStatusText}>Đã quét</Text>
+          </View>
+        )}
+      </View>
+
+      {/* Action buttons row - chỉ hiện khi chưa được track */}
+      <View style={styles.actionButtonsRow}>
+        {/* Scan QR Button – chỉ hiện nếu KHÔNG tracking */}
+        {!item.isTrackingForExport && (
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={() => {
+              setInventoryModalVisible(false);
+              router.push(
+                `/export/scan-qr?id=${exportRequest?.exportRequestId}`
+              );
+            }}
+          >
+            <Ionicons name="qr-code-outline" size={16} color="white" />
+            <Text style={styles.actionButtonText}>Quét QR</Text>
+          </TouchableOpacity>
+        )}
 
         {/* Auto-change Button */}
         <TouchableOpacity
           style={[
-            styles.autoChangeButton,
-            autoChangeLoading === item.id && styles.autoChangeButtonDisabled,
+            styles.actionButton,
+            styles.autoChangeActionButton,
+            autoChangeLoading === item.id && styles.actionButtonDisabled,
           ]}
           onPress={() => handleAutoChange(item.id)}
           disabled={autoChangeLoading === item.id}
@@ -429,135 +641,388 @@ const ExportRequestScreen: React.FC = () => {
           ) : (
             <>
               <Ionicons name="refresh-outline" size={16} color="white" />
-              <Text style={styles.autoChangeButtonText}>Đổi</Text>
+              <Text style={styles.actionButtonText}>Đổi tự động</Text>
             </>
           )}
         </TouchableOpacity>
+
+        {/* Manual Change Button */}
+        <TouchableOpacity
+          style={[styles.actionButton, styles.manualChangeActionButton]}
+          onPress={() => {
+            setOriginalItemId(item.id);
+            handleManualChangePress();
+          }}
+        >
+          <Ionicons name="create-outline" size={16} color="white" />
+          <Text style={styles.actionButtonText}>Đổi thủ công</Text>
+        </TouchableOpacity>
       </View>
-    )}
-
-    {/* Status indicator for items being tracked */}
-    {item.isTrackingForExport && (
-      <View style={styles.trackingStatusContainer}>
-        <Ionicons name="checkmark-circle" size={20} color="#28a745" />
-        <Text style={styles.trackingStatusText}>Đã quét</Text>
+    </View>
+  );
+  const renderManualInventoryItem = ({ item }: { item: InventoryItem }) => (
+    <View style={styles.inventoryItemRow}>
+      <View style={styles.inventoryItemContent}>
+        <Text style={styles.inventoryItemId}>{item.id}</Text>
+        <Text style={styles.inventoryItemSubtext}>
+          Vị trí: {item.storedLocationName}
+        </Text>
+        <Text style={styles.inventoryItemSubtext}>
+          Giá trị: {item.measurementValue} {itemUnitType || "đơn vị"}
+        </Text>
       </View>
-    )}
-  </View>
-);
 
-  // Thay thế renderSignatureSection function hiện tại:
+      <TouchableOpacity
+        style={styles.selectButton}
+        onPress={() => handleManualItemSelect(item, originalItemId)}
+      >
+        <Text style={styles.selectButtonText}>Chọn</Text>
+      </TouchableOpacity>
+    </View>
+  );
+  // Modal header with navigation
+  const renderModalHeader = () => {
+    let title = "";
+    switch (modalPage) {
+      case "main":
+        title = `Danh sách sản phẩm tồn kho (Mã hàng #${selectedItemCode})`;
+        break;
+      case "manual_select":
+        title = `Chọn inventory item (Mã hàng #${selectedItemCode})`;
+        break;
+      case "reason_input":
+        title = "Nhập lý do đổi item";
+        break;
+    }
 
-const renderSignatureSection = () => {
-  if (
-    exportRequest?.status !== ExportRequestStatus.COMPLETED ||
-    !exportRequest?.paperId
-  )
-    return null;
+    return (
+      <View style={styles.modalHeader}>
+        {modalPage !== "main" && (
+          <TouchableOpacity
+            onPress={() => {
+              if (modalPage === "manual_select") {
+                setModalPage("main");
+              } else if (modalPage === "reason_input") {
+                setModalPage("manual_select");
+              }
+            }}
+            style={styles.backButton}
+          >
+            <Ionicons name="arrow-back" size={20} color="#666" />
+          </TouchableOpacity>
+        )}
 
-  return (
-    <View style={styles.signatureContainer}>
-      {/* ✅ Chữ ký ngang hàng */}
-      <View style={styles.signatureRowWrapper}>
-        {/* Người giao hàng */}
-        <View style={styles.signatureItemHorizontal}>
-          <Text style={styles.signatureLabelHorizontal}>
-            Người giao hàng
-          </Text>
-          <Text style={styles.signatureNameHorizontal}>
-            {paper?.signProviderName || "Chưa rõ"}
-          </Text>
-          <View style={styles.signatureImageContainerHorizontal}>
-            {paper?.signProviderUrl ? (
-              <Image
-                source={{ uri: paper.signProviderUrl }}
-                style={styles.signatureImageHorizontal}
-                resizeMode="contain"
+        <Text
+          style={[styles.modalTitle, modalPage !== "main" && { marginLeft: 8 }]}
+        >
+          {title}
+        </Text>
+
+        <TouchableOpacity
+          onPress={() => {
+            setInventoryModalVisible(false);
+            setModalPage("main");
+            setSelectedInventoryItems([]);
+            setAllInventoryItems([]);
+            setSearchText("");
+            setManualSearchText("");
+            setItemUnitType("");
+            setAutoChangeLoading(null);
+            setSelectedManualItem(null);
+            setOriginalItemId("");
+            setChangeReason("");
+          }}
+          style={styles.closeButton}
+        >
+          <Ionicons name="close" size={24} color="#666" />
+        </TouchableOpacity>
+      </View>
+    );
+  };
+
+ 
+  // Modal content based on current page
+  // Sửa lại function renderModalContent - case 'manual_select'
+  const renderModalContent = () => {
+    switch (modalPage) {
+      case "main":
+        return (
+          <>
+            {/* Search bar for main page
+            <View style={styles.searchContainer}>
+              <Ionicons
+                name="search"
+                size={20}
+                color="#666"
+                style={styles.searchIcon}
               />
-            ) : (
-              <View style={styles.noSignatureHorizontal}>
-                <Ionicons
-                  name="document-text-outline"
-                  size={30}
-                  color="#ccc"
+              <RNTextInput
+                style={styles.searchInput}
+                placeholder="Tìm kiếm inventory items... (VD: CHI-TH-001)"
+                value={searchText}
+                onChangeText={setSearchText}
+              />
+            </View> */}
+
+            <View style={styles.itemCountContainer}>
+              <Text style={styles.sectionTitle}>
+                Mã sản phẩm tồn kho ({filteredInventoryItems.length} sản phẩm)
+              </Text>
+              {inventoryLoading && (
+                <ActivityIndicator
+                  size="small"
+                  color="#1677ff"
+                  style={styles.loadingIndicator}
                 />
-                <Text style={styles.noSignatureTextHorizontal}>Chưa có chữ ký</Text>
+              )}
+            </View>
+
+            {inventoryLoading ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color="#1677ff" />
+                <Text style={styles.loadingText}>Đang tải danh sách...</Text>
               </View>
+            ) : (
+              <FlatList
+                data={filteredInventoryItems}
+                renderItem={renderInventoryItem}
+                keyExtractor={(item) => item.id}
+                style={styles.inventoryList}
+                showsVerticalScrollIndicator={false}
+                ListEmptyComponent={
+                  <View style={styles.emptyContainer}>
+                    <Ionicons name="archive-outline" size={48} color="#ccc" />
+                    <Text style={styles.emptyText}>
+                      {searchText
+                        ? "Không tìm thấy sản phẩm phù hợp"
+                        : "Không có sản phẩm tồn kho"}
+                    </Text>
+                  </View>
+                }
+              />
             )}
+          </>
+        );
+
+      case "manual_select":
+        // ✅ IMPROVED: Enhanced search logic với partial matching
+        const filteredAllInventoryItems = allInventoryItems.filter((item) =>
+          enhancedSearch(item, manualSearchText)
+        );
+
+        return (
+          <>
+            {/* Search bar for manual selection */}
+            <View style={styles.searchContainer}>
+              <Ionicons
+                name="search"
+                size={20}
+                color="#666"
+                style={styles.searchIcon}
+              />
+              <RNTextInput
+                style={styles.searchInput}
+                placeholder="Tìm kiếm theo mã, vị trí, giá trị... (VD: CHI-TH-001)"
+                value={manualSearchText}
+                onChangeText={setManualSearchText}
+              />
+            </View>
+
+            <View style={styles.itemCountContainer}>
+              <Text style={styles.sectionTitle}>
+                Tất cả inventory items ({filteredAllInventoryItems.length}/
+                {allInventoryItems.length} sản phẩm)
+              </Text>
+            </View>
+
+            <FlatList
+              data={filteredAllInventoryItems}
+              renderItem={renderManualInventoryItem}
+              keyExtractor={(item) => item.id}
+              style={styles.inventoryList}
+              showsVerticalScrollIndicator={false}
+              ListEmptyComponent={
+                <View style={styles.emptyContainer}>
+                  <Ionicons name="archive-outline" size={48} color="#ccc" />
+                  <Text style={styles.emptyText}>
+                    {manualSearchText
+                      ? "Không tìm thấy sản phẩm phù hợp"
+                      : "Không có sản phẩm"}
+                  </Text>
+                </View>
+              }
+            />
+          </>
+        );
+
+      case "reason_input":
+        return (
+          <View style={styles.reasonInputContainer}>
+            <View style={styles.selectedItemInfo}>
+              <Text style={styles.selectedItemTitle}>Item được chọn:</Text>
+              <Text style={styles.selectedItemId}>
+                {selectedManualItem?.id}
+              </Text>
+              <Text style={styles.selectedItemSubtext}>
+                Vị trí: {selectedManualItem?.storedLocationName}
+              </Text>
+              <Text style={styles.selectedItemSubtext}>
+                Giá trị: {selectedManualItem?.measurementValue}{" "}
+                {itemUnitType || "đơn vị"}
+              </Text>
+            </View>
+
+            <View style={styles.reasonInputSection}>
+              <Text style={styles.reasonLabel}>Lý do đổi item:</Text>
+              <RNTextInput
+                style={styles.reasonInput}
+                placeholder="Nhập lý do đổi item..."
+                value={changeReason}
+                onChangeText={setChangeReason}
+                multiline
+                numberOfLines={4}
+                textAlignVertical="top"
+              />
+            </View>
+
+            <View style={styles.reasonButtonContainer}>
+              <TouchableOpacity
+                style={[
+                  styles.submitReasonButton,
+                  (!changeReason.trim() || manualChangeLoading) &&
+                    styles.submitReasonButtonDisabled,
+                ]}
+                onPress={handleManualChangeSubmit}
+                disabled={!changeReason.trim() || manualChangeLoading}
+              >
+                {manualChangeLoading ? (
+                  <ActivityIndicator size="small" color="white" />
+                ) : (
+                  <Text style={styles.submitReasonButtonText}>
+                    Xác nhận đổi
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        );
+
+      default:
+        return null;
+    }
+  };
+  const renderSignatureSection = () => {
+    if (
+      exportRequest?.status !== ExportRequestStatus.COMPLETED ||
+      !exportRequest?.paperId
+    )
+      return null;
+
+    return (
+      <View style={styles.signatureContainer}>
+        {/* ✅ Chữ ký ngang hàng */}
+        <View style={styles.signatureRowWrapper}>
+          {/* Người giao hàng */}
+          <View style={styles.signatureItemHorizontal}>
+            <Text style={styles.signatureLabelHorizontal}>Người giao hàng</Text>
+            <Text style={styles.signatureNameHorizontal}>
+              {paper?.signProviderName || "Chưa rõ"}
+            </Text>
+            <View style={styles.signatureImageContainerHorizontal}>
+              {paper?.signProviderUrl ? (
+                <Image
+                  source={{ uri: paper.signProviderUrl }}
+                  style={styles.signatureImageHorizontal}
+                  resizeMode="contain"
+                />
+              ) : (
+                <View style={styles.noSignatureHorizontal}>
+                  <Ionicons
+                    name="document-text-outline"
+                    size={30}
+                    color="#ccc"
+                  />
+                  <Text style={styles.noSignatureTextHorizontal}>
+                    Chưa có chữ ký
+                  </Text>
+                </View>
+              )}
+            </View>
+          </View>
+
+          {/* Người nhận hàng */}
+          <View style={styles.signatureItemHorizontal}>
+            <Text style={styles.signatureLabelHorizontal}>Người nhận hàng</Text>
+            <Text style={styles.signatureNameHorizontal}>
+              {paper?.signReceiverName || "Chưa rõ"}
+            </Text>
+            <View style={styles.signatureImageContainerHorizontal}>
+              {paper?.signReceiverUrl ? (
+                <Image
+                  source={{ uri: paper.signReceiverUrl }}
+                  style={styles.signatureImageHorizontal}
+                  resizeMode="contain"
+                />
+              ) : (
+                <View style={styles.noSignatureHorizontal}>
+                  <Ionicons
+                    name="document-text-outline"
+                    size={30}
+                    color="#ccc"
+                  />
+                  <Text style={styles.noSignatureTextHorizontal}>
+                    Chưa có chữ ký
+                  </Text>
+                </View>
+              )}
+            </View>
           </View>
         </View>
 
-        {/* Người nhận hàng */}
-        <View style={styles.signatureItemHorizontal}>
-          <Text style={styles.signatureLabelHorizontal}>
-            Người nhận hàng
-          </Text>
-          <Text style={styles.signatureNameHorizontal}>
-            {paper?.signReceiverName || "Chưa rõ"}
-          </Text>
-          <View style={styles.signatureImageContainerHorizontal}>
-            {paper?.signReceiverUrl ? (
-              <Image
-                source={{ uri: paper.signReceiverUrl }}
-                style={styles.signatureImageHorizontal}
-                resizeMode="contain"
-              />
-            ) : (
-              <View style={styles.noSignatureHorizontal}>
-                <Ionicons
-                  name="document-text-outline"
-                  size={30}
-                  color="#ccc"
-                />
-                <Text style={styles.noSignatureTextHorizontal}>Chưa có chữ ký</Text>
-              </View>
-            )}
-          </View>
-        </View>
-      </View>
-
-      {/* Status badge */}
-      {/* <View style={styles.completedBadge}>
+        {/* Status badge */}
+        {/* <View style={styles.completedBadge}>
         <Ionicons name="checkmark-circle" size={20} color="#28a745" />
         <Text style={styles.completedText}>Đơn hàng đã hoàn thành</Text>
       </View> */}
-    </View>
-  );
-};
+      </View>
+    );
+  };
 
-// ✅ Cập nhật actionButtonContainer để có margin phù hợp
-const renderActionButton = () => {
-  if (!exportRequest) return null;
-  const status = exportRequest.status;
+  // ✅ Cập nhật actionButtonContainer để có margin phù hợp
+  const renderActionButton = () => {
+    if (!exportRequest) return null;
+    const status = exportRequest.status;
 
-  switch (status) {
-    case ExportRequestStatus.IN_PROGRESS:
-      return (
-        <View style={styles.actionButtonContainer}>
-          <StyledButton
-            title="Xác nhận kiểm đếm"
-            onPress={handleConfirm}
-            style={{ marginTop: 12 }}
-          />
-        </View>
-      );
+    switch (status) {
+      case ExportRequestStatus.IN_PROGRESS:
+        return (
+          <View style={styles.actionButtonContainer}>
+            <StyledButton
+              title="Xác nhận kiểm đếm"
+              onPress={handleConfirm}
+              style={{ marginTop: 12 }}
+            />
+          </View>
+        );
 
-    case ExportRequestStatus.WAITING_EXPORT:
-      return (
-        <View style={styles.actionButtonContainer}>
-          <StyledButton
-            title="Xác nhận xuất kho"
-            onPress={() => router.push(`/export/sign/warehouse-sign?id=${id}`)}
-            style={{ marginTop: 12 }}
-          />
-        </View>
-      );
-    case ExportRequestStatus.COMPLETED:
-      return null;
-    default:
-      return null;
-  }
-};
+      case ExportRequestStatus.WAITING_EXPORT:
+        return (
+          <View style={styles.actionButtonContainer}>
+            <StyledButton
+              title="Xác nhận xuất kho"
+              onPress={() =>
+                router.push(`/export/sign/warehouse-sign?id=${id}`)
+              }
+              style={{ marginTop: 12 }}
+            />
+          </View>
+        );
+      case ExportRequestStatus.COMPLETED:
+        return null;
+      default:
+        return null;
+    }
+  };
 
   return (
     <View style={{ flex: 1 }}>
@@ -731,64 +1196,12 @@ const renderActionButton = () => {
       </ScrollView>
 
       {/* Updated Inventory Items Modal */}
+      {/* Updated Inventory Items Modal with multiple pages */}
       <Modal visible={inventoryModalVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={styles.modalContainer}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>
-                Danh sách sản phẩm tồn kho (Mã hàng #{selectedItemCode})
-              </Text>
-              <TouchableOpacity
-                onPress={() => {
-                  setInventoryModalVisible(false);
-                  setSelectedInventoryItems([]);
-                  setSearchText("");
-                  setItemUnitType("");
-                  setAutoChangeLoading(null);
-                }}
-                style={styles.closeButton}
-              >
-                <Ionicons name="close" size={24} color="#666" />
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.itemCountContainer}>
-              <Text style={styles.sectionTitle}>
-                Mã sản phẩm tồn kho ({filteredInventoryItems.length} sản phẩm)
-              </Text>
-              {inventoryLoading && (
-                <ActivityIndicator
-                  size="small"
-                  color="#1677ff"
-                  style={styles.loadingIndicator}
-                />
-              )}
-            </View>
-
-            {inventoryLoading ? (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color="#1677ff" />
-                <Text style={styles.loadingText}>Đang tải danh sách...</Text>
-              </View>
-            ) : (
-              <FlatList
-                data={filteredInventoryItems}
-                renderItem={renderInventoryItem}
-                keyExtractor={(item) => item.id}
-                style={styles.inventoryList}
-                showsVerticalScrollIndicator={false}
-                ListEmptyComponent={
-                  <View style={styles.emptyContainer}>
-                    <Ionicons name="archive-outline" size={48} color="#ccc" />
-                    <Text style={styles.emptyText}>
-                      {searchText
-                        ? "Không tìm thấy sản phẩm phù hợp"
-                        : "Không có sản phẩm tồn kho"}
-                    </Text>
-                  </View>
-                }
-              />
-            )}
+            {renderModalHeader()}
+            {renderModalContent()}
           </View>
         </View>
       </Modal>
@@ -1036,15 +1449,15 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginBottom: 16,
   },
-  inventoryItemRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 12,
-    paddingHorizontal: 5,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
-    backgroundColor: "white",
-  },
+  // inventoryItemRow: {
+  //   flexDirection: "row",
+  //   alignItems: "center",
+  //   paddingVertical: 12,
+  //   paddingHorizontal: 5,
+  //   borderBottomWidth: 1,
+  //   borderBottomColor: "#f0f0f0",
+  //   backgroundColor: "white",
+  // },
   inventoryItemContent: {
     flex: 1,
   },
@@ -1251,78 +1664,352 @@ const styles = StyleSheet.create({
     color: "#28a745",
     marginLeft: 8,
   },
-   dualButtonContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  dualButtonContainer: {
+    flexDirection: "row",
+    alignItems: "center",
     gap: 8, // Khoảng cách giữa 2 nút
   },
 
   // Nút Scan QR
-  scanQrButton: {
-    backgroundColor: '#1677ff',
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-    borderRadius: 6,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
-  },
+  // scanQrButton: {
+  //   backgroundColor: "#1677ff",
+  //   flexDirection: "row",
+  //   alignItems: "center",
+  //   paddingVertical: 8,
+  //   paddingHorizontal: 10,
+  //   borderRadius: 6,
+  //   elevation: 2,
+  //   shadowColor: "#000",
+  //   shadowOffset: { width: 0, height: 1 },
+  //   shadowOpacity: 0.2,
+  //   shadowRadius: 2,
+  // },
 
   scanQrButtonText: {
-    color: 'white',
+    color: "white",
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: "600",
     marginLeft: 4,
   },
 
   // Cập nhật lại autoChangeButton để phù hợp với layout mới
-  autoChangeButton: {
-    backgroundColor: '#ff6b35',
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 10, // Giảm padding để cân đối với nút scan
-    borderRadius: 6,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
-  },
+  // autoChangeButton: {
+  //   backgroundColor: "#ff6b35",
+  //   flexDirection: "row",
+  //   alignItems: "center",
+  //   paddingVertical: 8,
+  //   paddingHorizontal: 10, // Giảm padding để cân đối với nút scan
+  //   borderRadius: 6,
+  //   elevation: 2,
+  //   shadowColor: "#000",
+  //   shadowOffset: { width: 0, height: 1 },
+  //   shadowOpacity: 0.2,
+  //   shadowRadius: 2,
+  // },
 
-  autoChangeButtonDisabled: {
-    backgroundColor: '#ccc',
-    elevation: 0,
-    shadowOpacity: 0,
-  },
+  // autoChangeButtonDisabled: {
+  //   backgroundColor: "#ccc",
+  //   elevation: 0,
+  //   shadowOpacity: 0,
+  // },
 
   autoChangeButtonText: {
-    color: 'white',
+    color: "white",
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: "600",
     marginLeft: 4,
   },
 
   // Container cho status khi item đang được theo dõi
+  // trackingStatusContainer: {
+  //   flexDirection: "row",
+  //   alignItems: "center",
+  //   backgroundColor: "#f0f8f0",
+  //   paddingVertical: 6,
+  //   paddingHorizontal: 12,
+  //   borderRadius: 16,
+  //   borderWidth: 1,
+  //   borderColor: "#28a745",
+  // },
+
+  // trackingStatusText: {
+  //   color: "#28a745",
+  //   fontSize: 12,
+  //   fontWeight: "600",
+  //   marginLeft: 4,
+  // },
+  // Cập nhật dualButtonContainer thành tripleButtonContainer
+  tripleButtonContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+
+  scanQrButton: {
+    backgroundColor: "#1677ff",
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    borderRadius: 4,
+    elevation: 1,
+  },
+
+  autoChangeButton: {
+    backgroundColor: "#ff6b35",
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    borderRadius: 4,
+    elevation: 1,
+  },
+
+  autoChangeButtonDisabled: {
+    backgroundColor: "#ccc",
+    elevation: 0,
+    shadowOpacity: 0,
+  },
+
+  manualChangeButton: {
+    backgroundColor: "#28a745",
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    borderRadius: 4,
+    elevation: 1,
+  },
+
+  buttonText: {
+    color: "white",
+    fontSize: 10,
+    fontWeight: "600",
+    marginLeft: 3,
+  },
+
+  // trackingStatusContainer: {
+  //   flexDirection: 'row',
+  //   alignItems: 'center',
+  //   backgroundColor: '#f0f8f0',
+  //   paddingVertical: 6,
+  //   paddingHorizontal: 12,
+  //   borderRadius: 16,
+  //   borderWidth: 1,
+  //   borderColor: '#28a745',
+  // },
+
+  // trackingStatusText: {
+  //   color: '#28a745',
+  //   fontSize: 12,
+  //   fontWeight: '600',
+  //   marginLeft: 4,
+  // },
+
+  // New styles for manual change functionality
+  manualChangeContainer: {
+    marginHorizontal: 16,
+    marginBottom: 12,
+    alignItems: "center",
+  },
+
+  manualChangeHeaderButton: {
+    backgroundColor: "#28a745",
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    elevation: 2,
+  },
+
+  manualChangeHeaderButtonText: {
+    color: "white",
+    fontSize: 14,
+    fontWeight: "600",
+    marginLeft: 6,
+  },
+
+  backButton: {
+    padding: 4,
+    marginRight: 8,
+  },
+
+  selectButton: {
+    backgroundColor: "#1677ff",
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 6,
+  },
+
+  selectButtonText: {
+    color: "white",
+    fontSize: 12,
+    fontWeight: "600",
+  },
+
+  reasonInputContainer: {
+    flex: 1,
+    padding: 16,
+  },
+
+  selectedItemInfo: {
+    backgroundColor: "#f8f9fa",
+    padding: 16,
+    borderRadius: 8,
+    marginBottom: 20,
+  },
+
+  selectedItemTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#333",
+    marginBottom: 8,
+  },
+
+  selectedItemId: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#1677ff",
+    marginBottom: 4,
+  },
+
+  selectedItemSubtext: {
+    fontSize: 12,
+    color: "#666",
+    marginBottom: 2,
+  },
+
+  reasonInputSection: {
+    marginBottom: 20,
+  },
+
+  reasonLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#333",
+    marginBottom: 8,
+  },
+
+  reasonInput: {
+    backgroundColor: "#f8f9fa",
+    borderWidth: 1,
+    borderColor: "#e0e0e0",
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 14,
+    minHeight: 100,
+    textAlignVertical: "top",
+  },
+
+  reasonButtonContainer: {
+    marginTop: "auto",
+  },
+
+  submitReasonButton: {
+    backgroundColor: "#28a745",
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+
+  submitReasonButtonDisabled: {
+    backgroundColor: "#ccc",
+  },
+
+  submitReasonButtonText: {
+    color: "white",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  // Container cho mỗi inventory item (bao gồm info + buttons)
+  inventoryItemContainer: {
+    backgroundColor: "white",
+    marginBottom: 8,
+    borderRadius: 8,
+    padding: 12,
+    elevation: 1,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 1,
+  },
+
+  // Row chứa thông tin item (không thay đổi)
+  inventoryItemRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 4,
+  },
+
+  // Row chứa các action buttons
+  actionButtonsRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: "#f0f0f0",
+    gap: 4,
+  },
+
+  // Style chung cho các action buttons
+  actionButton: {
+    flex: 1,
+    backgroundColor: "#1677ff",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 25,
+    elevation: 1,
+  },
+
+  // Màu riêng cho auto change button
+  autoChangeActionButton: {
+    backgroundColor: "#ff6b35",
+  },
+
+  // Màu riêng cho manual change button
+  manualChangeActionButton: {
+    backgroundColor: "#28a745",
+  },
+
+  // Style khi button bị disable
+  actionButtonDisabled: {
+    backgroundColor: "#ccc",
+    elevation: 0,
+  },
+
+  // Text trong action buttons
+  actionButtonText: {
+    color: "white",
+    fontSize: 12,
+    fontWeight: "600",
+    marginLeft: 4,
+  },
+
+  // Cập nhật lại các styles cũ - xóa những styles không cần thiết
+  // Xóa: tripleButtonContainer, scanQrButton, manualChangeButton, buttonText
+
+  // Giữ nguyên trackingStatusContainer và trackingStatusText
   trackingStatusContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f0f8f0',
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#f0f8f0",
     paddingVertical: 6,
     paddingHorizontal: 12,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#28a745',
+    borderColor: "#28a745",
+    marginLeft: 40,
   },
 
   trackingStatusText: {
-    color: '#28a745',
+    color: "#28a745",
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: "600",
     marginLeft: 4,
   },
 });
