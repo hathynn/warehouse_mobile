@@ -388,41 +388,63 @@ const ExportRequestScreen: React.FC = () => {
   );
 
   const renderInventoryItem = ({ item }: { item: InventoryItem }) => (
-    <View style={styles.inventoryItemRow}>
-      <View style={styles.inventoryItemContent}>
-        <Text style={styles.inventoryItemId}>{item.id}</Text>
-        <Text style={styles.inventoryItemSubtext}>Mã hàng: {item.itemId}</Text>
-        {exportRequest?.type === "PRODUCTION" && (
-          <Text style={styles.inventoryItemSubtext}>
-            Giá trị cần xuất: {item.measurementValue} {itemUnitType || "đơn vị"}
-          </Text>
-        )}
-      </View>
-
-      {/* Auto-change button for items not being tracked for export */}
-      {!item.isTrackingForExport && (
-        <View style={styles.autoChangeButtonContainer}>
-          <TouchableOpacity
-            style={[
-              styles.autoChangeButton,
-              autoChangeLoading === item.id && styles.autoChangeButtonDisabled,
-            ]}
-            onPress={() => handleAutoChange(item.id)}
-            disabled={autoChangeLoading === item.id}
-          >
-            {autoChangeLoading === item.id ? (
-              <ActivityIndicator size="small" color="white" />
-            ) : (
-              <>
-                <Ionicons name="refresh-outline" size={16} color="white" />
-                <Text style={styles.autoChangeButtonText}>Đổi</Text>
-              </>
-            )}
-          </TouchableOpacity>
-        </View>
+  <View style={styles.inventoryItemRow}>
+    <View style={styles.inventoryItemContent}>
+      <Text style={styles.inventoryItemId}>{item.id}</Text>
+      <Text style={styles.inventoryItemSubtext}>Vị trí: {item.storedLocationName}</Text>
+      {exportRequest?.type === "PRODUCTION" && (
+        <Text style={styles.inventoryItemSubtext}>
+          Giá trị cần xuất: {item.measurementValue} {itemUnitType || "đơn vị"}
+        </Text>
       )}
     </View>
-  );
+
+    {/* Dual buttons for items not being tracked for export */}
+    {!item.isTrackingForExport && (
+      <View style={styles.dualButtonContainer}>
+        {/* Scan QR Button */}
+        <TouchableOpacity
+          style={styles.scanQrButton}
+          onPress={() => {
+            // Close modal and navigate to QR scan
+            setInventoryModalVisible(false);
+            router.push(`/export/scan-qr?id=${exportRequest?.exportRequestId}`);
+          }}
+        >
+          <Ionicons name="qr-code-outline" size={16} color="white" />
+          <Text style={styles.scanQrButtonText}>Scan</Text>
+        </TouchableOpacity>
+
+        {/* Auto-change Button */}
+        <TouchableOpacity
+          style={[
+            styles.autoChangeButton,
+            autoChangeLoading === item.id && styles.autoChangeButtonDisabled,
+          ]}
+          onPress={() => handleAutoChange(item.id)}
+          disabled={autoChangeLoading === item.id}
+        >
+          {autoChangeLoading === item.id ? (
+            <ActivityIndicator size="small" color="white" />
+          ) : (
+            <>
+              <Ionicons name="refresh-outline" size={16} color="white" />
+              <Text style={styles.autoChangeButtonText}>Đổi</Text>
+            </>
+          )}
+        </TouchableOpacity>
+      </View>
+    )}
+
+    {/* Status indicator for items being tracked */}
+    {item.isTrackingForExport && (
+      <View style={styles.trackingStatusContainer}>
+        <Ionicons name="checkmark-circle" size={20} color="#28a745" />
+        <Text style={styles.trackingStatusText}>Đã quét</Text>
+      </View>
+    )}
+  </View>
+);
 
   // Thay thế renderSignatureSection function hiện tại:
 
@@ -1056,30 +1078,30 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 2,
   },
-  autoChangeButton: {
-    backgroundColor: "#ff6b35",
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 6,
-    elevation: 2,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
-  },
-  autoChangeButtonDisabled: {
-    backgroundColor: "#ccc",
-    elevation: 0,
-    shadowOpacity: 0,
-  },
-  autoChangeButtonText: {
-    color: "white",
-    fontSize: 12,
-    fontWeight: "600",
-    marginLeft: 4,
-  },
+  // autoChangeButton: {
+  //   backgroundColor: "#ff6b35",
+  //   flexDirection: "row",
+  //   alignItems: "center",
+  //   paddingVertical: 8,
+  //   paddingHorizontal: 12,
+  //   borderRadius: 6,
+  //   elevation: 2,
+  //   shadowColor: "#000",
+  //   shadowOffset: { width: 0, height: 1 },
+  //   shadowOpacity: 0.2,
+  //   shadowRadius: 2,
+  // },
+  // autoChangeButtonDisabled: {
+  //   backgroundColor: "#ccc",
+  //   elevation: 0,
+  //   shadowOpacity: 0,
+  // },
+  // autoChangeButtonText: {
+  //   color: "white",
+  //   fontSize: 12,
+  //   fontWeight: "600",
+  //   marginLeft: 4,
+  // },
   emptyContainer: {
     flex: 1,
     justifyContent: "center",
@@ -1228,6 +1250,80 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#28a745",
     marginLeft: 8,
+  },
+   dualButtonContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8, // Khoảng cách giữa 2 nút
+  },
+
+  // Nút Scan QR
+  scanQrButton: {
+    backgroundColor: '#1677ff',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: 6,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+  },
+
+  scanQrButtonText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: '600',
+    marginLeft: 4,
+  },
+
+  // Cập nhật lại autoChangeButton để phù hợp với layout mới
+  autoChangeButton: {
+    backgroundColor: '#ff6b35',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 10, // Giảm padding để cân đối với nút scan
+    borderRadius: 6,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+  },
+
+  autoChangeButtonDisabled: {
+    backgroundColor: '#ccc',
+    elevation: 0,
+    shadowOpacity: 0,
+  },
+
+  autoChangeButtonText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: '600',
+    marginLeft: 4,
+  },
+
+  // Container cho status khi item đang được theo dõi
+  trackingStatusContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f0f8f0',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#28a745',
+  },
+
+  trackingStatusText: {
+    color: '#28a745',
+    fontSize: 12,
+    fontWeight: '600',
+    marginLeft: 4,
   },
 });
 

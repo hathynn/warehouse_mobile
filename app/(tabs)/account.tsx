@@ -27,32 +27,48 @@ const AccountScreen = () => {
   const dispatch = useDispatch();
   const { getAccountByEmail } = useAccountService();
 
-  const email = useSelector((state: RootState) => state.auth.user?.email);
+  // ✅ Safe access với optional chaining và fallback
+  const authUser = useSelector((state: RootState) => state.auth.user);
+  const email = authUser?.email || "";
+  const isLoggedIn = useSelector((state: RootState) => state.auth.isLoggedIn);
+
   const [user, setUser] = useState({
     name: "",
     email: email || "",
-    phone:  "",
+    phone: "",
     avatar:
       "https://static.vecteezy.com/system/resources/previews/009/292/244/non_2x/default-avatar-icon-of-social-media-user-vector.jpg",
     coverPhoto: "https://via.placeholder.com/500x200/2176FF/FFFFFF",
   });
 
+  // ✅ Redirect nếu không đăng nhập
+  useEffect(() => {
+    if (!isLoggedIn || !authUser) {
+      router.replace("/login");
+      return;
+    }
+  }, [isLoggedIn, authUser]);
+
   useEffect(() => {
     const fetchUser = async () => {
-      if (email) {
-        const res = await getAccountByEmail(email);
-        if (res?.content) {
-          setUser(prev => ({
-            ...prev,
-            name: res.content.fullName,
-            email: res.content.email,
-            phone: res.content.phone || "",
-          }));
+      if (email && authUser) {
+        try {
+          const res = await getAccountByEmail(email);
+          if (res?.content) {
+            setUser(prev => ({
+              ...prev,
+              name: res.content.fullName || "",
+              email: res.content.email || "",
+              phone: res.content.phone || "",
+            }));
+          }
+        } catch (error) {
+          console.error("Error fetching user data:", error);
         }
       }
     };
     fetchUser();
-  }, [email]);
+  }, [email, authUser]);
 
   const handleLogout = () => {
     Alert.alert("Đăng xuất", "Bạn có chắc muốn đăng xuất?", [
@@ -61,12 +77,37 @@ const AccountScreen = () => {
         text: "Đăng xuất",
         style: "destructive",
         onPress: () => {
-          dispatch(logout());
-          router.replace("/login");
+          try {
+            // ✅ Clear user state trước khi logout
+            setUser({
+              name: "",
+              email: "",
+              phone: "",
+              avatar: "https://static.vecteezy.com/system/resources/previews/009/292/244/non_2x/default-avatar-icon-of-social-media-user-vector.jpg",
+              coverPhoto: "https://via.placeholder.com/500x200/2176FF/FFFFFF",
+            });
+            
+            // ✅ Dispatch logout action
+            dispatch(logout());
+            
+            // ✅ Navigate với delay nhỏ để đảm bảo state đã được cập nhật
+            setTimeout(() => {
+              router.replace("/login");
+            }, 100);
+          } catch (error) {
+            console.error("Logout error:", error);
+            // ✅ Fallback: vẫn chuyển về login nếu có lỗi
+            router.replace("/login");
+          }
         },
       },
     ]);
   };
+
+  // ✅ Early return nếu không có user data
+  if (!isLoggedIn || !authUser) {
+    return null; // hoặc return loading spinner
+  }
 
   return (
     <View
@@ -97,18 +138,16 @@ const AccountScreen = () => {
         </View>
 
         <View style={styles.userInfoCard}>
-          <Text style={styles.userName}>{user.name}</Text>
+          <Text style={styles.userName}>{user.name || "Chưa cập nhật"}</Text>
 
           <View style={styles.infoItem}>
             <Ionicons name="mail" size={18} color="#1677ff" />
-            <Text style={styles.infoText}>{user.email}</Text>
-            
+            <Text style={styles.infoText}>{user.email || "Chưa cập nhật"}</Text>
           </View>
 
           <View style={styles.infoItem}>
             <Ionicons name="call" size={18} color="#1677ff" />
             <Text style={styles.infoText}>{user.phone || "Chưa cập nhật"}</Text>
-
           </View>
         </View>
 
