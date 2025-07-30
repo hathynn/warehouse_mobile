@@ -74,12 +74,91 @@ const useInventoryService = () => {
     [callApi]
   );
 
+  const changeInventoryItemForExportDetail = useCallback(
+  async (oldInventoryItemId: string, newInventoryItemId: string) => {
+    if (!oldInventoryItemId || !newInventoryItemId) return null;
+
+    try {
+      const response = await callApi(
+        "post",
+        "/inventory-item/change-inventory-item-export-detail",
+        {
+          oldInventoryItemId,
+          newInventoryItemId,
+        },
+        undefined,
+        `✅ Đổi inventory item từ ${oldInventoryItemId} sang ${newInventoryItemId}`
+      );
+
+      return response;
+    } catch (error) {
+      console.error("❌ Lỗi khi đổi inventory item export detail:", error);
+      return null;
+    }
+  },
+  [callApi]
+);
+
+/*
+// Trong useInventoryService.js - THÊM SERVICE MỚI nếu cần reason
+const manualChangeInventoryItemWithReason = useCallback(
+  async (oldInventoryItemId: string, newInventoryItemId: string, reason: string) => {
+    if (!oldInventoryItemId || !newInventoryItemId) return null;
+
+    try {
+      const response = await callApi(
+        "post",
+        "/inventory-item/manual-change-with-reason", // API endpoint mới
+        {
+          oldInventoryItemId,
+          newInventoryItemId,
+          reason, // ✅ Gửi kèm reason
+        },
+        undefined,
+        `✅ Manual change với lý do: ${oldInventoryItemId} -> ${newInventoryItemId}`
+      );
+
+      return response;
+    } catch (error) {
+      console.error("❌ Lỗi khi đổi inventory item với lý do:", error);
+      return null;
+    }
+  },
+  [callApi]
+);
+*/
+
+
+  const fetchInventoryItemById = useCallback(
+  async (inventoryItemId: string) => {
+    if (!inventoryItemId) return null;
+
+    try {
+      const response = await callApi(
+        "get",
+        `/inventory-item/${inventoryItemId}`,
+        undefined, 
+        undefined, 
+    
+      );
+
+      return response.content; 
+    } catch (error) {
+      console.error("❌ Lỗi khi lấy inventory item theo ID:", error);
+      return null;
+    }
+  },
+  [callApi]
+);
+
   return {
     loading,
     inventoryItems,
     fetchInventoryItemsByImportOrderDetailId,
     fetchInventoryItemsByExportRequestDetailId,
     autoChangeInventoryItem,
+    changeInventoryItemForExportDetail,
+    fetchInventoryItemById,
   };
 };
 
