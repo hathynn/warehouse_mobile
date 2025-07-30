@@ -11,6 +11,8 @@ import {
   Alert,
   Modal,
   TextInput as RNTextInput,
+  Keyboard,
+  TouchableWithoutFeedback,
 } from "react-native";
 import { useFocusEffect, useRoute } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
@@ -49,6 +51,7 @@ const ExportRequestScreen: React.FC = () => {
     fetchInventoryItemsByExportRequestDetailId,
     autoChangeInventoryItem,
     fetchInventoryItemById,
+    changeInventoryItemForExportDetail,
     loading: inventoryLoading,
   } = useInventoryService();
   const { getItemDetailById } = useItemService();
@@ -246,8 +249,8 @@ const ExportRequestScreen: React.FC = () => {
 
       // Log each inventory item ID being fetched (như log của bạn)
       itemDetails.inventoryItemIds.forEach((inventoryItemId: string) => {
-        console.log(`Lấy inventory item theo ID ${inventoryItemId}`);
-      });
+      //   console.log(`Lấy inventory item theo ID ${inventoryItemId}`);
+      // });
 
       // Fetch details for each inventory item ID using your service
       const inventoryItems = await Promise.all(
@@ -270,9 +273,9 @@ const ExportRequestScreen: React.FC = () => {
       const validInventoryItems = inventoryItems.filter(
         (item) => item !== null
       );
-      console.log(
-        `✅ Successfully fetched ${validInventoryItems.length} inventory items`
-      );
+      // console.log(
+      //   `✅ Successfully fetched ${validInventoryItems.length} inventory items`
+      // );
 
       return validInventoryItems;
     } catch (error) {
@@ -438,21 +441,30 @@ const ExportRequestScreen: React.FC = () => {
 
   // Handle manual change submission
   const handleManualChangeSubmit = async () => {
-    if (!selectedManualItem || !originalItemId || !changeReason.trim()) {
-      Alert.alert("Lỗi", "Vui lòng nhập lý do đổi item");
+    if (!selectedManualItem || !originalItemId) {
+      Alert.alert("Lỗi", "Vui lòng chọn item để đổi");
       return;
     }
 
     try {
       setManualChangeLoading(true);
 
-      // Here you would call your API to perform the manual change
-      // await manualChangeInventoryItem(originalItemId, selectedManualItem.id, changeReason);
-
       console.log(
         `🔄 Manual change: ${originalItemId} -> ${selectedManualItem.id}`
       );
       console.log(`📝 Reason: ${changeReason}`);
+
+      // Gọi API để thực hiện manual change
+      const result = await changeInventoryItemForExportDetail(
+        originalItemId,
+        selectedManualItem.id
+      );
+
+      if (!result) {
+        throw new Error("API call failed");
+      }
+
+      console.log("✅ Manual change API response:", result);
 
       // Update Redux state
       if (selectedExportRequestDetailId) {
@@ -465,8 +477,29 @@ const ExportRequestScreen: React.FC = () => {
         );
       }
 
-      // Refresh data
+      // Refresh data to get updated inventory items
       await refreshInventoryItems();
+
+      // ✅ OPTION: Refresh toàn bộ export request details để đảm bảo sync
+      fetchExportRequestDetails(id, 1, 100).then((refreshedData) => {
+        const refreshedDetails = refreshedData.map((item) => ({
+          ...item,
+          actualQuantity: item.actualQuantity ?? 0,
+          inventoryItemIds: item.inventoryItemIds ?? [],
+        }));
+
+        dispatch(setExportRequestDetail(refreshedDetails));
+
+        const mappings = refreshedDetails.flatMap((detail) =>
+          (detail.inventoryItemIds ?? []).map((inventoryItemId: string) => ({
+            inventoryItemId: inventoryItemId.trim().toLowerCase(),
+            exportRequestDetailId: detail.id,
+          }))
+        );
+        dispatch(setScanMappings(mappings));
+
+        console.log("✅ Full refresh after manual change completed");
+      });
 
       Alert.alert("Thành công", "Đã đổi item thành công!");
 
@@ -477,13 +510,44 @@ const ExportRequestScreen: React.FC = () => {
       setChangeReason("");
     } catch (error) {
       console.error("❌ Error in manual change submission:", error);
-      Alert.alert("Lỗi", "Không thể đổi item. Vui lòng thử lại!");
+      Alert.alert(
+        "Lỗi",
+        error.message || "Không thể đổi item. Vui lòng thử lại!"
+      );
     } finally {
       setManualChangeLoading(false);
     }
   };
 
-   const enhancedSearch = (item: InventoryItem, searchText: string): boolean => {
+  /*
+const handleManualChangeSubmit = async () => {
+  if (!selectedManualItem || !originalItemId || !changeReason.trim()) {
+    Alert.alert("Lỗi", "Vui lòng nhập lý do đổi item");
+    return;
+  }
+
+  try {
+    setManualChangeLoading(true);
+
+    // Gọi API với reason
+    const result = await manualChangeInventoryItemWithReason(
+      originalItemId, 
+      selectedManualItem.id,
+      changeReason // ✅ Gửi kèm reason
+    );
+
+    if (!result) {
+      throw new Error("API call failed");
+    }
+
+    // ... rest của code giống như trên
+  } catch (error) {
+    // ... error handling
+  }
+};
+*/
+
+  const enhancedSearch = (item: InventoryItem, searchText: string): boolean => {
     if (!searchText) return true;
 
     const searchLower = searchText.toLowerCase().trim();
@@ -578,9 +642,9 @@ const ExportRequestScreen: React.FC = () => {
   };
 
   // Filter inventory items based on search text
-const filteredInventoryItems = selectedInventoryItems.filter(item => 
-  enhancedSearch(item, searchText)
-);
+  const filteredInventoryItems = selectedInventoryItems.filter((item) =>
+    enhancedSearch(item, searchText)
+  );
 
   const renderInventoryItem = ({ item }: { item: InventoryItem }) => (
     <View style={styles.inventoryItemContainer}>
@@ -740,7 +804,6 @@ const filteredInventoryItems = selectedInventoryItems.filter(item =>
     );
   };
 
- 
   // Modal content based on current page
   // Sửa lại function renderModalContent - case 'manual_select'
   const renderModalContent = () => {
@@ -857,6 +920,7 @@ const filteredInventoryItems = selectedInventoryItems.filter(item =>
 
       case "reason_input":
         return (
+           <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
           <View style={styles.reasonInputContainer}>
             <View style={styles.selectedItemInfo}>
               <Text style={styles.selectedItemTitle}>Item được chọn:</Text>
@@ -876,12 +940,15 @@ const filteredInventoryItems = selectedInventoryItems.filter(item =>
               <Text style={styles.reasonLabel}>Lý do đổi item:</Text>
               <RNTextInput
                 style={styles.reasonInput}
-                placeholder="Nhập lý do đổi item..."
+                placeholder="Nhập lý do đổi item... (có thể để trống)"
                 value={changeReason}
                 onChangeText={setChangeReason}
                 multiline
                 numberOfLines={4}
                 textAlignVertical="top"
+                returnKeyType="done"
+                blurOnSubmit={true}
+                onSubmitEditing={() => Keyboard.dismiss()}
               />
             </View>
 
@@ -889,8 +956,7 @@ const filteredInventoryItems = selectedInventoryItems.filter(item =>
               <TouchableOpacity
                 style={[
                   styles.submitReasonButton,
-                  (!changeReason.trim() || manualChangeLoading) &&
-                    styles.submitReasonButtonDisabled,
+                  manualChangeLoading && styles.submitReasonButtonDisabled,
                 ]}
                 onPress={handleManualChangeSubmit}
                 disabled={!changeReason.trim() || manualChangeLoading}
@@ -905,6 +971,7 @@ const filteredInventoryItems = selectedInventoryItems.filter(item =>
               </TouchableOpacity>
             </View>
           </View>
+          </TouchableWithoutFeedback>
         );
 
       default:
@@ -1907,7 +1974,7 @@ const styles = StyleSheet.create({
   },
 
   submitReasonButton: {
-    backgroundColor: "#28a745",
+    backgroundColor: "#1677ff",
     paddingVertical: 12,
     borderRadius: 8,
     alignItems: "center",
