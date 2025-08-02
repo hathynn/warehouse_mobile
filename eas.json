@@ -11,11 +11,11 @@
     "preview": {
       "distribution": "internal"
     },
-    "production": {
+    "INTERNAL": {
       "autoIncrement": true
     }
   },
   "submit": {
-    "production": {}
+    "INTERNAL": {}
   }
 }

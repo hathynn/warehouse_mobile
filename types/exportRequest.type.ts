@@ -3,7 +3,7 @@ export enum ExportRequestTypeEnum {
   RETURN = "RETURN",
   LIQUIDDATION = "LIQUIDATION",
   SELLING = "SELLING",
-  PRODUCTION = "PRODUCTION",
+  INTERNAL = "INTERNAL",
 }
 
 // types/exportRequest.type.ts

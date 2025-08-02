@@ -64,12 +64,37 @@ const useExportRequestDetail = () => {
     }
   };
 
+  const resetTracking = async (
+  exportRequestDetailId: string,
+  inventoryItemId: string
+): Promise<boolean> => {
+  try {
+    const payload = {
+      exportRequestDetailId,
+      inventoryItemId,
+    };
+    await callApi(
+      "put",
+      `/export-request-detail/reset-tracking`,
+      payload
+    );
+    return true;
+  } catch (error: any) {
+    console.error(
+      "❌ Lỗi khi reset tracking:",
+      error?.response?.data || error
+    );
+    return false;
+  }
+};
+
   return {
     loading,
     exportRequestDetails,
     fetchExportRequestDetails,
     updateActualQuantity,
     confirmCountedExportRequest,
+    resetTracking,
   };
 };
 

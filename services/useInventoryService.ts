@@ -74,8 +74,35 @@ const useInventoryService = () => {
     [callApi]
   );
 
-  const changeInventoryItemForExportDetail = useCallback(
-  async (oldInventoryItemId: string, newInventoryItemId: string) => {
+//   const changeInventoryItemForExportDetail = useCallback(
+//   async (oldInventoryItemId: string, newInventoryItemId: string) => {
+//     if (!oldInventoryItemId || !newInventoryItemId) return null;
+
+//     try {
+//       const response = await callApi(
+//         "post",
+//         "/inventory-item/change-inventory-item-export-detail",
+//         {
+//           oldInventoryItemId,
+//           newInventoryItemId,
+//         },
+//         undefined,
+//         `✅ Đổi inventory item từ ${oldInventoryItemId} sang ${newInventoryItemId}`
+//       );
+
+//       return response;
+//     } catch (error) {
+//       console.error("❌ Lỗi khi đổi inventory item export detail:", error);
+//       return null;
+//     }
+//   },
+//   [callApi]
+// );
+
+
+// Trong useInventoryService.js - THÊM SERVICE MỚI nếu cần reason
+const changeInventoryItemForExportDetail = useCallback(
+  async (oldInventoryItemId: string, newInventoryItemId: string, note: string) => {
     if (!oldInventoryItemId || !newInventoryItemId) return null;
 
     try {
@@ -85,34 +112,7 @@ const useInventoryService = () => {
         {
           oldInventoryItemId,
           newInventoryItemId,
-        },
-        undefined,
-        `✅ Đổi inventory item từ ${oldInventoryItemId} sang ${newInventoryItemId}`
-      );
-
-      return response;
-    } catch (error) {
-      console.error("❌ Lỗi khi đổi inventory item export detail:", error);
-      return null;
-    }
-  },
-  [callApi]
-);
-
-/*
-// Trong useInventoryService.js - THÊM SERVICE MỚI nếu cần reason
-const manualChangeInventoryItemWithReason = useCallback(
-  async (oldInventoryItemId: string, newInventoryItemId: string, reason: string) => {
-    if (!oldInventoryItemId || !newInventoryItemId) return null;
-
-    try {
-      const response = await callApi(
-        "post",
-        "/inventory-item/manual-change-with-reason", // API endpoint mới
-        {
-          oldInventoryItemId,
-          newInventoryItemId,
-          reason, // ✅ Gửi kèm reason
+          note,
         },
         undefined,
         `✅ Manual change với lý do: ${oldInventoryItemId} -> ${newInventoryItemId}`
@@ -121,12 +121,13 @@ const manualChangeInventoryItemWithReason = useCallback(
       return response;
     } catch (error) {
       console.error("❌ Lỗi khi đổi inventory item với lý do:", error);
-      return null;
+      
+      // ✅ Throw error với message để component cha xử lý
+      throw error;
     }
   },
   [callApi]
 );
-*/
 
 
   const fetchInventoryItemById = useCallback(
@@ -159,6 +160,7 @@ const manualChangeInventoryItemWithReason = useCallback(
     autoChangeInventoryItem,
     changeInventoryItemForExportDetail,
     fetchInventoryItemById,
+    
   };
 };
 
