@@ -2,7 +2,7 @@
 import Pusher from 'pusher-js';
 import api from '@/config/api';
 
-// You may want to load these from env vars in production
+// You may want to load these from env vars in INTERNAL
 const PUSHER_KEY = process.env.EXPO_PUBLIC_PUSHER_KEY;
 const PUSHER_CLUSTER = process.env.EXPO_PUBLIC_PUSHER_CLUSTER;
 /**

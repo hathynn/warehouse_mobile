@@ -89,8 +89,8 @@ const SignWarehouseScreen = () => {
         return "Thanh lý";
       case "SELLING":
         return "Xuất bán";
-      case "PRODUCTION":
-        return "Xuất sản xuất";
+      case "INTERNAL":
+        return "Xuất nội bộ";
       default:
         return "Không xác định";
     }
