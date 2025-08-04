@@ -22,6 +22,15 @@ export default function NotificationTabIcon({ color, size, focused }: Notificati
   const { getAllNotifications } = useNotificationService();
   const { latestNotification } = useContext(PusherContext);
 
+  // Don't process notifications during logout or invalid auth state
+  if (!isLoggedIn || !user || isLoggingOut) {
+    return (
+      <View style={{ position: 'relative' }}>
+        <Ionicons name="notifications" color={color} size={size} />
+      </View>
+    );
+  }
+
   const fetchUnviewedCount = useCallback(async () => {
 
     // Don't fetch if not logged in, logging out, or user data is incomplete

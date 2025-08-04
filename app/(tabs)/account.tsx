@@ -91,9 +91,14 @@ const AccountScreen = () => {
 
 
             // ✅ Mark logout as starting to prevent race conditions
+            console.log("🔄 Setting logout state...");
             dispatch(startLogout());
 
+            // Add a small delay to let components react to the logout state
+            await new Promise(resolve => setTimeout(resolve, 100));
+
             // ✅ Clear local user state first
+            console.log("🧹 Clearing local user state...");
             setUser({
               name: "",
               email: "",
@@ -110,6 +115,7 @@ const AccountScreen = () => {
             dispatch(logout());
 
             // ✅ Navigate immediately after state cleanup
+            console.log("🔄 Navigating to login...");
             router.replace("/login");
           } catch (error) {
             console.error("Logout error:", error);
