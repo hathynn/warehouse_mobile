@@ -33,6 +33,7 @@ const AccountScreen = () => {
   const email = authUser?.email || "";
   const isLoggedIn = useSelector((state: RootState) => state.auth.isLoggedIn);
   const isLoggingOut = useSelector((state: RootState) => state.auth.isLoggingOut);
+  const isRestoring = useSelector((state: RootState) => state.auth.isRestoring);
 
   const [user, setUser] = useState({
     name: "",
@@ -53,12 +54,13 @@ const AccountScreen = () => {
 
   useEffect(() => {
     const fetchUser = async () => {
-      // Don't fetch user data if logging out or not properly authenticated
-      if (!email || !authUser || isLoggingOut || !isLoggedIn) {
+      // Don't fetch user data if logging out, restoring, or not properly authenticated
+      if (!email || !authUser || isLoggingOut || isRestoring || !isLoggedIn) {
         console.log("AccountScreen: Skipping user fetch", {
           hasEmail: !!email,
           hasAuthUser: !!authUser,
           isLoggingOut,
+          isRestoring,
           isLoggedIn
         });
         return;
@@ -80,7 +82,7 @@ const AccountScreen = () => {
       }
     };
     fetchUser();
-  }, [email, authUser, isLoggingOut, isLoggedIn]);
+  }, [email, authUser, isLoggingOut, isRestoring, isLoggedIn]);
 
   const handleLogout = () => {
     Alert.alert("Đăng xuất", "Bạn có chắc muốn đăng xuất?", [
