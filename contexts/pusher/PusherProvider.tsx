@@ -63,9 +63,10 @@ export const PusherProvider = ({ children }: { children: ReactNode }) => {
       return undefined;
     }
 
-    // Determine Pusher channel for this role
-    if (!user.id || !user.role) {
-      setConnectionError('User ID or role is missing');
+    // Ensure user object has all required properties before proceeding
+    if (!user || !user.id || !user.role || typeof user.id !== 'string' || typeof user.role !== 'string') {
+      console.warn('PusherProvider: User object is incomplete, skipping Pusher setup', { user });
+      setConnectionError('User ID or role is missing or invalid');
       return undefined;
     }
 

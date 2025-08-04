@@ -10,9 +10,8 @@ import NotificationPopup from "@/components/NotificationPopup";
 import React from "react";
 
 function AuthHandler() {
-  const isAuthenticated = useSelector(
-    (state: RootState) => state.auth.isLoggedIn
-  );
+  const authState = useSelector((state: RootState) => state.auth);
+  const { isLoggedIn, user, isLoggingOut } = authState;
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
 
@@ -24,14 +23,17 @@ function AuthHandler() {
   }, []);
 
   useEffect(() => {
-    if (!isLoading) {
-      if (!isAuthenticated) {
+    if (!isLoading && !isLoggingOut) {
+      if (!isLoggedIn || !user) {
         router.replace("/login");
       } else {
-        router.replace("/(tabs)/import");
+        // Only navigate to tabs if user is properly loaded
+        if (user.id && user.email && user.role) {
+          router.replace("/(tabs)/import");
+        }
       }
     }
-  }, [isAuthenticated, isLoading]);
+  }, [isLoggedIn, user, isLoading, isLoggingOut]);
 
   if (isLoading) return null; // Hiển thị màn hình trắng trong lúc load
 
