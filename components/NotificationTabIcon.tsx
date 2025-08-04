@@ -15,13 +15,19 @@ interface NotificationTabIconProps {
 
 export default function NotificationTabIcon({ color, size, focused }: NotificationTabIconProps) {
   const [unviewedCount, setUnviewedCount] = useState(0);
-  const { user } = useSelector((state: RootState) => state.auth);
+  const { user, isLoggingOut } = useSelector((state: RootState) => state.auth);
   const { getAllNotifications } = useNotificationService();
   const { latestNotification } = useContext(PusherContext);
 
   const fetchUnviewedCount = useCallback(async () => {
-    if (!user?.id) return;
-    
+    if (!user?.id || isLoggingOut) {
+      console.warn('No user ID available or logging out - skipping notifications fetch');
+      if (isLoggingOut) {
+        setUnviewedCount(0); // Clear count during logout
+      }
+      return;
+    }
+
     try {
       const response = await getAllNotifications(Number(user.id));
       if (response.statusCode >= 200 && response.statusCode < 300 && Array.isArray(response.content)) {
@@ -30,8 +36,10 @@ export default function NotificationTabIcon({ color, size, focused }: Notificati
       }
     } catch (error) {
       console.error('Failed to fetch notifications:', error);
+      // Reset count on error to prevent stale data
+      setUnviewedCount(0);
     }
-  }, [user]);
+  }, [user, isLoggingOut]);
 
   useEffect(() => {
     fetchUnviewedCount();

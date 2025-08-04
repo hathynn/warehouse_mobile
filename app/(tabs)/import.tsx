@@ -37,7 +37,8 @@ export default function ReceiptDetail() {
     ImportOrderStatus.IN_PROGRESS
   );
 
-  const userId = useSelector((state: RootState) => state.auth.user?.id);
+  const user = useSelector((state: RootState) => state.auth.user);
+  const userId = user?.id;
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const dispatch = useDispatch();

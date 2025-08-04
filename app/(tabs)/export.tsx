@@ -128,7 +128,9 @@ const StatusBadge = ({ status }: { status: ExportRequestStatus }) => {
 };
 
 function ExportListComponent() {
-  const userId = useSelector((state: RootState) => state.auth.user?.id);
+  const user = useSelector((state: RootState) => state.auth.user);
+  const isLoggingOut = useSelector((state: RootState) => state.auth.isLoggingOut);
+  const userId = user?.id;
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState<string>(ExportRequestStatus.IN_PROGRESS);
@@ -138,11 +140,14 @@ function ExportListComponent() {
   const { fetchExportRequestsByStaffId } = useExportRequest();
   const { data: exportRequests, isLoading } = useQuery({
     queryKey: ["export-requests", userId],
-    queryFn: () =>
-      userId
-        ? fetchExportRequestsByStaffId(Number(userId), 1, 100)
-        : Promise.resolve([]),
-    enabled: !!userId,
+    queryFn: () => {
+      if (!userId || !user || isLoggingOut) {
+        console.warn("No user ID available or logging out - skipping export requests fetch");
+        return Promise.resolve([]);
+      }
+      return fetchExportRequestsByStaffId(Number(userId), 1, 100);
+    },
+    enabled: !!userId && !!user && !isLoggingOut,
   });
 
   // Định nghĩa các tab status
