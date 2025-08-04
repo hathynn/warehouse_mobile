@@ -86,6 +86,8 @@ const AccountScreen = () => {
           }
 
           try {
+            console.log("🔄 Starting logout process...");
+
             // ✅ Mark logout as starting to prevent race conditions
             dispatch(startLogout());
 
@@ -98,22 +100,33 @@ const AccountScreen = () => {
               coverPhoto: "https://via.placeholder.com/500x200/2176FF/FFFFFF",
             });
 
-            // ✅ Clear AsyncStorage tokens
-            await AsyncStorage.removeItem("access_token");
-            await AsyncStorage.removeItem("refresh_token");
+            // ✅ Clear AsyncStorage tokens (even if Redux state is inconsistent)
+            console.log("🧹 Clearing AsyncStorage tokens...");
+            await Promise.all([
+              AsyncStorage.removeItem("access_token"),
+              AsyncStorage.removeItem("refresh_token")
+            ]);
 
             // ✅ Dispatch logout action to clear Redux state
+            console.log("🧹 Clearing Redux auth state...");
             dispatch(logout());
+
+            console.log("✅ Logout completed successfully");
 
             // ✅ Navigate immediately after state cleanup
             router.replace("/login");
           } catch (error) {
-            console.error("Logout error:", error);
-            // ✅ Force logout even if there's an error
+            console.error("❌ Logout error:", error);
+            // ✅ Force logout even if there's an error - clear everything
             try {
+              console.log("🔄 Force clearing all auth data...");
+              await Promise.all([
+                AsyncStorage.removeItem("access_token"),
+                AsyncStorage.removeItem("refresh_token")
+              ]);
               dispatch(logout());
             } catch (dispatchError) {
-              console.error("Error dispatching logout:", dispatchError);
+              console.error("❌ Error in force logout:", dispatchError);
             }
             router.replace("/login");
           }
