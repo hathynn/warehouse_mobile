@@ -16,25 +16,35 @@ interface NotificationTabIconProps {
 export default function NotificationTabIcon({ color, size, focused }: NotificationTabIconProps) {
   const [unviewedCount, setUnviewedCount] = useState(0);
 
-  const { user, isLoggingOut, isLoggedIn } = useSelector((state: RootState) => state.auth);
+  const { user, isLoggingOut, isLoggedIn, isRestoring } = useSelector((state: RootState) => state.auth);
 
 
   const { getAllNotifications } = useNotificationService();
   const { latestNotification } = useContext(PusherContext);
 
+  // Don't process notifications during logout, restoration, or invalid auth state
+  if (!isLoggedIn || !user || isLoggingOut || isRestoring) {
+    return (
+      <View style={{ position: 'relative' }}>
+        <Ionicons name="notifications" color={color} size={size} />
+      </View>
+    );
+  }
+
   const fetchUnviewedCount = useCallback(async () => {
 
-    // Don't fetch if not logged in, logging out, or user data is incomplete
-    if (!isLoggedIn || !user?.id || isLoggingOut || typeof user.id !== 'string') {
+    // Don't fetch if not logged in, logging out, restoring, or user data is incomplete
+    if (!isLoggedIn || !user?.id || isLoggingOut || isRestoring || typeof user.id !== 'string') {
       console.warn('NotificationTabIcon: Invalid state for fetching notifications', {
         isLoggedIn,
         hasUserId: !!user?.id,
         isLoggingOut,
+        isRestoring,
         userIdType: typeof user?.id
       });
 
-      if (isLoggingOut) {
-        setUnviewedCount(0); // Clear count during logout
+      if (isLoggingOut || isRestoring) {
+        setUnviewedCount(0); // Clear count during logout/restoration
       }
       return;
     }
@@ -51,7 +61,7 @@ export default function NotificationTabIcon({ color, size, focused }: Notificati
       setUnviewedCount(0);
     }
 
-  }, [user, isLoggingOut, isLoggedIn]);
+  }, [user, isLoggingOut, isRestoring, isLoggedIn]);
 
 
   useEffect(() => {
