@@ -33,6 +33,7 @@ const AccountScreen = () => {
   const email = authUser?.email || "";
   const isLoggedIn = useSelector((state: RootState) => state.auth.isLoggedIn);
   const isLoggingOut = useSelector((state: RootState) => state.auth.isLoggingOut);
+  const isRestoring = useSelector((state: RootState) => state.auth.isRestoring);
 
   const [user, setUser] = useState({
     name: "",
@@ -53,24 +54,35 @@ const AccountScreen = () => {
 
   useEffect(() => {
     const fetchUser = async () => {
-      if (email && authUser) {
-        try {
-          const res = await getAccountByEmail(email);
-          if (res?.content) {
-            setUser(prev => ({
-              ...prev,
-              name: res.content.fullName || "",
-              email: res.content.email || "",
-              phone: res.content.phone || "",
-            }));
-          }
-        } catch (error) {
-          console.error("Error fetching user data:", error);
+      // Don't fetch user data if logging out, restoring, or not properly authenticated
+      if (!email || !authUser || isLoggingOut || isRestoring || !isLoggedIn) {
+        console.log("AccountScreen: Skipping user fetch", {
+          hasEmail: !!email,
+          hasAuthUser: !!authUser,
+          isLoggingOut,
+          isRestoring,
+          isLoggedIn
+        });
+        return;
+      }
+
+      try {
+        console.log("AccountScreen: Fetching user data for", email);
+        const res = await getAccountByEmail(email);
+        if (res?.content) {
+          setUser(prev => ({
+            ...prev,
+            name: res.content.fullName || "",
+            email: res.content.email || "",
+            phone: res.content.phone || "",
+          }));
         }
+      } catch (error) {
+        console.error("Error fetching user data:", error);
       }
     };
     fetchUser();
-  }, [email, authUser]);
+  }, [email, authUser, isLoggingOut, isRestoring, isLoggedIn]);
 
   const handleLogout = () => {
     Alert.alert("Đăng xuất", "Bạn có chắc muốn đăng xuất?", [
@@ -91,9 +103,14 @@ const AccountScreen = () => {
 
 
             // ✅ Mark logout as starting to prevent race conditions
+            console.log("🔄 Setting logout state...");
             dispatch(startLogout());
 
+            // Add a small delay to let components react to the logout state
+            await new Promise(resolve => setTimeout(resolve, 100));
+
             // ✅ Clear local user state first
+            console.log("🧹 Clearing local user state...");
             setUser({
               name: "",
               email: "",
@@ -110,6 +127,7 @@ const AccountScreen = () => {
             dispatch(logout());
 
             // ✅ Navigate immediately after state cleanup
+            console.log("🔄 Navigating to login...");
             router.replace("/login");
           } catch (error) {
             console.error("Logout error:", error);

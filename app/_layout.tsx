@@ -52,7 +52,12 @@ function AuthHandler() {
   }, [dispatch]);
 
   useEffect(() => {
-    if (!isLoading && !isLoggingOut) {
+    if (!isLoading) {
+      if (isLoggingOut) {
+        console.log("⏸️ Logout in progress, skipping navigation");
+        return;
+      }
+
       if (!isLoggedIn || !user) {
         console.log("🔄 Not logged in, redirecting to login");
         router.replace("/login");

@@ -63,7 +63,9 @@ const SignReceiveScreen = () => {
   const exportRequestId = paperData.exportRequestId;
   const { getAccountByEmail } = useAccountService();
 
-  const email = useSelector((state: RootState) => state.auth.user?.email);
+  const authState = useSelector((state: RootState) => state.auth);
+  const { user: authUser, isLoggedIn, isLoggingOut } = authState;
+  const email = authUser?.email;
   const [user, setUser] = useState({
     name: "",
     email: email || "",
@@ -79,7 +81,19 @@ const SignReceiveScreen = () => {
 
   useEffect(() => {
     const fetchUser = async () => {
-      if (email) {
+      // Don't fetch user data if logging out or not properly authenticated
+      if (!email || !authUser || isLoggingOut || !isLoggedIn) {
+        console.log("ExportReceiverSign: Skipping user fetch", {
+          hasEmail: !!email,
+          hasAuthUser: !!authUser,
+          isLoggingOut,
+          isLoggedIn
+        });
+        return;
+      }
+
+      try {
+        console.log("ExportReceiverSign: Fetching user data for", email);
         const res = await getAccountByEmail(email);
         if (res?.content) {
           setUser((prev) => ({
@@ -89,10 +103,12 @@ const SignReceiveScreen = () => {
             phone: res.content.phone || "",
           }));
         }
+      } catch (error) {
+        console.error("ExportReceiverSign: Error fetching user data:", error);
       }
     };
     fetchUser();
-  }, [email]);
+  }, [email, authUser, isLoggingOut, isLoggedIn]);
 
   useEffect(() => {
     if (exportRequestId) {

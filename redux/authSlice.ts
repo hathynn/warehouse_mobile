@@ -20,6 +20,7 @@ interface AuthState {
   } | null;
   isLoggedIn: boolean;
   isLoggingOut: boolean;
+  isRestoring: boolean;
 }
 
 const initialState: AuthState = {
@@ -28,6 +29,7 @@ const initialState: AuthState = {
   user: null,
   isLoggedIn: false,
   isLoggingOut: false,
+  isRestoring: false,
 };
 
 const authSlice = createSlice({
@@ -63,6 +65,7 @@ const authSlice = createSlice({
         };
         state.isLoggedIn = true;
         state.isLoggingOut = false;
+        state.isRestoring = false;
       } catch (error) {
         console.error("Error decoding JWT token in login:", error);
         // Reset state on error
@@ -116,7 +119,12 @@ const authSlice = createSlice({
       state.user = null;
       state.isLoggedIn = false;
       state.isLoggingOut = false;
+      state.isRestoring = false;
 
+    },
+
+    startRestore: (state) => {
+      state.isRestoring = true;
     },
 
 
@@ -155,6 +163,7 @@ const authSlice = createSlice({
         };
         state.isLoggedIn = true;
         state.isLoggingOut = false;
+        state.isRestoring = false;
 
         console.log("Auth state restored successfully");
       } catch (error) {
@@ -165,11 +174,12 @@ const authSlice = createSlice({
         state.user = null;
         state.isLoggedIn = false;
         state.isLoggingOut = false;
+        state.isRestoring = false;
       }
     },
   },
 });
 
-export const { login, logout, setToken, startLogout, restoreAuthState } = authSlice.actions;
+export const { login, logout, setToken, startLogout, restoreAuthState, startRestore } = authSlice.actions;
 
 export default authSlice.reducer;
