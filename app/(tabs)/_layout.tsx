@@ -46,6 +46,13 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="stock-check"
+        options={{
+          title: "Kiểm kho",
+          tabBarIcon: ({ color, size }) => <Ionicons name="clipboard" color={color} size={size} />,
+        }}
+      />
+      <Tabs.Screen
         name="notification"
         options={{
           title: "Thông báo",
