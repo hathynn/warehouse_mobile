@@ -57,12 +57,12 @@ function AuthHandler() {
         console.log("🔄 Not logged in, redirecting to login");
         router.replace("/login");
       } else {
-        // Only navigate to tabs if user is properly loaded
-        if (user.id && user.email && user.role) {
+        // Only navigate to tabs if user is properly loaded and has all required properties
+        if (user && typeof user === 'object' && user.id && user.email && user.role) {
           console.log("✅ User authenticated, navigating to tabs");
           router.replace("/(tabs)/import");
         } else {
-          console.warn("⚠️ User object incomplete, redirecting to login");
+          console.warn("⚠️ User object incomplete, redirecting to login", { user });
           router.replace("/login");
         }
       }

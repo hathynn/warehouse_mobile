@@ -29,7 +29,7 @@ export const PusherProvider = ({ children }: { children: ReactNode }) => {
   const [isConnected, setIsConnected] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
 
-  const { user, isLoggedIn } = useSelector((state: RootState) => state.auth);
+  const { user, isLoggedIn, isLoggingOut } = useSelector((state: RootState) => state.auth);
 
   // Create Pusher instance only once
   const pusherRef = useRef<any>(null);
@@ -47,6 +47,12 @@ export const PusherProvider = ({ children }: { children: ReactNode }) => {
   };
 
   useEffect(() => {
+    // Don't set up Pusher if logging out
+    if (isLoggingOut) {
+      console.log('⏸️ Skipping Pusher setup - logout in progress');
+      return undefined;
+    }
+
     // Only set up Pusher if user is authenticated and has a role
     if (!isLoggedIn || !user) {
       // Clean up existing connection if user is not authenticated
@@ -137,7 +143,7 @@ export const PusherProvider = ({ children }: { children: ReactNode }) => {
         channelRef.current = null;
       }
     };
-  }, [user, isLoggedIn]);
+  }, [user, isLoggedIn, isLoggingOut]);
 
   // Cleanup on unmount
   useEffect(() => {
