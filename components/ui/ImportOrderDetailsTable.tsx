@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   View,
   Text,
@@ -33,6 +33,7 @@ interface ImportOrderDetailItem {
 
 interface ImportOrderDetailsTableProps {
   importOrderDetails: ImportOrderDetailItem[];
+  onStorageComplete?: () => void; // Callback khi hoàn thành quy trình nhập kho
 }
 
 interface LocationFilter {
@@ -43,6 +44,7 @@ interface LocationFilter {
 
 const ImportOrderDetailsTable: React.FC<ImportOrderDetailsTableProps> = ({
   importOrderDetails,
+  onStorageComplete,
 }) => {
   const [locationFilter, setLocationFilter] = useState<LocationFilter>({
     zone: null,
@@ -50,6 +52,48 @@ const ImportOrderDetailsTable: React.FC<ImportOrderDetailsTableProps> = ({
     row: null,
   });
   const [showFilterModal, setShowFilterModal] = useState(false);
+
+  // State mới cho checkbox
+  const [checkedItems, setCheckedItems] = useState<Set<string>>(new Set());
+
+  // Reset checked items khi importOrderDetails thay đổi
+  useEffect(() => {
+    setCheckedItems(new Set());
+  }, [importOrderDetails]);
+
+  // Kiểm tra xem có phải trạng thái READY_TO_STORE không
+  const isReadyToStore =
+    importOrderDetails.length > 0 &&
+    importOrderDetails[0]?.status === ImportOrderStatus.READY_TO_STORE;
+
+  const showCheckbox =
+    importOrderDetails.length > 0 &&
+    importOrderDetails[0]?.status === ImportOrderStatus.READY_TO_STORE;
+
+  // Handler cho việc toggle checkbox
+  const handleCheckboxToggle = (itemId: string) => {
+    setCheckedItems((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(itemId)) {
+        newSet.delete(itemId);
+      } else {
+        newSet.add(itemId);
+      }
+      return newSet;
+    });
+  };
+
+  // Kiểm tra xem tất cả items đã được check chưa
+  const allItemsChecked =
+    importOrderDetails.length > 0 &&
+    importOrderDetails.every((item) => checkedItems.has(item.id));
+
+  // Handler để hoàn thành quy trình nhập kho
+  const handleCompleteStorage = () => {
+    if (allItemsChecked && onStorageComplete) {
+      onStorageComplete();
+    }
+  };
 
   // Extract unique locations from all products
   const availableLocations = useMemo(() => {
@@ -102,7 +146,6 @@ const ImportOrderDetailsTable: React.FC<ImportOrderDetailsTableProps> = ({
     return sortedLocations[0]; // lấy vị trí nhỏ nhất (thứ tự alpha + số tăng dần)
   };
 
-
   const naturalSort = (a: string, b: string): number => {
     const collator = new Intl.Collator(undefined, {
       numeric: true,
@@ -127,42 +170,27 @@ const ImportOrderDetailsTable: React.FC<ImportOrderDetailsTableProps> = ({
   };
 
   //Zone -> Floor -> Row -> line
-  const sortedByLocation = useMemo(() => {
-    return [...importOrderDetails].sort((a, b) => {
-      // Nếu cả 2 items đều chưa COMPLETED, sort theo ID số tăng dần
-      const aIsCompleted = a.status === ImportOrderStatus.COMPLETED;
-      const bIsCompleted = b.status === ImportOrderStatus.COMPLETED;
-      
-      if (!aIsCompleted && !bIsCompleted) {
-        // Sort theo ID số
-        const aId = parseInt(a.id);
-        const bId = parseInt(b.id);
-        
-        if (!isNaN(aId) && !isNaN(bId)) {
-          return aId - bId;
-        }
-        
-        // Fallback to string comparison if ID is not numeric
-        return a.id.localeCompare(b.id);
-      }
-      
-      // Nếu một cái completed một cái chưa, đưa completed xuống dưới
-      if (!aIsCompleted && bIsCompleted) return -1;
-      if (aIsCompleted && !bIsCompleted) return 1;
-      
-      // Nếu cả 2 đều completed, sort theo location như cũ
+ const sortedByLocation = useMemo(() => {
+  return [...importOrderDetails].sort((a, b) => {
+    // Định nghĩa các trạng thái mà bạn muốn sắp xếp theo vị trí
+    const statusesToStoreSort = [
+      ImportOrderStatus.READY_TO_STORE,
+      ImportOrderStatus.STORED,
+    ];
+
+    const aHasLocationStatus = statusesToStoreSort.includes(a.status);
+    const bHasLocationStatus = statusesToStoreSort.includes(b.status);
+
+    // 1. Ưu tiên các sản phẩm có trạng thái cần sắp xếp vị trí lên trên
+    if (aHasLocationStatus !== bHasLocationStatus) {
+      return aHasLocationStatus ? -1 : 1; // a lên trước nếu a có trạng thái này
+    }
+
+    // 2. Nếu cả hai cùng có trạng thái cần sắp xếp vị trí (hoặc cả hai đều không)
+    if (aHasLocationStatus && bHasLocationStatus) {
+      // Sắp xếp theo vị trí: Zone -> Floor -> Row -> Line
       const aLocation = getPrimaryLocation(a);
       const bLocation = getPrimaryLocation(b);
-
-      // Handle "Không rõ vị trí" - put them at the end
-      const aIsUnknown = aLocation.zone === "Không rõ vị trí";
-      const bIsUnknown = bLocation.zone === "Không rõ vị trí";
-
-      if (aIsUnknown && !bIsUnknown) return 1;
-      if (!aIsUnknown && bIsUnknown) return -1;
-      if (aIsUnknown && bIsUnknown) {
-        return naturalSort(a.productName, b.productName);
-      }
 
       const zoneCompare = sortZones(aLocation.zone, bLocation.zone);
       if (zoneCompare !== 0) return zoneCompare;
@@ -176,9 +204,27 @@ const ImportOrderDetailsTable: React.FC<ImportOrderDetailsTableProps> = ({
       const lineCompare = naturalSort(aLocation.line, bLocation.line);
       if (lineCompare !== 0) return lineCompare;
 
+      // Fallback: sort by ID or other criteria
+      const aId = parseInt(a.id);
+      const bId = parseInt(b.id);
+      if (!isNaN(aId) && !isNaN(bId)) {
+        return aId - bId;
+      }
       return naturalSort(a.productName, b.productName);
-    });
-  }, [importOrderDetails]);
+    }
+
+    // 3. Nếu cả hai item đều không có trạng thái cần sắp xếp vị trí
+    // thì sắp xếp theo ID như logic cũ của bạn.
+    const aId = parseInt(a.id);
+    const bId = parseInt(b.id);
+    if (!isNaN(aId) && !isNaN(bId)) {
+      return aId - bId;
+    }
+
+    // Fallback to product name if ID is not numeric
+    return naturalSort(a.productName, b.productName);
+  });
+}, [importOrderDetails]);
 
   // Filter the sorted data based on location filters
   const filteredAndSortedData = useMemo(() => {
@@ -208,25 +254,21 @@ const ImportOrderDetailsTable: React.FC<ImportOrderDetailsTableProps> = ({
   const hasActiveFilters =
     locationFilter.zone || locationFilter.floor || locationFilter.row;
 
-
   const renderDetailItem = ({ item }: { item: ImportOrderDetailItem }) => {
-    const isCompleted = item.status === ImportOrderStatus.READY_TO_STORE;
-  // console.log("🔍 line", {
-  //   id: item.id,
-  //   productName: item.productName,
-  //   totalProducts: item.products.length,
-  //   products: item.products
-  // });
+    const isCompleted =
+      item.status === ImportOrderStatus.READY_TO_STORE ||
+      item.status === ImportOrderStatus.STORED;
+    const isChecked = checkedItems.has(item.id);
+
     const progressPercentage = Math.round(
       (item.countedQuantity / item.expectedQuantity) * 100
     );
 
-
-    let progressColor = "#e63946"; 
+    let progressColor = "#e63946";
     if (item.countedQuantity > item.expectedQuantity) {
-      progressColor = "#ff9500"; 
+      progressColor = "#ff9500";
     } else if (item.countedQuantity === item.expectedQuantity) {
-      progressColor = "#2ecc71"; 
+      progressColor = "#2ecc71";
     }
 
     // Group products by location and format location string
@@ -254,11 +296,6 @@ const ImportOrderDetailsTable: React.FC<ImportOrderDetailsTableProps> = ({
 
         const [zoneA, floorA, rowA, lineA] = a.split(" - ");
         const [zoneB, floorB, rowB, lineB] = b.split(" - ");
-        console.log(
-          "🧾 So sánh:",
-          { zoneA, floorA, rowA, lineA },
-          { zoneB, floorB, rowB, lineB }
-        );
 
         const zoneCompare = sortZones(zoneA, zoneB);
         if (zoneCompare !== 0) return zoneCompare;
@@ -277,6 +314,22 @@ const ImportOrderDetailsTable: React.FC<ImportOrderDetailsTableProps> = ({
       <View style={styles.detailCard}>
         <View style={styles.detailHeader}>
           <View style={styles.detailHeaderLeft}>
+            {/* Checkbox chỉ hiện khi status là READY_TO_STORE */}
+            {showCheckbox && (
+              <TouchableOpacity
+                style={styles.checkboxContainer}
+                onPress={() => handleCheckboxToggle(item.id)}
+              >
+                <View
+                  style={[styles.checkbox, isChecked && styles.checkboxChecked]}
+                >
+                  {isChecked && (
+                    <Ionicons name="checkmark" size={16} color="white" />
+                  )}
+                </View>
+              </TouchableOpacity>
+            )}
+
             <View style={styles.detailIdContainer}>
               <Text style={styles.detailId}>{item.id}</Text>
             </View>
@@ -355,6 +408,14 @@ const ImportOrderDetailsTable: React.FC<ImportOrderDetailsTableProps> = ({
             </View>
           </View>
         )}
+
+        {/* Badge đã nhập kho khi được check */}
+        {/* {isChecked && isReadyToStore && (
+          <View style={styles.completedBadge}>
+            <Ionicons name="checkmark-circle" size={16} color="#10b981" />
+            <Text style={styles.completedText}>Đã nhập kho</Text>
+          </View>
+        )} */}
       </View>
     );
   };
@@ -536,10 +597,20 @@ const ImportOrderDetailsTable: React.FC<ImportOrderDetailsTableProps> = ({
     <View style={styles.container}>
       <View style={styles.detailsHeaderContainer}>
         <Text style={styles.cardTitle}>Chi tiết đơn nhập</Text>
-        <View style={styles.detailsCountContainer}>
-          <Text style={styles.detailsCountText}>
-            {filteredAndSortedData.length}
-          </Text>
+        <View style={styles.headerRight}>
+          {/* Progress indicator khi READY_TO_STORE */}
+          {showCheckbox && (
+            <View style={styles.progressIndicator}>
+              <Text style={styles.progressIndicatorText}>
+                {checkedItems.size}/{importOrderDetails.length}
+              </Text>
+            </View>
+          )}
+          <View style={styles.detailsCountContainer}>
+            <Text style={styles.detailsCountText}>
+              {filteredAndSortedData.length}
+            </Text>
+          </View>
         </View>
       </View>
 
@@ -642,6 +713,40 @@ const ImportOrderDetailsTable: React.FC<ImportOrderDetailsTableProps> = ({
           </View>
         )}
       />
+
+      {/* Button hoàn thành nhập kho */}
+      {showCheckbox && (
+        <View style={styles.actionContainer}>
+          <TouchableOpacity
+            style={[
+              styles.completeButton,
+              !allItemsChecked && styles.completeButtonDisabled,
+            ]}
+            onPress={handleCompleteStorage}
+            disabled={!allItemsChecked}
+          >
+            <Ionicons
+              name="checkmark-circle-outline"
+              size={20}
+              color={allItemsChecked ? "white" : "#ccc"}
+            />
+            <Text
+              style={[
+                styles.completeButtonText,
+                !allItemsChecked && styles.completeButtonTextDisabled,
+              ]}
+            >
+              Xác nhận hoàn thành nhập kho
+            </Text>
+          </TouchableOpacity>
+
+          {!allItemsChecked && (
+            <Text style={styles.warningText}>
+              Vui lòng kiểm tra tất cả sản phẩm trước khi hoàn thành
+            </Text>
+          )}
+        </View>
+      )}
 
       {renderFilterModal()}
     </View>
@@ -939,7 +1044,7 @@ const styles = StyleSheet.create({
   quantityItem: {
     flexDirection: "column",
   },
- quantityLabel: {
+  quantityLabel: {
     fontSize: 12,
     color: "#666",
     marginBottom: 4,
@@ -1022,6 +1127,100 @@ const styles = StyleSheet.create({
   detailSeparator: {
     height: 8,
     backgroundColor: "transparent",
+  },
+
+  // Thêm các styles này vào StyleSheet.create của bạn
+
+  // Checkbox styles
+  checkboxContainer: {
+    marginRight: 12,
+    marginTop: 2,
+  },
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: "#dee2e6",
+    backgroundColor: "white",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  checkboxChecked: {
+    backgroundColor: "#1677ff",
+    borderColor: "#1677ff",
+  },
+
+  // Header right container cho progress indicator
+  headerRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  progressIndicator: {
+    backgroundColor: "#e3f2fd",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  progressIndicatorText: {
+    fontSize: 12,
+    color: "#1677ff",
+    fontWeight: "600",
+  },
+
+  // Completed badge khi item được check
+  completedBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#ecfdf5",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    alignSelf: "flex-start",
+    marginTop: 8,
+  },
+  completedText: {
+    fontSize: 12,
+    color: "#10b981",
+    fontWeight: "500",
+    marginLeft: 4,
+  },
+
+  // Action container cho button hoàn thành
+  actionContainer: {
+    marginTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: "#f0f0f0",
+    paddingTop: 16,
+  },
+  completeButton: {
+    backgroundColor: "#1677ff",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  completeButtonDisabled: {
+    backgroundColor: "#f5f5f5",
+  },
+  completeButtonText: {
+    color: "white",
+    fontSize: 15,
+    fontWeight: "600",
+    marginLeft: 8,
+  },
+  completeButtonTextDisabled: {
+    color: "#ccc",
+  },
+  warningText: {
+    fontSize: 12,
+    color: "#f59e0b",
+    textAlign: "center",
+    fontStyle: "italic",
   },
 });
 

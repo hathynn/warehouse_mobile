@@ -18,22 +18,13 @@ import StatusBadge from "@/components/StatusBadge";
 import useImportOrderDetailService from "@/services/useImportOrderDetailService";
 import useInventoryService from "@/services/useInventoryService";
 import ImportOrderDetailsTable from "@/components/ui/ImportOrderDetailsTable";
-import { Button } from "tamagui";
 import { useDispatch } from "react-redux";
 import { setProducts } from "@/redux/productSlice";
 import { setPaperData } from "@/redux/paperSlice";
-import { TodoList } from "@/components/ui/TodoList";
 import usePaperService from "@/services/usePaperService";
 
 interface RouteParams {
   id: string;
-}
-
-interface TodoItem {
-  id: string;
-  title: string;
-  completed: boolean;
-  enabled: boolean;
 }
 
 const ImportOrderScreen: React.FC = () => {
@@ -45,23 +36,7 @@ const ImportOrderScreen: React.FC = () => {
     useImportOrderDetailService();
   const { updateImportOrderToStored } = useImportOrder();
   const [importOrderDetails, setImportOrderDetails] = useState<any[]>([]);
-  const [showTodoList, setShowTodoList] = useState(false);
   const { resetPaperById } = usePaperService();
-
-  const [todoItems, setTodoItems] = useState<TodoItem[]>([
-    {
-      id: "scan-qr",
-      title: "Dán QR Code",
-      completed: false,
-      enabled: true,
-    },
-    {
-      id: "store-location",
-      title: "Cất hàng đúng vị trí",
-      completed: false,
-      enabled: false,
-    },
-  ]);
 
   const { fetchInventoryItemsByImportOrderDetailId } = useInventoryService();
 
@@ -87,29 +62,71 @@ const ImportOrderScreen: React.FC = () => {
     };
   };
 
-  const handleTodoToggle = (itemId: string) => {
-    setTodoItems((prev) => {
-      const newItems = prev.map((item) => {
-        if (item.id === itemId && item.enabled) {
-          return { ...item, completed: !item.completed };
-        }
-        return item;
-      });
+  const loadData = async () => {
+    if (!id) return;
+    const orderId = id;
 
-      // Logic tuần tự: chỉ enable bước tiếp theo khi bước trước hoàn thành
-      const scanQrCompleted = newItems.find(
-        (item) => item.id === "scan-qr"
-      )?.completed;
+    // 1. Lấy thông tin đơn nhập
+    const order = await fetchImportOrderById(orderId);
 
-      return newItems.map((item) => {
-        if (item.id === "store-location") {
-          return { ...item, enabled: scanQrCompleted || false };
-        }
-        return item;
-      });
-    });
+    if (!order || !order.importOrderDetails) return;
+    // 2. Lấy thông tin chi tiết và inventory theo từng ID
+    const enrichedDetails = await Promise.all(
+      order.importOrderDetails.map(async (detail: any) => {
+        const detailData = await fetchImportOrderDetailById(
+          detail.importOrderDetailId
+        );
+        if (!detailData) return null;
 
-    // Điều hướng khi click vào todo item
+        const inventoryItems = await fetchInventoryItemsByImportOrderDetailId(
+          detail.importOrderDetailId
+        );
+
+        return {
+          id: detailData.importOrderDetailId.toString(),
+          productName: detailData.itemName,
+          sku: `Mã sản phẩm ${detailData.itemId}`,
+          expectedQuantity: detailData.expectQuantity,
+          countedQuantity: detailData.actualQuantity,
+          status: order.status,
+          products: inventoryItems.map((inv: any) => ({
+            id: inv.id,
+            serialNumber: inv.itemCode || `Chưa có code`,
+            location: inv.storedLocationName
+              ? parseStoredLocation(inv.storedLocationName)
+              : {
+                  zone: "Không rõ vị trí",
+                  floor: "Không rõ vị trí",
+                  row: "Không rõ vị trí",
+                  line: "Không rõ vị trí",
+                },
+          })),
+        };
+      })
+    );
+
+    // 3. Bỏ null nếu có dòng lỗi
+    setImportOrderDetails(enrichedDetails.filter(Boolean));
+  };
+
+  useEffect(() => {
+    loadData();
+  }, [id]);
+
+  // Handler cho việc hoàn thành quy trình nhập kho
+  const handleStorageComplete = async () => {
+    try {
+      await updateImportOrderToStored(importOrder.importOrderId);
+      await fetchImportOrderById(importOrder.importOrderId);
+
+      // Gọi lại loadData để refresh table ngay lập tức
+      await loadData();
+
+      // Có thể thêm thông báo thành công ở đây
+    } catch (error) {
+      console.error("Cập nhật trạng thái thất bại:", error);
+      // Có thể thêm thông báo lỗi ở đây
+    }
   };
 
   useEffect(() => {
@@ -141,8 +158,8 @@ const ImportOrderScreen: React.FC = () => {
             countedQuantity: detailData.actualQuantity,
             status: order.status,
             products: inventoryItems.map((inv: any) => ({
-              id: `ID ${inv.id}`,
-              //   serialNumber: inv.itemCode || `Chưa có code`,
+              id: inv.id, // Sửa lại để trùng với interface
+              serialNumber: inv.itemCode || `Chưa có code`,
               location: inv.storedLocationName
                 ? parseStoredLocation(inv.storedLocationName)
                 : {
@@ -191,41 +208,18 @@ const ImportOrderScreen: React.FC = () => {
           <Ionicons name="arrow-back" size={24} color="white" />
         </TouchableOpacity>
 
-        {importOrder?.status === ImportOrderStatus.READY_TO_STORE ? (
-          <>
-            <Text
-              style={{
-                color: "white",
-                fontSize: 16,
-                fontWeight: "bold",
-                marginTop: 7,
-                flex: 1,
-                textAlign: "center",
-              }}
-            >
-              {id}
-            </Text>
-            <TouchableOpacity
-              onPress={() => setShowTodoList(true)}
-              style={{ paddingLeft: 12, marginTop: 7 }}
-            >
-              <Ionicons name="list-outline" size={24} color="white" />
-            </TouchableOpacity>
-          </>
-        ) : (
-          <Text
-            style={{
-              color: "white",
-              fontSize: 16,
-              fontWeight: "bold",
-              marginTop: 7,
-              flex: 1,
-              textAlign: "right",
-            }}
-          >
-            {id}
-          </Text>
-        )}
+        <Text
+          style={{
+            color: "white",
+            fontSize: 16,
+            fontWeight: "bold",
+            marginTop: 7,
+            flex: 1,
+            textAlign: "center",
+          }}
+        >
+          {id}
+        </Text>
       </View>
 
       <ScrollView style={styles.container}>
@@ -273,54 +267,7 @@ const ImportOrderScreen: React.FC = () => {
           </View>
         </View>
 
-        {/* Checklist Card - chỉ hiện khi status là COMPLETED */}
-        {/* {importOrder?.status === ImportOrderStatus.COMPLETED && (
-          <View style={styles.checklistCard}>
-            <View style={styles.checklistHeader}>
-              <Text style={styles.checklistTitle}>Quy trình nhập kho</Text>
-              <TouchableOpacity
-                onPress={() => setShowTodoList(true)}
-                style={styles.viewChecklistButton}
-              >
-                <Text style={styles.viewChecklistText}>Chi tiết</Text>
-                <Ionicons name="chevron-forward" size={16} color="#1677ff" />
-              </TouchableOpacity>
-            </View>
-            
-            <View style={styles.quickChecklist}>
-              {todoItems.map((item, index) => (
-                <View key={item.id} style={styles.quickCheckItem}>
-                  <View
-                    style={[
-                      styles.quickCheckbox,
-                      item.completed && styles.quickCheckboxCompleted,
-                      !item.enabled && styles.quickCheckboxDisabled,
-                    ]}
-                  >
-                    {item.completed ? (
-                      <Ionicons name="checkmark" size={14} color="white" />
-                    ) : (
-                      <Text style={styles.quickCheckNumber}>{index + 1}</Text>
-                    )}
-                  </View>
-                  <Text
-                    style={[
-                      styles.quickCheckText,
-                      item.completed && styles.quickCheckTextCompleted,
-                      !item.enabled && styles.quickCheckTextDisabled,
-                    ]}
-                  >
-                    {item.title}
-                  </Text>
-                  {!item.enabled && (
-                    <Ionicons name="lock-closed" size={12} color="#ccc" style={{ marginLeft: 8 }} />
-                  )}
-                </View>
-              ))}
-            </View>
-          </View>
-        )} */}
-
+        {/* Các button action dựa theo status */}
         {importOrder?.status === ImportOrderStatus.IN_PROGRESS ||
         importOrder?.status === ImportOrderStatus.NOT_STARTED ? (
           <TouchableOpacity
@@ -377,7 +324,6 @@ const ImportOrderScreen: React.FC = () => {
             activeOpacity={0.8}
             onPress={async () => {
               try {
-
                 if (!importOrder.paperIds) {
                   throw new Error("Không tìm thấy paperId để reset");
                 }
@@ -411,27 +357,12 @@ const ImportOrderScreen: React.FC = () => {
           </TouchableOpacity>
         ) : null}
 
-        {/* Danh sách chi tiết đơn nhập */}
-        <ImportOrderDetailsTable importOrderDetails={importOrderDetails} />
-      </ScrollView>
-
-      {importOrder?.status === ImportOrderStatus.READY_TO_STORE && (
-        <TodoList
-          items={todoItems}
-          visible={showTodoList}
-          onClose={() => setShowTodoList(false)}
-          onItemToggle={handleTodoToggle}
-          onSubmit={async () => {
-            try {
-              await updateImportOrderToStored(importOrder.importOrderId);
-              await fetchImportOrderById(importOrder.importOrderId);
-              setShowTodoList(false);
-            } catch (error) {
-              console.error("Cập nhật trạng thái thất bại:", error);
-            }
-          }}
+        {/* Component ImportOrderDetailsTable với checkbox và quy trình nhập kho */}
+        <ImportOrderDetailsTable
+          importOrderDetails={importOrderDetails}
+          onStorageComplete={handleStorageComplete}
         />
-      )}
+      </ScrollView>
     </View>
   );
 };
@@ -462,77 +393,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     marginBottom: 12,
-  },
-  checklistCard: {
-    backgroundColor: "white",
-    marginHorizontal: 16,
-    marginBottom: 16,
-    borderRadius: 12,
-    padding: 16,
-    elevation: 2,
-  },
-  checklistHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  checklistTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#333",
-  },
-  viewChecklistButton: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  viewChecklistText: {
-    fontSize: 14,
-    color: "#1677ff",
-    marginRight: 4,
-  },
-  quickChecklist: {
-    gap: 12,
-  },
-  quickCheckItem: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  quickCheckbox: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    borderWidth: 1.5,
-    borderColor: "#dee2e6",
-    backgroundColor: "white",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 12,
-  },
-  quickCheckboxCompleted: {
-    backgroundColor: "#1677ff",
-    borderColor: "#1677ff",
-  },
-  quickCheckboxDisabled: {
-    borderColor: "#ccc",
-    backgroundColor: "#f5f5f5",
-  },
-  quickCheckNumber: {
-    fontSize: 10,
-    fontWeight: "600",
-    color: "#999",
-  },
-  quickCheckText: {
-    fontSize: 14,
-    color: "#333",
-    flex: 1,
-  },
-  quickCheckTextCompleted: {
-    textDecorationLine: "line-through",
-    color: "#6c757d",
-  },
-  quickCheckTextDisabled: {
-    color: "#adb5bd",
   },
   row: {
     flexDirection: "row",
