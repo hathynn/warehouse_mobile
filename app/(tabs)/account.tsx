@@ -16,8 +16,9 @@ import { useDispatch, useSelector } from "react-redux";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { RootState } from "@/redux/store";
-import { logout } from "@/redux/authSlice";
+import { logout, startLogout } from "@/redux/authSlice";
 import useAccountService from "@/services/useAccountService";
 
 const { width } = Dimensions.get("window");
@@ -31,6 +32,7 @@ const AccountScreen = () => {
   const authUser = useSelector((state: RootState) => state.auth.user);
   const email = authUser?.email || "";
   const isLoggedIn = useSelector((state: RootState) => state.auth.isLoggedIn);
+  const isLoggingOut = useSelector((state: RootState) => state.auth.isLoggingOut);
 
   const [user, setUser] = useState({
     name: "",
@@ -76,9 +78,18 @@ const AccountScreen = () => {
       {
         text: "Đăng xuất",
         style: "destructive",
-        onPress: () => {
+        onPress: async () => {
+          // Prevent multiple logout attempts
+          if (isLoggingOut) {
+            console.warn("Logout already in progress");
+            return;
+          }
+
           try {
-            // ✅ Clear user state trước khi logout
+            // ✅ Mark logout as starting to prevent race conditions
+            dispatch(startLogout());
+
+            // ✅ Clear local user state first
             setUser({
               name: "",
               email: "",
@@ -86,17 +97,24 @@ const AccountScreen = () => {
               avatar: "https://static.vecteezy.com/system/resources/previews/009/292/244/non_2x/default-avatar-icon-of-social-media-user-vector.jpg",
               coverPhoto: "https://via.placeholder.com/500x200/2176FF/FFFFFF",
             });
-            
-            // ✅ Dispatch logout action
+
+            // ✅ Clear AsyncStorage tokens
+            await AsyncStorage.removeItem("access_token");
+            await AsyncStorage.removeItem("refresh_token");
+
+            // ✅ Dispatch logout action to clear Redux state
             dispatch(logout());
-            
-            // ✅ Navigate với delay nhỏ để đảm bảo state đã được cập nhật
-            setTimeout(() => {
-              router.replace("/login");
-            }, 100);
+
+            // ✅ Navigate immediately after state cleanup
+            router.replace("/login");
           } catch (error) {
             console.error("Logout error:", error);
-            // ✅ Fallback: vẫn chuyển về login nếu có lỗi
+            // ✅ Force logout even if there's an error
+            try {
+              dispatch(logout());
+            } catch (dispatchError) {
+              console.error("Error dispatching logout:", dispatchError);
+            }
             router.replace("/login");
           }
         },

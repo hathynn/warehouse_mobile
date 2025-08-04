@@ -10,12 +10,15 @@ export default function TabsLayout() {
   const { viewAllNotifications } = useNotificationService();
 
   const handleNotificationTabPress = async () => {
-    if (user?.id) {
-      try {
-        await viewAllNotifications(Number(user.id));
-      } catch (error) {
-        console.error('Failed to mark all notifications as viewed:', error);
-      }
+    if (!user?.id) {
+      console.warn('No user ID available for marking notifications as viewed');
+      return;
+    }
+
+    try {
+      await viewAllNotifications(Number(user.id));
+    } catch (error) {
+      console.error('Failed to mark all notifications as viewed:', error);
     }
   };
 
