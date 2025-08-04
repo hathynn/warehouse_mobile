@@ -15,11 +15,15 @@ interface NotificationTabIconProps {
 
 export default function NotificationTabIcon({ color, size, focused }: NotificationTabIconProps) {
   const [unviewedCount, setUnviewedCount] = useState(0);
+
   const { user, isLoggingOut, isLoggedIn } = useSelector((state: RootState) => state.auth);
+
+
   const { getAllNotifications } = useNotificationService();
   const { latestNotification } = useContext(PusherContext);
 
   const fetchUnviewedCount = useCallback(async () => {
+
     // Don't fetch if not logged in, logging out, or user data is incomplete
     if (!isLoggedIn || !user?.id || isLoggingOut || typeof user.id !== 'string') {
       console.warn('NotificationTabIcon: Invalid state for fetching notifications', {
@@ -28,6 +32,7 @@ export default function NotificationTabIcon({ color, size, focused }: Notificati
         isLoggingOut,
         userIdType: typeof user?.id
       });
+
       if (isLoggingOut) {
         setUnviewedCount(0); // Clear count during logout
       }
@@ -45,7 +50,9 @@ export default function NotificationTabIcon({ color, size, focused }: Notificati
       // Reset count on error to prevent stale data
       setUnviewedCount(0);
     }
+
   }, [user, isLoggingOut, isLoggedIn]);
+
 
   useEffect(() => {
     fetchUnviewedCount();

@@ -116,9 +116,10 @@ const authSlice = createSlice({
       state.user = null;
       state.isLoggedIn = false;
       state.isLoggingOut = false;
+
     },
 
-    // Action to restore auth state from AsyncStorage
+
     restoreAuthState: (
       state,
       action: PayloadAction<{ access_token: string; refresh_token: string }>
@@ -133,13 +134,12 @@ const authSlice = createSlice({
 
         const decoded: DecodedToken = jwtDecode(access_token);
 
-        // Validate decoded token has required fields
         if (!decoded.email || !decoded.role || !decoded.sub) {
           console.error("Invalid token structure during restore - missing required fields");
           return;
         }
 
-        // Check if token is expired
+
         const currentTime = Math.floor(Date.now() / 1000);
         if (decoded.exp && decoded.exp < currentTime) {
           console.error("Token expired during restore");
@@ -171,4 +171,5 @@ const authSlice = createSlice({
 });
 
 export const { login, logout, setToken, startLogout, restoreAuthState } = authSlice.actions;
+
 export default authSlice.reducer;
