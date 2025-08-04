@@ -53,24 +53,34 @@ const AccountScreen = () => {
 
   useEffect(() => {
     const fetchUser = async () => {
-      if (email && authUser) {
-        try {
-          const res = await getAccountByEmail(email);
-          if (res?.content) {
-            setUser(prev => ({
-              ...prev,
-              name: res.content.fullName || "",
-              email: res.content.email || "",
-              phone: res.content.phone || "",
-            }));
-          }
-        } catch (error) {
-          console.error("Error fetching user data:", error);
+      // Don't fetch user data if logging out or not properly authenticated
+      if (!email || !authUser || isLoggingOut || !isLoggedIn) {
+        console.log("AccountScreen: Skipping user fetch", {
+          hasEmail: !!email,
+          hasAuthUser: !!authUser,
+          isLoggingOut,
+          isLoggedIn
+        });
+        return;
+      }
+
+      try {
+        console.log("AccountScreen: Fetching user data for", email);
+        const res = await getAccountByEmail(email);
+        if (res?.content) {
+          setUser(prev => ({
+            ...prev,
+            name: res.content.fullName || "",
+            email: res.content.email || "",
+            phone: res.content.phone || "",
+          }));
         }
+      } catch (error) {
+        console.error("Error fetching user data:", error);
       }
     };
     fetchUser();
-  }, [email, authUser]);
+  }, [email, authUser, isLoggingOut, isLoggedIn]);
 
   const handleLogout = () => {
     Alert.alert("Đăng xuất", "Bạn có chắc muốn đăng xuất?", [
