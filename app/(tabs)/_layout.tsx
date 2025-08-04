@@ -7,23 +7,24 @@ import NotificationTabIcon from "@/components/NotificationTabIcon";
 
 export default function TabsLayout() {
   const authState = useSelector((state: RootState) => state.auth);
-  const { user, isLoggedIn, isLoggingOut } = authState;
+  const { user, isLoggedIn, isLoggingOut, isRestoring } = authState;
   const { viewAllNotifications } = useNotificationService();
 
-  // Don't render tabs if not properly authenticated or during logout
-  if (!isLoggedIn || !user || isLoggingOut) {
+  // Don't render tabs if not properly authenticated, during logout, or during restoration
+  if (!isLoggedIn || !user || isLoggingOut || isRestoring) {
     console.log('TabsLayout: Not rendering tabs - auth state invalid', {
       isLoggedIn,
       hasUser: !!user,
-      isLoggingOut
+      isLoggingOut,
+      isRestoring
     });
     return null;
   }
 
   const handleNotificationTabPress = async () => {
     // Double-check user state before accessing id
-    if (!user?.id || isLoggingOut) {
-      console.warn('No user ID available or logging out - skipping notification tab press');
+    if (!user?.id || isLoggingOut || isRestoring) {
+      console.warn('No user ID available, logging out, or restoring - skipping notification tab press');
       return;
     }
 

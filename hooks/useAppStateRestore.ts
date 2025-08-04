@@ -45,16 +45,27 @@ export const useAppStateRestore = () => {
 
           // If we have tokens in storage but no user in Redux, restore the state
           if (accessToken && refreshToken && (!isLoggedIn || !user)) {
-            console.log('🔄 Restoring auth state after app resume...');
+            console.log(`🔄 Restoring auth state after app resume (${Math.round(timeInBackground / 1000)}s background)...`);
 
             // Mark restoration as starting to prevent component interference
             dispatch(startRestore());
 
-            // Add delay for long background periods to prevent race conditions
+            // Always add a base delay to prevent immediate component re-initialization
+            const baseDelay = 200;
+
+            // Add extra delay for longer background periods
+            let extraDelay = 0;
             if (timeInBackground > 60000) { // 1 minute
-              console.log('⏳ Long background period detected, adding restoration delay...');
-              await new Promise(resolve => setTimeout(resolve, 1000)); // Increased delay
+              extraDelay = 800;
+              console.log('⏳ Long background period detected, adding extra restoration delay...');
+            } else if (timeInBackground > 30000) { // 30 seconds
+              extraDelay = 400;
+              console.log('⏳ Medium background period detected, adding moderate restoration delay...');
             }
+
+            const totalDelay = baseDelay + extraDelay;
+            console.log(`⏳ Applying ${totalDelay}ms restoration delay...`);
+            await new Promise(resolve => setTimeout(resolve, totalDelay));
 
             dispatch(restoreAuthState({
               access_token: accessToken,
@@ -62,7 +73,9 @@ export const useAppStateRestore = () => {
             }));
 
             // Additional delay after restoration to let components settle
+            console.log('⏳ Allowing components to settle...');
             await new Promise(resolve => setTimeout(resolve, 300));
+            console.log('✅ Restoration process complete');
           }
 
           // If we have user in Redux but no tokens in storage, clear Redux state

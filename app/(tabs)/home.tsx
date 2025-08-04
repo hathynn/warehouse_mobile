@@ -33,7 +33,7 @@ const MainDashboard = () => {
   const { getAccountByEmail } = useAccountService();
 
   const authState = useSelector((state: RootState) => state.auth);
-  const { user: authUser, isLoggedIn, isLoggingOut } = authState;
+  const { user: authUser, isLoggedIn, isLoggingOut, isRestoring } = authState;
   const email = authUser?.email;
   const [user, setUser] = useState({
     name: "",
@@ -46,12 +46,13 @@ const MainDashboard = () => {
 
   useEffect(() => {
     const fetchUser = async () => {
-      // Don't fetch user data if logging out or not properly authenticated
-      if (!email || !authUser || isLoggingOut || !isLoggedIn) {
+      // Don't fetch user data if logging out, restoring, or not properly authenticated
+      if (!email || !authUser || isLoggingOut || isRestoring || !isLoggedIn) {
         console.log("HomeScreen: Skipping user fetch", {
           hasEmail: !!email,
           hasAuthUser: !!authUser,
           isLoggingOut,
+          isRestoring,
           isLoggedIn
         });
         return;
@@ -73,7 +74,7 @@ const MainDashboard = () => {
       }
     };
     fetchUser();
-  }, [email, authUser, isLoggingOut, isLoggedIn]);
+  }, [email, authUser, isLoggingOut, isRestoring, isLoggedIn]);
 
   useEffect(() => {
     const timer = setInterval(() => {
