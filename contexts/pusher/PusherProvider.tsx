@@ -64,6 +64,11 @@ export const PusherProvider = ({ children }: { children: ReactNode }) => {
     }
 
     // Determine Pusher channel for this role
+    if (!user.id || !user.role) {
+      setConnectionError('User ID or role is missing');
+      return undefined;
+    }
+
     const channelName = getChannelForRole(user.role as AccountRole, Number(user.id));
     if (!channelName) {
       setConnectionError(`No channel defined for role: ${user.role}`);

@@ -74,7 +74,8 @@ const getNotificationTypeFromContent = (content: string): string => {
 
 export default function NotificationScreen() {
   const [notifications, setNotifications] = useState<NotificationResponse[]>([]);
-  const userId = useSelector((state: RootState) => state.auth.user.id);
+  const user = useSelector((state: RootState) => state.auth.user);
+  const userId = user?.id;
   const { getAllNotifications, clickNotification, viewAllNotifications, loading: isLoading } = useNotificationService();
   const { latestNotification } = useContext(PusherContext);
 
