@@ -14,7 +14,7 @@ import { RootState } from "@/redux/store";
 import { Button } from "tamagui";
 import { updateProduct } from "@/redux/productSlice";
 import { Dimensions } from "react-native";
-import { Audio } from "expo-av";
+import { Audio } from "expo-audio";
 import { useIsFocused } from "@react-navigation/native";
 
 const { width } = Dimensions.get("window");
