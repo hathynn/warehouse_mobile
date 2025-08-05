@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Text,
   View,
@@ -35,6 +35,10 @@ export default function ScanQrScreen() {
   const [lastScannedProduct, setLastScannedProduct] = useState<any | null>(
     null
   );
+
+  // ✅ Add debounce mechanism
+  const lastScanTimeRef = useRef<number>(0);
+  const SCAN_DEBOUNCE_MS = 1000; // 1 second debounce
 
   const scanMappings = useSelector(
     (state: RootState) => state.exportRequestDetail.scanMappings
@@ -82,6 +86,19 @@ export default function ScanQrScreen() {
     })();
   }, []);
 
+  // ✅ Reset scanning state when screen is focused
+  useEffect(() => {
+    if (isFocused) {
+      console.log("🔄 Screen focused, resetting scan state");
+      setIsProcessing(false);
+      setScanningEnabled(true);
+      setErrorMessage(null);
+      setLastScannedProduct(null);
+      lastScanTimeRef.current = 0;
+      // Note: We don't reset scannedIds here to maintain scan history during session
+    }
+  }, [isFocused]);
+
   const [canScan, setCanScan] = useState(true);
 
 const handleBarCodeScanned = async ({ data }: { data: string }) => {
@@ -90,18 +107,26 @@ const handleBarCodeScanned = async ({ data }: { data: string }) => {
     console.error = () => {};
   }
 
+  const currentTime = Date.now();
+  const rawInventoryItemId = data.trim();
+  const normalizedId = rawInventoryItemId.toLowerCase();
+
+  console.log(`📱 Scanning QR: ${normalizedId}`);
+  console.log(`📋 Previously scanned: ${JSON.stringify(scannedIds)}`);
+  console.log(`🔍 Current state - scanningEnabled: ${scanningEnabled}, isProcessing: ${isProcessing}`);
+
+  // ✅ Debounce check - prevent rapid fire scanning
+  if (currentTime - lastScanTimeRef.current < SCAN_DEBOUNCE_MS) {
+    console.log(`🚫 Debounce: Too soon since last scan (${currentTime - lastScanTimeRef.current}ms)`);
+    return;
+  }
+
   // ✅ Chặt chẽ hơn với việc check scanning state
   if (!scanningEnabled || isProcessing) {
     console.log("🚫 Scan disabled or processing, ignoring scan");
     return;
   }
 
-  const rawInventoryItemId = data.trim();
-  const normalizedId = rawInventoryItemId.toLowerCase();
-  
-  console.log(`📱 Scanning QR: ${normalizedId}`);
-  console.log(`📋 Previously scanned: ${JSON.stringify(scannedIds)}`);
-  
   // ✅ Check duplicate scan ngay lập tức
   if (scannedIds.includes(normalizedId)) {
     console.log("🚫 Already scanned this QR:", normalizedId);
@@ -110,18 +135,14 @@ const handleBarCodeScanned = async ({ data }: { data: string }) => {
     return;
   }
 
+  // ✅ Update last scan time
+  lastScanTimeRef.current = currentTime;
+
   // ✅ Disable scanning và processing ngay lập tức - NGAY TẠI ĐÂY
   console.log("🔒 Disabling scan and setting processing");
   setScanningEnabled(false);
   setIsProcessing(true);
-  
-  // ✅ Thêm vào scannedIds NGAY LẬP TỨC để tránh duplicate
-  setScannedIds(prev => {
-    const newIds = [...prev, normalizedId];
-    console.log(`📝 Updated scannedIds: ${JSON.stringify(newIds)}`);
-    return newIds;
-  });
-  
+
   // ✅ Clear previous messages
   setErrorMessage(null);
   setLastScannedProduct(null);
@@ -129,6 +150,17 @@ const handleBarCodeScanned = async ({ data }: { data: string }) => {
   try {
     console.log("📦 Raw QR data:", data);
     console.log("🔍 inventoryItemId:", normalizedId);
+
+    // ✅ Thêm vào scannedIds NGAY SAU KHI VALIDATE để tránh duplicate
+    setScannedIds(prev => {
+      if (prev.includes(normalizedId)) {
+        console.log("🚫 Already in scannedIds, skipping");
+        return prev;
+      }
+      const newIds = [...prev, normalizedId];
+      console.log(`📝 Added to scannedIds: ${JSON.stringify(newIds)}`);
+      return newIds;
+    });
 
     const mapping = scanMappings.find(
       (m) => m.inventoryItemId.toLowerCase() === normalizedId
@@ -166,55 +198,53 @@ const handleBarCodeScanned = async ({ data }: { data: string }) => {
     // ✅ Success - hiển thị thông báo thành công
     await playBeep();
     setLastScannedProduct(matched);
-    
+
     // ✅ Clear success message sau 4s
     setTimeout(() => setLastScannedProduct(null), 4000);
-    
+
     console.log("✅ Scan successful for:", normalizedId);
 
   } catch (err: any) {
     console.error("❌ Scan error:", err);
-    
-    // ✅ Nếu có lỗi, remove khỏi scannedIds để có thể thử lại
-    setScannedIds(prev => {
-      const filteredIds = prev.filter(id => id !== normalizedId);
-      console.log(`🗑️ Removed from scannedIds due to error: ${JSON.stringify(filteredIds)}`);
-      return filteredIds;
-    });
-    
+
     const message = err?.response?.data?.message || err?.message || "Lỗi không xác định";
     let displayMessage = "QR không hợp lệ.";
 
     if (message.toLowerCase().includes("has been tracked")) {
       displayMessage = "Sản phẩm này đã được quét trước đó!";
-      // ✅ Nếu API báo đã tracked, add lại vào scannedIds
-      setScannedIds(prev => {
-        if (!prev.includes(normalizedId)) {
-          const newIds = [...prev, normalizedId];
-          console.log(`🔄 Re-added to scannedIds (API tracked): ${JSON.stringify(newIds)}`);
-          return newIds;
-        }
-        return prev;
-      });
+      // ✅ Nếu API báo đã tracked, giữ trong scannedIds
+      console.log(`🔄 API says already tracked, keeping in scannedIds`);
     } else if (message.toLowerCase().includes("not stable")) {
       displayMessage = "Sản phẩm không hợp lệ.";
+      // ✅ Nếu có lỗi khác, remove khỏi scannedIds để có thể thử lại
+      setScannedIds(prev => {
+        const filteredIds = prev.filter(id => id !== normalizedId);
+        console.log(`🗑️ Removed from scannedIds due to error: ${JSON.stringify(filteredIds)}`);
+        return filteredIds;
+      });
     } else {
       displayMessage = `${message}`;
+      // ✅ Nếu có lỗi khác, remove khỏi scannedIds để có thể thử lại
+      setScannedIds(prev => {
+        const filteredIds = prev.filter(id => id !== normalizedId);
+        console.log(`🗑️ Removed from scannedIds due to error: ${JSON.stringify(filteredIds)}`);
+        return filteredIds;
+      });
     }
 
     setErrorMessage(displayMessage);
-    
+
     // ✅ Clear error message sau 4s
     setTimeout(() => setErrorMessage(null), 4000);
-    
+
   } finally {
     setIsProcessing(false);
-    
-    // ✅ Re-enable scanning sau 2s
+
+    // ✅ Re-enable scanning sau 1.5s (reduced delay)
     setTimeout(() => {
       setScanningEnabled(true);
       console.log("✅ Scanning re-enabled");
-    }, 2000);
+    }, 1500);
   }
 };
   // const handleBarCodeScanned = async ({ data }: { data: string }) => {
@@ -293,13 +323,16 @@ const handleBarCodeScanned = async ({ data }: { data: string }) => {
   // };
 
   const handleRetry = () => {
+    console.log("🔄 Retry button pressed, resetting state");
     setErrorMessage(null);
     setLastScannedProduct(null);
     setIsProcessing(false);
+    lastScanTimeRef.current = 0; // Reset debounce timer
     setTimeout(() => {
       setCanScan(true);
       setScanningEnabled(true);
       setCameraKey((prev) => prev + 1); // ép remount camera để ổn định
+      console.log("✅ Retry complete, scanning re-enabled");
     }, 300); // delay nhẹ giúp camera không trắng
   };
 
