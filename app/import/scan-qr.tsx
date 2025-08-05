@@ -20,7 +20,7 @@ import { useIsFocused } from "@react-navigation/native";
 const { width } = Dimensions.get("window");
 
 export default function ScanQrScreen() {
-  const [beepSound, setBeepSound] = useState<Audio.Sound | null>(null);
+  const [audioPlayer, setAudioPlayer] = useState<any>(null);
 
   const { id } = useLocalSearchParams<{ id: string }>();
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
@@ -56,16 +56,20 @@ export default function ScanQrScreen() {
 
   useEffect(() => {
     const loadBeep = async () => {
-      const { sound } = await Audio.Sound.createAsync(
-        require("@/assets/beep-07a.mp3")
-      );
-      setBeepSound(sound);
+      try {
+        const player = await Audio.Sound.createAsync(
+          require("@/assets/beep-07a.mp3")
+        );
+        setAudioPlayer(player.sound);
+      } catch (error) {
+        console.warn("🔇 Không thể tải âm thanh:", error);
+      }
     };
 
     loadBeep();
 
     return () => {
-      beepSound?.unloadAsync();
+      audioPlayer?.unloadAsync();
     };
   }, []);
 
@@ -80,10 +84,8 @@ export default function ScanQrScreen() {
 
   const playBeep = async () => {
     try {
-      if (beepSound) {
-        await beepSound.stopAsync();
-        await beepSound.setPositionAsync(0);
-        await beepSound.playAsync();
+      if (audioPlayer) {
+        await audioPlayer.replayAsync();
       }
     } catch (err) {
       console.warn("Không thể phát âm thanh:", err);

@@ -25,7 +25,7 @@ function AuthHandler() {
   useEffect(() => {
     const restoreAuthFromStorage = async () => {
       try {
-        console.log("🔄 Attempting to restore auth state from AsyncStorage...");
+        console.log("🔄 Trying to restore authentication state from AsyncStorage...");
 
         const [accessToken, refreshToken] = await Promise.all([
           AsyncStorage.getItem("access_token"),
@@ -33,16 +33,19 @@ function AuthHandler() {
         ]);
 
         if (accessToken && refreshToken) {
-          console.log("✅ Tokens found in AsyncStorage, restoring auth state");
+          console.log("✅ Found token in AsyncStorage, restoring authentication state");
           dispatch(restoreAuthState({
             access_token: accessToken,
             refresh_token: refreshToken
           }));
         } else {
-          console.log("ℹ️ No tokens found in AsyncStorage");
+          console.log("🔄 Not logged in, redirecting to login page");
         }
       } catch (error) {
         console.error("❌ Error restoring auth state:", error);
+        // Clear any corrupted tokens
+        await AsyncStorage.removeItem("access_token");
+        await AsyncStorage.removeItem("refresh_token");
       } finally {
         setIsLoading(false);
       }

@@ -137,6 +137,7 @@ const authSlice = createSlice({
 
         if (!access_token || !refresh_token) {
           console.error("Invalid tokens provided to restoreAuthState");
+          state.isRestoring = false;
           return;
         }
 
@@ -144,14 +145,15 @@ const authSlice = createSlice({
 
         if (!decoded.email || !decoded.role || !decoded.sub) {
           console.error("Invalid token structure during restore - missing required fields");
+          state.isRestoring = false;
           return;
         }
 
-
         const currentTime = Math.floor(Date.now() / 1000);
         if (decoded.exp && decoded.exp < currentTime) {
-          console.error("Token expired during restore");
-          return;
+          console.error("Token expired during restore - will attempt refresh on next API call");
+          // Don't return here - let the API interceptor handle the refresh
+          // But still restore the tokens so the refresh can work
         }
 
         state.accessToken = access_token;
@@ -177,9 +179,18 @@ const authSlice = createSlice({
         state.isRestoring = false;
       }
     },
+
+    clearAuthState: (state) => {
+      state.accessToken = null;
+      state.refreshToken = null;
+      state.user = null;
+      state.isLoggedIn = false;
+      state.isLoggingOut = false;
+      state.isRestoring = false;
+    },
   },
 });
 
-export const { login, logout, setToken, startLogout, restoreAuthState, startRestore } = authSlice.actions;
+export const { login, logout, setToken, startLogout, restoreAuthState, startRestore, clearAuthState } = authSlice.actions;
 
 export default authSlice.reducer;
