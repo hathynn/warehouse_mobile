@@ -40,29 +40,31 @@ export default function ScanQrScreen() {
     (state: RootState) => state.exportRequestDetail.scanMappings
   );
 
-  const [beepSound, setBeepSound] = useState<Audio.Sound | null>(null);
+  const [audioPlayer, setAudioPlayer] = useState<any>(null);
 
   useEffect(() => {
     const loadBeep = async () => {
-      const { sound } = await Audio.Sound.createAsync(
-        require("@/assets/beep-07a.mp3")
-      );
-      setBeepSound(sound);
+      try {
+        const player = await Audio.Sound.createAsync(
+          require("@/assets/beep-07a.mp3")
+        );
+        setAudioPlayer(player.sound);
+      } catch (error) {
+        console.warn("🔇 Không thể tải âm thanh:", error);
+      }
     };
 
     loadBeep();
 
     return () => {
-      beepSound?.unloadAsync(); // cleanup nếu screen bị huỷ
+      audioPlayer?.unloadAsync(); // cleanup nếu screen bị huỷ
     };
   }, []);
 
   const playBeep = async () => {
     try {
-      if (beepSound) {
-        await beepSound.stopAsync(); // dừng nếu đang phát
-        await beepSound.setPositionAsync(0); // tua về đầu
-        await beepSound.playAsync(); // phát lại
+      if (audioPlayer) {
+        await audioPlayer.replayAsync(); // phát lại từ đầu
       }
     } catch (err) {
       console.warn("🔇 Không thể phát âm:", err);
