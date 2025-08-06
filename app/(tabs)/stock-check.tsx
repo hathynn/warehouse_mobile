@@ -1,245 +1,329 @@
-import { useRouter, useFocusEffect } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import {
   Text,
   View,
+  ScrollView,
   TouchableOpacity,
+  ActivityIndicator,
   StatusBar,
+  TextInput,
   StyleSheet,
   FlatList,
-  ActivityIndicator,
 } from "react-native";
-import { useState, useEffect, useCallback, useContext } from "react";
+import { ReactNode, useEffect, useState, useCallback } from "react";
 import { Ionicons } from "@expo/vector-icons";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useSelector } from "react-redux";
+import { useFocusEffect } from "@react-navigation/native";
+import { useDispatch, useSelector } from "react-redux";
+import { setPaperData } from "@/redux/paperSlice";
+import { setProducts } from "@/redux/productSlice";
 import { RootState } from "@/redux/store";
-import useNotificationService, {
-  NotificationResponse,
-} from "@/services/useNotificationService";
-import { PusherContext } from "@/contexts/pusher/PusherContext";
-import { EXPORT_REQUEST_ASSIGNED_EVENT, IMPORT_ORDER_ASSIGNED_EVENT } from "@/constants/channelsNEvents";
+import StatusBadge from "@/components/StatusBadge";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import useStockCheck from "@/services/useStockCheckService";
+import { StockCheckStatus } from "@/types/stockCheck.type";
 
-const formatTimeAgo = (dateString: string) => {
-  if (!dateString) return "";
-  const date = new Date(dateString);
-  const now = new Date();
-  const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
 
-  let interval = seconds / 31536000;
-  if (interval > 1) {
-    return Math.floor(interval) + " năm trước";
-  }
-  interval = seconds / 2592000;
-  if (interval > 1) {
-    return Math.floor(interval) + " tháng trước";
-  }
-  interval = seconds / 86400;
-  if (interval > 1) {
-    return Math.floor(interval) + " ngày trước";
-  }
-  interval = seconds / 3600;
-  if (interval > 1) {
-    return Math.floor(interval) + " giờ trước";
-  }
-  interval = seconds / 60;
-  if (interval > 1) {
-    return Math.floor(interval) + " phút trước";
-  }
-  return "Vừa xong";
-};
+interface StatusTab {
+  key: string;
+  title: string;
+  status: StockCheckStatus | "ALL";
+  count: number;
+}
 
-const getNotificationTypeFromContent = (content: string): string => {
-  if (!content) return "default";
-  const lowerContent = content.toLowerCase();
-  if (
-    lowerContent.includes("cần kiểm đếm") ||
-    lowerContent.includes("đơn nhập hàng mới")
-  ) {
-    return "import";
-  }
-  if (lowerContent.includes("đã hoàn tất")) {
-    return "success";
-  }
-  if (lowerContent.includes("cập nhật hệ thống")) {
-    return "system";
-  }
-  if (lowerContent.includes("cần xác nhận")) {
-    return "pending";
-  }
-  if (lowerContent.includes("báo cáo")) {
-    return "report";
-  }
-  return "default";
-};
+export default function StockCheckList() {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeTab, setActiveTab] = useState<string>(
+    StockCheckStatus.NOT_STARTED  // Thay đổi từ PENDING
+  );
 
-export default function NotificationScreen() {
-  const [notifications, setNotifications] = useState<NotificationResponse[]>([]);
-  const userId = useSelector((state: RootState) => state.auth.user.id);
-  const { getAllNotifications, clickNotification, viewAllNotifications, loading: isLoading } = useNotificationService();
-  const { latestNotification } = useContext(PusherContext);
-
+  const user = useSelector((state: RootState) => state.auth.user);
+  const userId = user?.id;
+  const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const dispatch = useDispatch();
+
+  const { loading, fetchStockChecksByStaff } = useStockCheck();
+  const [allStockChecks, setAllStockChecks] = useState([]);
+  // const { fetchStockCheckDetails } = useStockCheckDetailService();
   const insets = useSafeAreaInsets();
 
-  const fetchNotifications = useCallback(async () => {
-    if (!userId) {
-      return;
+  // Định nghĩa các tab status cho stock check
+  const getStatusTabs = (): StatusTab[] => {
+    const validStockChecks = allStockChecks.filter(
+      (stockCheck: any) => stockCheck.status !== StockCheckStatus.CANCELLED
+    );
+
+    return [
+      {
+        key: "NOT_STARTED",
+        title: "Chưa bắt đầu",
+        status: StockCheckStatus.NOT_STARTED,
+        count: validStockChecks.filter(
+          (stockCheck: any) => stockCheck.status === StockCheckStatus.NOT_STARTED
+        ).length,
+      },
+      {
+        key: "IN_PROGRESS",
+        title: "Đang kiểm kho",
+        status: StockCheckStatus.IN_PROGRESS,
+        count: validStockChecks.filter(
+          (stockCheck: any) => stockCheck.status === StockCheckStatus.IN_PROGRESS
+        ).length,
+      },
+      {
+        key: "COMPLETED",
+        title: "Hoàn tất",
+        status: StockCheckStatus.COMPLETED,
+        count: validStockChecks.filter(
+          (stockCheck: any) => stockCheck.status === StockCheckStatus.COMPLETED
+        ).length,
+      },
+    
+   
+    ];
+  };
+
+  const fetchStockCheckList = useCallback(async () => {
+    try {
+      if (!userId) {
+        console.error("User ID not found");
+        return;
+      }
+      const stockChecks = await fetchStockChecksByStaff(Number(userId));
+      console.log("Stock checks data:", stockChecks); // Debug để kiểm tra data
+      setAllStockChecks(stockChecks);
+    } catch (err) {
+      console.error("Lỗi khi lấy danh sách kiểm kho:", err);
     }
-    const response = await getAllNotifications(Number(userId));
-    if (
-      response.statusCode >= 200 &&
-      response.statusCode < 300 &&
-      Array.isArray(response.content)
-    ) {
-      setNotifications(response.content);
-    }
-  }, [userId]);
+  }, [fetchStockChecksByStaff, userId]);
 
   useFocusEffect(
     useCallback(() => {
-      fetchNotifications();
-      if (userId) {
-        viewAllNotifications(Number(userId)).catch(error => {
-          console.error('Failed to mark all notifications as viewed:', error);
-        });
-      }
-    }, [userId])
+      fetchStockCheckList();
+    }, [fetchStockCheckList])
   );
 
-  useEffect(() => {
-    if (latestNotification) {
-      fetchNotifications();
-    }
-  }, [latestNotification]);
+  // Lọc dữ liệu theo tab active và search
+  const getFilteredData = () => {
+    let filtered = allStockChecks.filter((stockCheck: any) => {
+      // Loại bỏ phiếu kiểm kho đã hủy
+      if (stockCheck.status === StockCheckStatus.CANCELLED) return false;
 
-  const handleNotificationPress = async (notification: NotificationResponse) => {
-    if (!notification.isClicked) {
-      try {
-        await clickNotification(notification.id);
-        await fetchNotifications();
-      } catch (error) {
-        console.error("Failed to mark notification as clicked:", error);
-      }
-    }
-    if (notification.eventType === IMPORT_ORDER_ASSIGNED_EVENT) {
-      router.push(`/import/detail/${notification.objectId}`);
-    }
-    else if (notification.eventType === EXPORT_REQUEST_ASSIGNED_EVENT) {
-      router.push(`/export/export-detail/${notification.objectId}`);
+      // Lọc theo tab
+      if (activeTab !== "ALL" && stockCheck.status !== activeTab) return false;
+
+      // Lọc theo search query - sử dụng 'id' từ API
+      const matchSearch = stockCheck.id
+        ?.toString()
+        .toLowerCase()
+        .includes(searchQuery.toLowerCase());
+
+      return matchSearch;
+    });
+
+    return filtered;
+  };
+
+  const handleStockCheck = async (stockCheck: any) => {
+    try {
+      // const response = await fetchStockCheckDetails(stockCheck.id);
+
+      // const products = response?.map((item: any) => ({
+      //   id: item.itemId,
+      //   name: item.itemName,
+      //   systemQuantity: item.systemQuantity, // Số lượng trong hệ thống
+      //   actualQuantity: item.actualQuantity || 0, // Số lượng thực tế kiểm đếm
+      //   stockCheckId: stockCheck.id,
+      // }));
+
+      // dispatch(setProducts(products));
+      // dispatch(
+      //   setPaperData({
+      //     stockCheckId: stockCheck.id,
+      //   })
+      // );
+
+      // router.push("/stock-check/scan-qr");
+      console.log("Handle stock check for:", stockCheck.id);
+    } catch (error) {
+      console.error("Lỗi khi tạo phiếu kiểm kho:", error);
     }
   };
 
-  const unreadCount = notifications.filter((n) => !n.isClicked).length;
-
-  const getNotificationIcon = (type: string) => {
-    switch (type) {
-      case "import":
-        return { name: "cube-outline", color: "#1677ff" };
-      case "success":
-        return { name: "checkmark-circle-outline", color: "#4CAF50" };
-      case "system":
-        return { name: "settings-outline", color: "#FF9800" };
-      case "pending":
-        return { name: "time-outline", color: "#213448" };
-      case "report":
-        return { name: "document-text-outline", color: "#9C27B0" };
-      default:
-        return { name: "notifications-outline", color: "#666" };
-    }
-  };
-
-  const renderNotificationItem = ({
-    item,
-  }: {
-    item: NotificationResponse;
-  }) => {
-    const type = getNotificationTypeFromContent(item.content);
-    const icon = getNotificationIcon(type);
-    const iconName = icon.name as keyof typeof Ionicons.glyphMap;
+  // Render tab item
+  const renderTabItem = (tab: StatusTab) => {
+    const isActive = activeTab === tab.key;
 
     return (
       <TouchableOpacity
-        style={[styles.notificationCard, item.isClicked && styles.readCard]}
-        onPress={() => handleNotificationPress(item)}
+        key={tab.key}
+        style={[styles.tabItem, isActive && styles.activeTabItem]}
+        onPress={() => setActiveTab(tab.key)}
         activeOpacity={0.7}
       >
-        <View style={styles.notificationContent}>
-          <View
-            style={[
-              styles.iconContainer,
-              { backgroundColor: `${icon.color}15` },
-            ]}
-          >
-            <Ionicons name={iconName} size={24} color={icon.color} />
-          </View>
-
-          <View style={styles.textContainer}>
+        <Text style={[styles.tabTitle, isActive && styles.activeTabTitle]}>
+          {tab.title}
+        </Text>
+        {tab.count > 0 && (
+          <View style={[styles.tabBadge, isActive && styles.activeTabBadge]}>
             <Text
               style={[
-                styles.notificationTitle,
-                item.isClicked && styles.readTitle,
+                styles.tabBadgeText,
+                isActive && styles.activeTabBadgeText,
               ]}
             >
-              {item.content}
-            </Text>
-            <Text
-              style={[
-                styles.notificationTime,
-                item.isClicked && styles.readTime,
-              ]}
-            >
-              {formatTimeAgo(item.createdDate)}
+              {tab.count}
             </Text>
           </View>
-
-          {!item.isClicked && <View style={styles.unreadDot} />}
-        </View>
+        )}
       </TouchableOpacity>
     );
   };
 
-  return (
-    <View style={styles.container}>
-      <StatusBar backgroundColor="#1677ff" barStyle="light-content" />
-
-      <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
-        <Text style={styles.headerTitle}>Thông báo</Text>
+  // Render stock check item
+  const renderStockCheckItem = ({ item: stockCheck }: { item: any }) => (
+    <TouchableOpacity
+      style={styles.stockCheckCard}
+      onPress={() =>
+        router.push({
+          pathname: "/stock-check/detail/[id]",
+          params: { id: stockCheck.id.toString() },
+        })
+      }
+      activeOpacity={0.7}
+    >
+      {/* Header phiếu kiểm kho */}
+      <View style={styles.stockCheckHeader}>
+        <View style={styles.stockCheckIdContainer}>
+          <Ionicons name="clipboard-outline" size={20} color="#1677ff" />
+          <Text style={styles.stockCheckId}>{stockCheck.id}</Text>
+        </View>
+        <StatusBadge status={stockCheck.status} flow="import"/>
       </View>
 
-      {unreadCount > 0 && (
-        <View style={styles.summaryContainer}>
-          <View style={styles.summaryContent}>
-            <Ionicons name="notifications" size={20} color="#1677ff" />
-            <Text style={styles.summaryText}>
-              Bạn có {unreadCount} thông báo chưa đọc
-            </Text>
-          </View>
-        </View>
-      )}
+      {/* Nội dung phiếu kiểm kho */}
+      <View style={styles.stockCheckContent}>
+        {/* <InfoRow
+          icon="calendar-outline"
+          title="Ngày tạo"
+          value={new Date(stockCheck?.createdDate).toLocaleDateString("vi-VN", {
+            day: "2-digit",
+            month: "2-digit",
+            year: "numeric",
+          })}
+        /> */}
+        <InfoRow
+          icon="time-outline"
+          title="Ngày kiểm đếm"
+          value={new Date(stockCheck?.countingDate).toLocaleDateString("vi-VN", {
+            day: "2-digit",
+            month: "2-digit",
+            year: "numeric",
+          })}
+        />
+  
+      </View>
 
-      {isLoading ? (
-        <View style={styles.emptyContainer}>
+  
+    </TouchableOpacity>
+  );
+
+  const filteredData = getFilteredData();
+  const statusTabs = getStatusTabs();
+
+  return (
+    <View style={styles.container}>
+      {/* StatusBar */}
+      <StatusBar backgroundColor="#1677ff" barStyle="light-content" />
+
+      {/* Header */}
+      <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
+        <Text style={styles.headerTitle}>Danh sách kiểm kho</Text>
+      </View>
+
+      {/* Search Bar */}
+      <View style={styles.searchContainer}>
+        <View style={styles.searchInputContainer}>
+          <Ionicons
+            name="search"
+            size={18}
+            color="#999"
+            style={styles.searchIcon}
+          />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Tìm kiếm theo mã phiếu kiểm kho"
+            placeholderTextColor="#999"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+        </View>
+      </View>
+
+      {/* Status Tabs */}
+      <View style={styles.tabsContainer}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.tabsScrollContent}
+        >
+          {statusTabs.map(renderTabItem)}
+        </ScrollView>
+      </View>
+
+      {/* Stock Check List */}
+      {loading ? (
+        <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#1677ff" />
         </View>
-      ) : notifications.length === 0 ? (
+      ) : filteredData.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <Ionicons name="notifications-outline" size={60} color="#BDBDBD" />
-          <Text style={styles.emptyText}>Bạn chưa có thông báo nào</Text>
+          <Ionicons name="clipboard-outline" size={60} color="#BDBDBD" />
+          <Text style={styles.emptyText}>
+            {searchQuery
+              ? "Không tìm thấy phiếu kiểm kho phù hợp"
+              : `Không có phiếu kiểm kho ${statusTabs
+                  .find((t) => t.key === activeTab)
+                  ?.title.toLowerCase()}`}
+          </Text>
         </View>
       ) : (
         <FlatList
-          data={notifications}
-          renderItem={renderNotificationItem}
+          data={filteredData}
+          renderItem={renderStockCheckItem}
           keyExtractor={(item) => item.id.toString()}
-          contentContainerStyle={styles.notificationsList}
+          contentContainerStyle={styles.stockCheckList}
           showsVerticalScrollIndicator={false}
-          onRefresh={fetchNotifications}
-          refreshing={isLoading}
         />
       )}
     </View>
   );
 }
+
+// Component hiển thị thông tin với icon
+const InfoRow = ({
+  icon,
+  title,
+  value,
+}: {
+  icon?: keyof typeof Ionicons.glyphMap;
+  title: string;
+  value: ReactNode;
+}) => (
+  <View style={styles.infoRow}>
+    {icon && (
+      <Ionicons name={icon} size={16} color="#666" style={styles.infoIcon} />
+    )}
+    <Text style={styles.infoLabel}>{title}</Text>
+    <View style={styles.infoValue}>
+      {typeof value === "string" || typeof value === "number" ? (
+        <Text style={styles.infoValueText}>{value}</Text>
+      ) : (
+        value
+      )}
+    </View>
+  </View>
+);
 
 const styles = StyleSheet.create({
   container: {
@@ -262,107 +346,183 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "700",
   },
-  summaryContainer: {
+  searchContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     backgroundColor: "white",
-    marginHorizontal: 16,
-    marginTop: 16,
-    borderRadius: 12,
-    padding: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 2.5,
-    elevation: 2,
   },
-  summaryContent: {
+  searchInputContainer: {
     flexDirection: "row",
     alignItems: "center",
+    backgroundColor: "#F5F7FA",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    height: 44,
+    borderWidth: 1,
+    borderColor: "#E0E0E0",
   },
-  summaryText: {
-    marginLeft: 10,
-    fontSize: 14,
+  searchIcon: {
+    marginRight: 8,
+  },
+  searchInput: {
+    flex: 1,
+    height: 44,
+    fontSize: 15,
     color: "#333",
+  },
+
+  // Tabs Styles
+  tabsContainer: {
+    backgroundColor: "white",
+    borderBottomWidth: 1,
+    borderBottomColor: "#E0E0E0",
+  },
+  tabsScrollContent: {
+    paddingHorizontal: 16,
+    marginBottom: 10,
+  },
+  tabItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginRight: 8,
+    borderRadius: 20,
+    backgroundColor: "#F5F7FA",
+  },
+  activeTabItem: {
+    backgroundColor: "#1677ff",
+  },
+  tabTitle: {
+    fontSize: 14,
     fontWeight: "500",
+    color: "#666",
+  },
+  activeTabTitle: {
+    color: "white",
+    fontWeight: "600",
+  },
+  tabBadge: {
+    backgroundColor: "#E0E0E0",
+    borderRadius: 10,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    marginLeft: 6,
+    minWidth: 20,
+    alignItems: "center",
+  },
+  activeTabBadge: {
+    backgroundColor: "rgba(255,255,255,0.2)",
+  },
+  tabBadgeText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#666",
+  },
+  activeTabBadgeText: {
+    color: "white",
+  },
+
+  loadingContainer: {
+    padding: 40,
+    alignItems: "center",
   },
   emptyContainer: {
-    flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 80,
+    paddingVertical: 60,
   },
   emptyText: {
     color: "#757575",
     fontSize: 16,
     marginTop: 16,
     textAlign: "center",
+    paddingHorizontal: 32,
   },
-  notificationsList: {
+  stockCheckList: {
     paddingHorizontal: 16,
+    paddingBottom: 16,
     paddingTop: 16,
-    paddingBottom: 20,
   },
-  notificationCard: {
-    backgroundColor: "white",
+  stockCheckCard: {
     borderRadius: 12,
-    marginBottom: 12,
+    marginBottom: 16,
+    backgroundColor: "white",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.08,
     shadowRadius: 2.5,
     elevation: 2,
+    overflow: "hidden",
   },
-  readCard: {
-    opacity: 0.7,
-  },
-  notificationContent: {
+  stockCheckHeader: {
     flexDirection: "row",
-    padding: 16,
-    alignItems: "flex-start",
-  },
-  iconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    justifyContent: "space-between",
     alignItems: "center",
-    justifyContent: "center",
-    marginRight: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(0,0,0,0.06)",
   },
-  textContainer: {
-    flex: 1,
+  stockCheckIdContainer: {
+    flexDirection: "row",
+    alignItems: "center",
   },
-  notificationTitle: {
-    fontSize: 15,
+  stockCheckId: {
+    marginLeft: 8,
+    fontSize: 16,
     fontWeight: "600",
-    color: "#1677ff",
-    marginBottom: 4,
-  },
-  readTitle: {
-    fontWeight: "500",
     color: "#333",
   },
-  notificationMessage: {
+  stockCheckContent: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  infoRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 6,
+  },
+  infoIcon: {
+    marginRight: 8,
+  },
+  infoLabel: {
     fontSize: 14,
     color: "#666",
-    lineHeight: 20,
-    marginBottom: 6,
+    flex: 1,
   },
-  readMessage: {
-    color: "#999",
+  infoValue: {
+    flex: 1,
+    alignItems: "flex-end",
   },
-  notificationTime: {
-    fontSize: 12,
-    color: "#999",
-    marginTop: 4,
+  infoValueText: {
+    fontSize: 14,
+    color: "#333",
+    fontWeight: "500",
   },
-  readTime: {
-    color: "#bbb",
+  actionButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 12,
+    borderBottomLeftRadius: 12,
+    borderBottomRightRadius: 12,
   },
-  unreadDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+  startButton: {
     backgroundColor: "#1677ff",
-    marginTop: 4,
-    marginLeft: 8,
+  },
+  continueButton: {
+    backgroundColor: "#f39c12",
+  },
+  viewButton: {
+    backgroundColor: "#4CAF50",
+  },
+  buttonIcon: {
+    marginRight: 8,
+  },
+  buttonText: {
+    color: "white",
+    fontSize: 15,
+    fontWeight: "600",
   },
 });

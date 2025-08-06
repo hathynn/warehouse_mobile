@@ -26,20 +26,26 @@ interface InventoryModalProps {
   inventoryLoading: boolean;
   searchText: string;
   onSearchTextChange: (text: string) => void;
-  exportRequest: any;
-  autoChangeLoading: string | null;
-  onAutoChange: (inventoryItemId: string) => void;
-  onManualChangePress: (originalInventoryItemId: string) => void;
+
+  // Export-specific props (optional for stock check)
+  exportRequest?: any;
+  autoChangeLoading?: string | null;
+  onAutoChange?: (inventoryItemId: string) => void;
+  onManualChangePress?: (originalInventoryItemId: string) => void;
   // Props for manual selection
-  allInventoryItems: InventoryItem[];
-  manualSearchText: string;
-  onManualSearchTextChange: (text: string) => void;
-  selectedManualItem: InventoryItem | null;
-  changeReason: string;
-  onChangeReasonChange: (text: string) => void;
-  manualChangeLoading: boolean;
-  onManualItemSelect: (item: InventoryItem, originalInventoryItemId: string) => void;
-  onManualChangeSubmit: () => void;
+  allInventoryItems?: InventoryItem[];
+  manualSearchText?: string;
+  onManualSearchTextChange?: (text: string) => void;
+  selectedManualItem?: InventoryItem | null;
+  changeReason?: string;
+  onChangeReasonChange?: (text: string) => void;
+  manualChangeLoading?: boolean;
+  onManualItemSelect?: (item: InventoryItem, originalInventoryItemId: string) => void;
+  onManualChangeSubmit?: () => void;
+
+  // Stock check specific props (optional for export)
+  stockCheck?: any;
+  checkedInventoryItemIds?: string[];
 }
 
 type ModalPage = "main" | "manual_select" | "reason_input";
@@ -66,6 +72,9 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
   manualChangeLoading,
   onManualItemSelect,
   onManualChangeSubmit,
+  // Stock check specific props
+  stockCheck,
+  checkedInventoryItemIds,
 }) => {
   const [modalPage, setModalPage] = useState<ModalPage>("main");
   const [originalItemId, setOriginalItemId] = useState<string>("");
@@ -120,18 +129,18 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
     enhancedSearch(item, searchText)
   );
 
-  const filteredAllInventoryItems = allInventoryItems.filter((item) =>
-    enhancedSearch(item, manualSearchText)
+  const filteredAllInventoryItems = (allInventoryItems || []).filter((item) =>
+    enhancedSearch(item, manualSearchText || "")
   );
 
   const handleManualChangePress = (originalInventoryItemId: string) => {
     setOriginalItemId(originalInventoryItemId);
-    onManualChangePress(originalInventoryItemId);
+    onManualChangePress?.(originalInventoryItemId);
     setModalPage("manual_select");
   };
 
   const handleManualItemSelect = (item: InventoryItem) => {
-    onManualItemSelect(item, originalItemId);
+    onManualItemSelect?.(item, originalItemId);
     setModalPage("reason_input");
   };
 
@@ -141,75 +150,111 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
     onClose();
   };
 
-  const renderInventoryItem = ({ item }: { item: InventoryItem }) => (
-    <View style={styles.inventoryItemContainer}>
-      <View style={styles.inventoryItemRow}>
-        <View style={styles.inventoryItemContent}>
-          <Text style={styles.inventoryItemId}>{item.id}</Text>
-          <Text style={styles.inventoryItemSubtext}>
-            Vị trí: {item.storedLocationName}
-          </Text>
-          {exportRequest?.type === "INTERNAL" && (
+  const renderInventoryItem = ({ item }: { item: InventoryItem }) => {
+    // Determine if this is stock check mode
+    const isStockCheckMode = !!stockCheck;
+
+    return (
+      <View style={styles.inventoryItemContainer}>
+        <View style={styles.inventoryItemRow}>
+          <View style={styles.inventoryItemContent}>
+            <Text style={styles.inventoryItemId}>{item.id}</Text>
             <Text style={styles.inventoryItemSubtext}>
-              Giá trị cần xuất: {item.measurementValue}{" "}
-              {itemUnitType || "đơn vị"}
+              Vị trí: {item.storedLocationName}
             </Text>
+            {exportRequest?.type === "INTERNAL" && (
+              <Text style={styles.inventoryItemSubtext}>
+                Giá trị cần xuất: {item.measurementValue}{" "}
+                {itemUnitType || "đơn vị"}
+              </Text>
+            )}
+          </View>
+
+          {/* Show tracking status for both export and stock check */}
+          {(item.isTrackingForExport || (isStockCheckMode && checkedInventoryItemIds?.includes(item.id))) && (
+            <View style={styles.trackingStatusContainer}>
+              <Ionicons name="checkmark-circle" size={20} color="#28a745" />
+              <Text style={styles.trackingStatusText}>
+                {isStockCheckMode ? "Đã kiểm" : "Đã quét"}
+              </Text>
+            </View>
           )}
         </View>
 
-        {item.isTrackingForExport && (
-          <View style={styles.trackingStatusContainer}>
-            <Ionicons name="checkmark-circle" size={20} color="#28a745" />
-            <Text style={styles.trackingStatusText}>Đã quét</Text>
-          </View>
-        )}
-      </View>
+        <View style={styles.actionButtonsRow}>
+          {isStockCheckMode ? (
+            // Stock check mode: Show checked button only if item is tracked
+            (() => {
+              const isChecked = checkedInventoryItemIds?.includes(item.id);
 
-      <View style={styles.actionButtonsRow}>
-        {!item.isTrackingForExport && (
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={() => {
-              handleClose();
-              router.push(
-                `/export/scan-qr?id=${exportRequest?.exportRequestId}`
-              );
-            }}
-          >
-            <Ionicons name="qr-code-outline" size={16} color="white" />
-            <Text style={styles.actionButtonText}>Quét QR</Text>
-          </TouchableOpacity>
-        )}
+              if (isChecked) {
+                return (
+                  <TouchableOpacity
+                    style={[
+                      styles.actionButton,
+                      styles.checkedButton,
+                    ]}
+                    disabled={true}
+                  >
+                    <Ionicons name="checkmark-circle" size={16} color="white" />
+                    <Text style={styles.actionButtonText}>Checked</Text>
+                  </TouchableOpacity>
+                );
+              }
 
-        <TouchableOpacity
-          style={[
-            styles.actionButton,
-            styles.autoChangeActionButton,
-            autoChangeLoading === item.id && styles.actionButtonDisabled,
-          ]}
-          onPress={() => onAutoChange(item.id)}
-          disabled={autoChangeLoading === item.id}
-        >
-          {autoChangeLoading === item.id ? (
-            <ActivityIndicator size="small" color="white" />
+              // If not checked, show nothing
+              return null;
+            })()
           ) : (
+            // Export mode: Show original export buttons
             <>
-              <Ionicons name="refresh-outline" size={16} color="white" />
-              <Text style={styles.actionButtonText}>Đổi tự động</Text>
+              {!item.isTrackingForExport && (
+                <TouchableOpacity
+                  style={styles.actionButton}
+                  onPress={() => {
+                    handleClose();
+                    router.push(
+                      `/export/scan-qr?id=${exportRequest?.exportRequestId}`
+                    );
+                  }}
+                >
+                  <Ionicons name="qr-code-outline" size={16} color="white" />
+                  <Text style={styles.actionButtonText}>Quét QR</Text>
+                </TouchableOpacity>
+              )}
+
+              <TouchableOpacity
+                style={[
+                  styles.actionButton,
+                  styles.autoChangeActionButton,
+                  autoChangeLoading === item.id && styles.actionButtonDisabled,
+                ]}
+                onPress={() => onAutoChange?.(item.id)}
+                disabled={autoChangeLoading === item.id}
+              >
+                {autoChangeLoading === item.id ? (
+                  <ActivityIndicator size="small" color="white" />
+                ) : (
+                  <>
+                    <Ionicons name="refresh-outline" size={16} color="white" />
+                    <Text style={styles.actionButtonText}>Đổi tự động</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.actionButton, styles.manualChangeActionButton]}
+                onPress={() => onManualChangePress?.(item.id)}
+              >
+                <Ionicons name="create-outline" size={16} color="white" />
+                <Text style={styles.actionButtonText}>Đổi thủ công</Text>
+              </TouchableOpacity>
             </>
           )}
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.actionButton, styles.manualChangeActionButton]}
-          onPress={() => handleManualChangePress(item.id)}
-        >
-          <Ionicons name="create-outline" size={16} color="white" />
-          <Text style={styles.actionButtonText}>Đổi thủ công</Text>
-        </TouchableOpacity>
+        </View>
       </View>
-    </View>
-  );
+    );
+  };
 
   const renderManualInventoryItem = ({ item }: { item: InventoryItem }) => (
     <View style={styles.inventoryItemRow}>
@@ -334,7 +379,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
               <RNTextInput
                 style={styles.searchInput}
                 placeholder="Tìm kiếm theo mã, vị trí, giá trị... (VD: CHI-TH-001)"
-                value={manualSearchText}
+                value={manualSearchText || ""}
                 onChangeText={onManualSearchTextChange}
               />
             </View>
@@ -342,7 +387,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
             <View style={styles.itemCountContainer}>
               <Text style={styles.sectionTitle}>
                 Tất cả inventory items ({filteredAllInventoryItems.length}/
-                {allInventoryItems.length} sản phẩm)
+                {allInventoryItems?.length || 0} sản phẩm)
               </Text>
             </View>
 
@@ -389,7 +434,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
           <RNTextInput
             style={styles.reasonInput}
             placeholder="Nhập lý do đổi item..."
-            value={changeReason}
+            value={changeReason || ""}
             onChangeText={onChangeReasonChange}
             multiline
             numberOfLines={4}
@@ -405,19 +450,19 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
             style={[
               styles.submitReasonButton,
               // ✅ Disable khi loading hoặc không có lý do
-              (manualChangeLoading || !changeReason.trim()) && styles.submitReasonButtonDisabled,
+              (manualChangeLoading || !(changeReason || "").trim()) && styles.submitReasonButtonDisabled,
             ]}
             onPress={onManualChangeSubmit}
-            disabled={!changeReason.trim() || manualChangeLoading} // ✅ Disable logic
+            disabled={!(changeReason || "").trim() || manualChangeLoading} // ✅ Disable logic
           >
             {manualChangeLoading ? (
               <ActivityIndicator size="small" color="white" />
             ) : (
-              <Text 
+              <Text
                 style={[
                   styles.submitReasonButtonText,
                   // ✅ Đổi màu text khi disabled
-                  (!changeReason.trim()) && { color: '#999' }
+                  (!(changeReason || "").trim()) && { color: '#999' }
                 ]}
               >
                 Xác nhận đổi
@@ -609,6 +654,12 @@ const styles = StyleSheet.create({
     backgroundColor: "#ff6b35",
   },
   manualChangeActionButton: {
+    backgroundColor: "#28a745",
+  },
+  stockCheckTrackButton: {
+    backgroundColor: "#6c5ce7",
+  },
+  checkedButton: {
     backgroundColor: "#28a745",
   },
   actionButtonDisabled: {
