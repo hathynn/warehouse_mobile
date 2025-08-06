@@ -8,6 +8,10 @@ interface Props {
 
 const getStatusStyle = (status: string, flow: "import" | "export") => {
   switch (status) {
+
+    case "NOT_STARTED":
+      return { backgroundColor: "#d9d9d9", textColor: "#000", label: "Chưa bắt đầu" };
+
     // 📦 IMPORT STATUS
     case "IN_PROGRESS":
       return { backgroundColor: "#1677ff", textColor: "#fff", label: "Cần kiểm đếm" };
