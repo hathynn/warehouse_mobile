@@ -46,6 +46,7 @@ interface InventoryModalProps {
   // Stock check specific props (optional for export)
   stockCheck?: any;
   checkedInventoryItemIds?: string[];
+  onResetTracking?: (inventoryItemId: string) => void;
 
   // QR scan navigation callback
   onQRScanPress?: (mode?: 'normal' | 'manual_change', originalItemId?: string) => void;
@@ -78,6 +79,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
   // Stock check specific props
   stockCheck,
   checkedInventoryItemIds,
+  onResetTracking,
   onQRScanPress,
 }) => {
   const [modalPage, setModalPage] = useState<ModalPage>("main");
@@ -189,27 +191,43 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
 
         <View style={styles.actionButtonsRow}>
           {isStockCheckMode ? (
-            // Stock check mode: Show checked button only if item is tracked
+            // Stock check mode: Show QR scan button if not checked, Thanh lý button if checked
             (() => {
               const isChecked = checkedInventoryItemIds?.includes(item.id);
 
               if (isChecked) {
+                // Show "Thanh lý" button for checked items
                 return (
                   <TouchableOpacity
                     style={[
                       styles.actionButton,
-                      styles.checkedButton,
+                      styles.resetTrackingButton,
                     ]}
-                    disabled={true}
+                    onPress={() => onResetTracking?.(item.id)}
                   >
-                    <Ionicons name="checkmark-circle" size={16} color="white" />
-                    <Text style={styles.actionButtonText}>Checked</Text>
+                    <Ionicons name="trash-outline" size={16} color="white" />
+                    <Text style={styles.actionButtonText}>Thanh lý</Text>
+                  </TouchableOpacity>
+                );
+              } else {
+                // Show QR scan button for unchecked items
+                return (
+                  <TouchableOpacity
+                    style={[
+                      styles.actionButton,
+                      styles.stockCheckScanButton,
+                    ]}
+                    onPress={() => {
+                      if (onQRScanPress) {
+                        onQRScanPress('normal');
+                      }
+                    }}
+                  >
+                    <Ionicons name="qr-code-outline" size={16} color="white" />
+                    <Text style={styles.actionButtonText}>Quét QR</Text>
                   </TouchableOpacity>
                 );
               }
-
-              // If not checked, show nothing
-              return null;
             })()
           ) : (
             // Export mode: Show original export buttons
@@ -684,6 +702,12 @@ const styles = StyleSheet.create({
   },
   stockCheckTrackButton: {
     backgroundColor: "#6c5ce7",
+  },
+  stockCheckScanButton: {
+    backgroundColor: "#007bff",
+  },
+  resetTrackingButton: {
+    backgroundColor: "#ff6b35",
   },
   checkedButton: {
     backgroundColor: "#28a745",

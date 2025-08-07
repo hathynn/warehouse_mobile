@@ -26,8 +26,6 @@ const useStockCheck = () => {
     [callApi, setIsLoading]
   );
 
-
-
   const fetchStockCheckById = useCallback(
     async (stockCheckId: string) => {
       if (!stockCheckId) return null;
@@ -48,12 +46,26 @@ const useStockCheck = () => {
   const updateStockCheckStatus = useCallback(
     async (stockCheckId: string, status: StockCheckStatus) => {
       if (!stockCheckId || !status) return false;
+
       setIsLoading(true);
       try {
         const response = await callApi(
           "post",
-          `/stock-check/update-status/${stockCheckId}?status=${status}`
+          `/stock-check/update-status/${stockCheckId}`,
+          null,
+          {
+            params: {
+              status,
+            },
+          }
         );
+
+        setStockChecks((prev) =>
+          prev.map((s) =>
+            s.id === stockCheckId ? { ...s, status: status } : s
+          )
+        );
+
         return response;
       } catch (error) {
         console.error("Lỗi khi cập nhật trạng thái stock check:", error);
