@@ -20,9 +20,12 @@ export interface StockCheckType {
 export enum StockCheckStatus {
   NOT_STARTED = "NOT_STARTED",
   IN_PROGRESS = "IN_PROGRESS",
+  COUNTED = "COUNTED",
+  CONFIRM_COUNTED = "CONFIRM_COUNTED",
   COMPLETED = "COMPLETED",
   CANCELLED = "CANCELLED"
 }
+
 
 export enum StockCheckCategory {
   SPOT_CHECK = "SPOT_CHECK",

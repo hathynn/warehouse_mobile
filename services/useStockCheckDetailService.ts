@@ -1,10 +1,9 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback } from "react"; 
 import useApiService from "./useApi";
 import { StockCheckDetailType } from "../types/stockCheckDetail.type";
 
-
 export interface TrackInventoryItemPayload {
-  stockCheckDetailId: number; // theo swagger là number (long)
+  stockCheckDetailId: number;
   inventoryItemId: string;
 }
 
@@ -13,7 +12,7 @@ const useStockCheckDetail = () => {
 
   const [stockCheckDetails, setStockCheckDetails] = useState<StockCheckDetailType[]>([]);
 
-
+  // Fetch details
   const fetchStockCheckDetails = useCallback(
     async (stockCheckId: string) => {
       if (!stockCheckId) return [];
@@ -24,7 +23,6 @@ const useStockCheckDetail = () => {
           "get",
           `/stock-check-detail/${stockCheckId}`
         );
-        // Tùy backend trả về; giả sử data nằm ở response.content
         const data = (response?.content ?? response) as StockCheckDetailType[];
         setStockCheckDetails(data);
         return data;
@@ -38,7 +36,7 @@ const useStockCheckDetail = () => {
     [callApi, setIsLoading]
   );
 
-
+  // Track item
   const trackInventoryItem = useCallback(
     async (payload: TrackInventoryItemPayload) => {
       if (!payload?.stockCheckDetailId || !payload?.inventoryItemId) {
@@ -52,8 +50,6 @@ const useStockCheckDetail = () => {
           `/stock-check-detail/tracking`,
           payload
         );
-
-        // Nếu API trả về detail đã cập nhật, có thể đồng bộ lại state cục bộ:
         const updated = (response?.content ?? response) as StockCheckDetailType | undefined;
         if (updated?.id) {
           setStockCheckDetails((prev) =>
@@ -63,7 +59,38 @@ const useStockCheckDetail = () => {
 
         return response;
       } catch (error) {
-        console.error("Lỗi khi cập nhật tracking stock check detail:", error);
+        console.error("Lỗi khi tracking stock check detail:", error);
+        throw error;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [callApi, setIsLoading]
+  );
+
+  const resetTracking = useCallback(
+    async (payload: TrackInventoryItemPayload) => {
+      if (!payload?.stockCheckDetailId || !payload?.inventoryItemId) {
+        throw new Error("Thiếu stockCheckDetailId hoặc inventoryItemId");
+      }
+
+      setIsLoading(true);
+      try {
+        const response = await callApi(
+          "put",
+          `/stock-check-detail/reset-tracking`,
+          payload
+        );
+        const updated = (response?.content ?? response) as StockCheckDetailType | undefined;
+        if (updated?.id) {
+          setStockCheckDetails((prev) =>
+            prev.map((d) => (d.id === updated.id ? updated : d))
+          );
+        }
+
+        return response;
+      } catch (error) {
+        console.error("Lỗi khi reset tracking stock check detail:", error);
         throw error;
       } finally {
         setIsLoading(false);
@@ -75,8 +102,9 @@ const useStockCheckDetail = () => {
   return {
     loading,
     stockCheckDetails,
-    fetchStockCheckDetails, 
-    trackInventoryItem,     
+    fetchStockCheckDetails,
+    trackInventoryItem,
+    resetTracking, 
   };
 };
 

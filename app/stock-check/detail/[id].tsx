@@ -41,8 +41,8 @@ const StockCheckDetailScreen: React.FC = () => {
   const dispatch = useDispatch();
 
   const stockCheckTypeMap = {
-    SPOT_CHECK: "Kiểm tra đột xuất",
-    PERIODIC: "Kiểm kê định kỳ",
+    SPOT_CHECK: "Kiểm tra theo yêu cầu",
+    PERIODIC: "Kiểm tra định kỳ",
   };
 
   const { fetchInventoryItemById, loading: inventoryLoading } =
@@ -85,6 +85,7 @@ const StockCheckDetailScreen: React.FC = () => {
     stockCheckDetails,
     fetchStockCheckDetails,
     trackInventoryItem,
+    resetTracking,
   } = useStockCheckDetail();
 
   const [stockCheck, setStockCheck] = useState<any>(null);
@@ -131,20 +132,25 @@ const StockCheckDetailScreen: React.FC = () => {
     );
   }
 
-  const handleStartStockCheck = async () => {
-    try {
-      // Gọi confirm counted thay vì update status
-      const result = await confirmCounted(id);
-      if (result) {
-        console.log("Đã xác nhận kiểm đếm thành công");
-        // Refresh data
-        fetchStockCheckById(id).then(setStockCheck);
-      }
-    } catch (error) {
-      console.error("Lỗi khi xác nhận kiểm đếm:", error);
-      Alert.alert("Lỗi", "Không thể xác nhận kiểm đếm. Vui lòng thử lại!");
+const handleStartStockCheck = async () => {
+  try {
+    // Sử dụng updateStockCheckStatus để chuyển từ NOT_STARTED sang IN_PROGRESS
+    const result = await updateStockCheckStatus(id, StockCheckStatus.IN_PROGRESS);
+    if (result) {
+      console.log("Đã bắt đầu kiểm đếm thành công");
+      // Refresh data
+      fetchStockCheckById(id).then(setStockCheck);
     }
-  };
+  } catch (error) {
+    console.error("Lỗi khi bắt đầu kiểm đếm:", error);
+    Alert.alert("Lỗi", "Không thể bắt đầu kiểm đếm. Vui lòng thử lại!");
+  }
+};
+
+// Navigate to signing screen for stock check
+const handleNavigateToSigning = () => {
+   router.push(`/stock-check/sign-paper/keeper-sign?id=${id}`)
+};
 
   const handleCompleteStockCheck = async () => {
     try {
@@ -331,6 +337,57 @@ const StockCheckDetailScreen: React.FC = () => {
     setCheckedInventoryItemIds([]);
   };
 
+  // Handle QR scan navigation for stock check
+  const handleQRScanPress = () => {
+    setInventoryModalVisible(false);
+    router.push(`/stock-check/scan-qr?id=${id}&returnToModal=true&itemCode=${selectedItemCode}`);
+  };
+
+  // Handle reset tracking (Thanh lý button)
+  const handleResetTracking = async (inventoryItemId: string) => {
+    if (!selectedStockCheckDetailId) {
+      Alert.alert("Lỗi", "Không tìm thấy stock check detail ID");
+      return;
+    }
+
+    Alert.alert(
+      "Xác nhận thanh lý",
+      `Bạn có chắc chắn muốn thanh lý item: ${inventoryItemId}?`,
+      [
+        {
+          text: "Hủy",
+          style: "cancel",
+        },
+        {
+          text: "Thanh lý",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await resetTracking({
+                stockCheckDetailId: selectedStockCheckDetailId,
+                inventoryItemId: inventoryItemId,
+              });
+
+              Alert.alert("Thành công", "Đã thanh lý item thành công!");
+
+              // Refresh data
+              await fetchStockCheckDetails(id);
+
+              // Update checked inventory item IDs
+              setCheckedInventoryItemIds(prev =>
+                prev.filter(id => id !== inventoryItemId)
+              );
+
+            } catch (error) {
+              console.error("❌ Error resetting tracking:", error);
+              Alert.alert("Lỗi", "Không thể thanh lý item. Vui lòng thử lại!");
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const renderSignatureSection = () => {
     if (
       stockCheck?.status !== StockCheckStatus.COMPLETED ||
@@ -416,6 +473,17 @@ const StockCheckDetailScreen: React.FC = () => {
         );
 
       case StockCheckStatus.IN_PROGRESS:
+        return (
+          <View style={styles.actionButtonContainer}>
+            <StyledButton
+              title="Xác nhận kiểm đếm"
+              onPress={handleNavigateToSigning}
+              style={{ marginTop: 12 }}
+            />
+          </View>
+        );
+
+      case StockCheckStatus.COUNTED:
         return (
           <View style={styles.actionButtonContainer}>
             <StyledButton
@@ -651,6 +719,8 @@ const StockCheckDetailScreen: React.FC = () => {
         onSearchTextChange={setSearchText}
         stockCheck={stockCheck} // Pass stockCheck instead of exportRequest
         checkedInventoryItemIds={checkedInventoryItemIds} // Pass checked inventory item IDs
+        onQRScanPress={handleQRScanPress} // QR scan navigation for stock check
+        onResetTracking={handleResetTracking} // Reset tracking (Thanh lý) function
         // Remove export-specific props that aren't needed for stock check
       />
     </View>

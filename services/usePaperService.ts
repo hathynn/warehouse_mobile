@@ -23,6 +23,9 @@ const usePaperService = () => {
       if (paperData.exportRequestId) {
         formData.append("exportRequestId", paperData.exportRequestId);
       }
+      if (paperData.stockCheckRequestId) {
+        formData.append("stockCheckRequestId", paperData.stockCheckRequestId);
+      }
       formData.append("signProviderName", paperData.signProviderName || "");
       formData.append("signReceiverName", paperData.signReceiverName || "");
 

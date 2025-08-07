@@ -33,7 +33,7 @@ interface StatusTab {
 export default function StockCheckList() {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState<string>(
-    StockCheckStatus.NOT_STARTED  // Thay đổi từ PENDING
+    StockCheckStatus.IN_PROGRESS
   );
 
   const user = useSelector((state: RootState) => state.auth.user);
@@ -50,24 +50,33 @@ export default function StockCheckList() {
   // Định nghĩa các tab status cho stock check
   const getStatusTabs = (): StatusTab[] => {
     const validStockChecks = allStockChecks.filter(
-      (stockCheck: any) => stockCheck.status !== StockCheckStatus.CANCELLED
+      (stockCheck: any) => stockCheck.status !== StockCheckStatus.CANCELLED &&
+                           stockCheck.status !== StockCheckStatus.NOT_STARTED
     );
 
     return [
       {
-        key: "NOT_STARTED",
-        title: "Chưa bắt đầu",
-        status: StockCheckStatus.NOT_STARTED,
-        count: validStockChecks.filter(
-          (stockCheck: any) => stockCheck.status === StockCheckStatus.NOT_STARTED
-        ).length,
-      },
-      {
         key: "IN_PROGRESS",
-        title: "Đang kiểm kho",
+        title: "Chờ xác nhận",
         status: StockCheckStatus.IN_PROGRESS,
         count: validStockChecks.filter(
           (stockCheck: any) => stockCheck.status === StockCheckStatus.IN_PROGRESS
+        ).length,
+      },
+      {
+        key: "COUNTED",
+        title: "Đã xác nhận",
+        status: StockCheckStatus.COUNTED,
+        count: validStockChecks.filter(
+          (stockCheck: any) => stockCheck.status === StockCheckStatus.COUNTED
+        ).length,
+      },
+      {
+        key: "COUNTED_CONFIRMED",
+        title: "Đã xác nhận",
+        status: StockCheckStatus.COUNTED,
+        count: validStockChecks.filter(
+          (stockCheck: any) => stockCheck.status === StockCheckStatus.CONFIRM_COUNTED
         ).length,
       },
       {
@@ -106,8 +115,9 @@ export default function StockCheckList() {
   // Lọc dữ liệu theo tab active và search
   const getFilteredData = () => {
     let filtered = allStockChecks.filter((stockCheck: any) => {
-      // Loại bỏ phiếu kiểm kho đã hủy
+      // Loại bỏ phiếu kiểm kho đã hủy và chưa bắt đầu
       if (stockCheck.status === StockCheckStatus.CANCELLED) return false;
+      if (stockCheck.status === StockCheckStatus.NOT_STARTED) return false;
 
       // Lọc theo tab
       if (activeTab !== "ALL" && stockCheck.status !== activeTab) return false;
