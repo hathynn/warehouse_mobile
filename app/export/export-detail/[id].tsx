@@ -33,12 +33,14 @@ import InventoryModal from "@/components/InventoryModal"; // Import modal compon
 
 interface RouteParams {
   id: string;
+  openModal?: string;
+  itemCode?: string;
 }
 
 const ExportRequestScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
   const route = useRoute();
-  const { id } = route.params as RouteParams;
+  const { id, openModal, itemCode } = route.params as RouteParams;
   const dispatch = useDispatch();
 
   const {
@@ -157,6 +159,76 @@ const [originalItemId, setOriginalItemId] = useState<string>("");
     }
   }, [exportRequest?.paperId, exportRequest?.status]);
 
+  // Handle modal reopening when returning from QR scan (including QR manual change)
+  useEffect(() => {
+    if (openModal === 'true' && itemCode && savedExportRequestDetails.length > 0) {
+      console.log(`🔍 QR return: Looking for itemCode: ${itemCode}`);
+      console.log(`📋 Available details:`, savedExportRequestDetails.map(d => d.itemId));
+
+      // Clear URL parameters immediately to prevent infinite loop
+      router.replace(`/export/export-detail/${id}`);
+
+      // Delay to ensure any data changes from QR manual change are processed
+      setTimeout(async () => {
+        try {
+          // Refresh data first to get latest changes from QR manual change
+          const refreshedData = await fetchExportRequestDetails(id, 1, 100);
+          const refreshedDetails = refreshedData.map((item) => ({
+            ...item,
+            actualQuantity: item.actualQuantity ?? 0,
+            inventoryItemIds: item.inventoryItemIds ?? [],
+          }));
+          dispatch(setExportRequestDetail(refreshedDetails));
+          console.log(`✅ Data refreshed for QR return`);
+
+          // Find the detail that matches the itemCode exactly
+          const targetDetail = refreshedDetails.find((detail: any) => detail.itemId === itemCode);
+
+          if (targetDetail) {
+            console.log(`✅ Found matching detail for QR return:`, targetDetail);
+
+            // Explicitly set modal states instead of relying on handleRowPress
+            setSelectedItemCode(targetDetail.itemId || "");
+            setSelectedExportRequestDetailId(Number(targetDetail.id));
+            setInventoryModalVisible(true);
+            setSearchText("");
+            setItemUnitType("");
+
+            // Fetch inventory items for the modal
+            try {
+              const inventoryItems = await fetchInventoryItemsByExportRequestDetailId(Number(targetDetail.id));
+              setSelectedInventoryItems(inventoryItems);
+              console.log(`✅ Modal explicitly opened with ${inventoryItems.length} inventory items`);
+
+              // Fetch item details
+              const itemDetails = await getItemDetailById(targetDetail.itemId);
+              if (itemDetails?.unitType) {
+                setItemUnitType(itemDetails.unitType);
+              } else {
+                setItemUnitType("đơn vị");
+              }
+
+              console.log(`✅ QR return modal fully loaded for itemCode: ${itemCode}`);
+            } catch (error) {
+              console.error(`❌ Error loading modal data for QR return:`, error);
+              // Fallback to handleRowPress
+              handleRowPress(targetDetail);
+            }
+          } else {
+            console.warn(`❌ No matching detail found for itemCode: ${itemCode}`);
+          }
+        } catch (error) {
+          console.error(`❌ Error refreshing data and reopening modal:`, error);
+          // Fallback to original logic
+          const targetDetail = savedExportRequestDetails.find((detail: any) => detail.itemId === itemCode);
+          if (targetDetail) {
+            handleRowPress(targetDetail);
+          }
+        }
+      }, 300);
+    }
+  }, [openModal, itemCode]); // Removed savedExportRequestDetails to prevent infinite loop
+
   if (loadingRequest || loadingDetails) {
     return (
       <View style={styles.loadingContainer}>
@@ -201,88 +273,164 @@ const [originalItemId, setOriginalItemId] = useState<string>("");
     }
   };
 
-  // Function to fetch all inventory items by itemId for manual change
-  const fetchAllInventoryItemsByItemId = async (itemId: string) => {
+  // ✅ NEW: Manual Change Function 1 - Select from list manually
+  const handleManualChangePress = async (originalInventoryItemId: string) => {
     try {
-      console.log(`🔍 Fetching all inventory items for itemId: ${itemId}`);
+      console.log(`🔄 Starting manual change for itemId: ${selectedItemCode}, originalId: ${originalInventoryItemId}`);
 
-      const itemDetails = await getItemDetailById(itemId);
-      if (
-        !itemDetails ||
-        !itemDetails.inventoryItemIds ||
-        itemDetails.inventoryItemIds.length === 0
-      ) {
-        console.warn("⚠️ No inventory item IDs found for this item");
-        return [];
+      // Set the original item ID for tracking
+      setOriginalItemId(originalInventoryItemId);
+
+      // Fetch all inventory items for this item
+      const itemDetails = await getItemDetailById(selectedItemCode);
+      if (!itemDetails?.inventoryItemIds || itemDetails.inventoryItemIds.length === 0) {
+        Alert.alert("Lỗi", "Không tìm thấy inventory items cho item này");
+        return;
       }
 
-      console.log(
-        `📦 Found ${itemDetails.inventoryItemIds.length} inventory item IDs:`,
-        itemDetails.inventoryItemIds
-      );
+      console.log(`📦 Found ${itemDetails.inventoryItemIds.length} inventory item IDs`);
 
+      // Fetch detailed inventory items
       const inventoryItems = await Promise.all(
         itemDetails.inventoryItemIds.map(async (inventoryItemId: string) => {
           try {
-            const inventoryItem = await fetchInventoryItemById(inventoryItemId);
-            return inventoryItem;
+            return await fetchInventoryItemById(inventoryItemId);
           } catch (error) {
-            console.error(
-              `❌ Error fetching inventory item ${inventoryItemId}:`,
-              error
-            );
+            console.error(`❌ Error fetching inventory item ${inventoryItemId}:`, error);
             return null;
           }
         })
       );
 
-      const validInventoryItems = inventoryItems.filter(
-        (item) => item !== null
-      );
+      const validInventoryItems = inventoryItems.filter(item => item !== null);
+      setAllInventoryItems(validInventoryItems);
+      setManualSearchText("");
 
-      return validInventoryItems;
     } catch (error) {
-      console.error("❌ Error fetching all inventory items:", error);
-      return [];
+      console.error("❌ Error in manual change:", error);
+      Alert.alert("Lỗi", "Không thể tải danh sách inventory items");
     }
   };
 
-  // ✅ Function tổng hợp refresh tất cả data
-const refreshAllData = async () => {
-  try {
-    console.log("🔄 Refreshing all data...");
-    
-    // Refresh inventory items for modal
-    if (selectedExportRequestDetailId) {
-      const inventoryItems = await fetchInventoryItemsByExportRequestDetailId(
-        selectedExportRequestDetailId
-      );
-      setSelectedInventoryItems(inventoryItems);
+  // ✅ SIMPLIFIED: Manual Change Function - Submit manual selection
+  const handleManualChangeSubmit = async () => {
+    if (!selectedManualItem || !originalItemId || !changeReason.trim()) {
+      Alert.alert("Lỗi", "Vui lòng chọn item và nhập lý do thay đổi");
+      return;
     }
-    
-    // Refresh export request details
-    const refreshedData = await fetchExportRequestDetails(id, 1, 100);
-    const refreshedDetails = refreshedData.map((item) => ({
-      ...item,
-      actualQuantity: item.actualQuantity ?? 0,
-      inventoryItemIds: item.inventoryItemIds ?? [],
-    }));
 
-    dispatch(setExportRequestDetail(refreshedDetails));
+    if (originalItemId === selectedManualItem.id) {
+      Alert.alert("Lỗi", "Không thể đổi sang cùng một inventory item!");
+      return;
+    }
 
-    const mappings = refreshedDetails.flatMap((detail) =>
-      (detail.inventoryItemIds ?? []).map((inventoryItemId: string) => ({
-        inventoryItemId: inventoryItemId.trim().toLowerCase(),
-        exportRequestDetailId: detail.id,
-      }))
-    );
-    dispatch(setScanMappings(mappings));
-    
-    console.log("✅ All data refreshed successfully");
-  } catch (error) {
-    console.error("❌ Error refreshing data:", error);
-  }
-};
+    setManualChangeLoading(true);
+
+    try {
+      console.log(`🔄 Manual change: ${originalItemId} -> ${selectedManualItem.id}`);
+
+      // Check if old item was scanned and reset tracking if needed
+      const originalItem = selectedInventoryItems.find(item => item.id === originalItemId);
+      if (originalItem?.isTrackingForExport && selectedExportRequestDetailId) {
+        console.log(`🔄 Resetting tracking for old item: ${originalItemId}`);
+
+        const resetSuccess = await resetTracking(
+          selectedExportRequestDetailId.toString(),
+          originalItemId
+        );
+
+        if (!resetSuccess) {
+          setManualChangeLoading(false);
+          Alert.alert("Lỗi", "Không thể reset tracking cho item cũ");
+          return;
+        }
+        console.log(`✅ Reset tracking successful for: ${originalItemId}`);
+      }
+
+      // Perform manual change
+      const result = await changeInventoryItemForExportDetail(
+        originalItemId,
+        selectedManualItem.id,
+        changeReason
+      );
+
+      if (!result) {
+        setManualChangeLoading(false);
+        Alert.alert("Lỗi", "Không thể đổi item. Vui lòng thử lại!");
+        return;
+      }
+
+      console.log("✅ Manual change successful");
+
+      // Reset loading and manual change states
+      setManualChangeLoading(false);
+      setSelectedManualItem(null);
+      setChangeReason("");
+      setOriginalItemId("");
+      setManualSearchText("");
+      setAllInventoryItems([]);
+
+      // Show success with callback to reopen modal
+      Alert.alert(
+        "Thành công",
+        "Đã đổi item thành công!",
+        [
+          {
+            text: "OK",
+            onPress: () => {
+              console.log("✅ Alert dismissed, ensuring modal stays open");
+              setInventoryModalVisible(true);
+            }
+          }
+        ]
+      );
+
+      // Refresh data and update modal inventory items
+      setTimeout(async () => {
+        try {
+          // Refresh export request details
+          const refreshedData = await fetchExportRequestDetails(id, 1, 100);
+          const refreshedDetails = refreshedData.map((item) => ({
+            ...item,
+            actualQuantity: item.actualQuantity ?? 0,
+            inventoryItemIds: item.inventoryItemIds ?? [],
+          }));
+          dispatch(setExportRequestDetail(refreshedDetails));
+
+          // Refresh inventory items for the modal
+          if (selectedExportRequestDetailId) {
+            const inventoryItems = await fetchInventoryItemsByExportRequestDetailId(
+              selectedExportRequestDetailId
+            );
+            setSelectedInventoryItems(inventoryItems);
+            console.log("✅ Modal inventory items refreshed after manual change");
+          }
+
+          // Force modal to be visible after data refresh
+          setInventoryModalVisible(true);
+          console.log("✅ Data refreshed after manual change, modal reopened");
+        } catch (error) {
+          console.error("❌ Error refreshing data:", error);
+          // Even on error, ensure modal is open
+          setInventoryModalVisible(true);
+        }
+      }, 500); // Slightly longer delay to ensure alert is handled
+
+    } catch (error) {
+      console.error("❌ Error in manual change:", error);
+      setManualChangeLoading(false);
+
+      let errorMessage = "Không thể đổi item. Vui lòng thử lại!";
+      if (error?.response?.data?.message?.includes("already has an export request detail")) {
+        errorMessage = "ID này đã có trong request không thể đổi";
+      }
+
+      Alert.alert("Lỗi", errorMessage);
+    }
+  };
+
+
+
 
   // Handle auto-change inventory item
 const handleAutoChange = async (inventoryItemId: string) => {
@@ -305,21 +453,21 @@ const handleAutoChange = async (inventoryItemId: string) => {
               console.log(`🔄 Auto-changing inventory item: ${inventoryItemId}`);
 
               const currentItem = selectedInventoryItems.find(item => item.id === inventoryItemId);
-              
+
               // ✅ Reset tracking nếu cần
               if (currentItem?.isTrackingForExport && selectedExportRequestDetailId) {
                 console.log(`🔄 Resetting tracking for: ${inventoryItemId}`);
-                
+
                 const resetSuccess = await resetTracking(
                   selectedExportRequestDetailId.toString(),
                   inventoryItemId
                 );
-                
+
                 if (!resetSuccess) {
                   Alert.alert("Lỗi", "Không thể reset tracking. Vui lòng thử lại!");
                   return;
                 }
-                
+
                 console.log(`✅ Reset tracking thành công`);
               }
 
@@ -327,10 +475,27 @@ const handleAutoChange = async (inventoryItemId: string) => {
               const result = await autoChangeInventoryItem(inventoryItemId);
               console.log("✅ Auto change thành công:", result);
 
-              // ✅ Chỉ refresh một lần tất cả data
-              await refreshAllData();
-
+              // ✅ Show success message first
               Alert.alert("Thành công", "Đã đổi mã inventory item thành công!");
+
+              // ✅ Close modal immediately
+              setInventoryModalVisible(false);
+
+              // ✅ Simple refresh without reopening modal
+              setTimeout(async () => {
+                try {
+                  const refreshedData = await fetchExportRequestDetails(id, 1, 100);
+                  const refreshedDetails = refreshedData.map((item) => ({
+                    ...item,
+                    actualQuantity: item.actualQuantity ?? 0,
+                    inventoryItemIds: item.inventoryItemIds ?? [],
+                  }));
+                  dispatch(setExportRequestDetail(refreshedDetails));
+                  console.log("✅ Simple data refresh completed after auto change");
+                } catch (error) {
+                  console.error("❌ Error refreshing data after auto change:", error);
+                }
+              }, 500);
 
             } catch (error) {
               console.error("❌ Error auto-changing:", error);
@@ -347,18 +512,7 @@ const handleAutoChange = async (inventoryItemId: string) => {
     setAutoChangeLoading(null);
   }
 };
-  const handleManualChangePress = async (originalInventoryItemId: string) => {
-    try {
-      console.log(`🔄 Starting manual change for itemId: ${selectedItemCode}`);
 
-      const allItems = await fetchAllInventoryItemsByItemId(selectedItemCode);
-      setAllInventoryItems(allItems);
-      setManualSearchText("");
-    } catch (error) {
-      console.error("❌ Error in manual change:", error);
-      Alert.alert("Lỗi", "Không thể tải danh sách inventory items");
-    }
-  };
 
   // Handle manual item selection
  const handleManualItemSelect = (
@@ -368,100 +522,21 @@ const handleAutoChange = async (inventoryItemId: string) => {
   setSelectedManualItem(selectedItem);
   setOriginalItemId(originalInventoryItemId); // ✅ Lưu originalItemId
 };
- if (__DEV__) {
-    console.warn = () => {};
-    console.error = () => {};
-  }
-  // Handle manual change submission
-const handleManualChangeSubmit = async () => {
-  if (!selectedManualItem || !originalItemId) {
-    Alert.alert("Lỗi", "Vui lòng chọn item để đổi");
-    return;
-  }
 
-  try {
-    setManualChangeLoading(true);
 
-    if (originalItemId === selectedManualItem.id) {
-      Alert.alert("Lỗi", "Không thể đổi sang cùng một inventory item!");
-      return;
-    }
-
-    console.log(`🔄 Manual change: ${originalItemId} -> ${selectedManualItem.id}`);
-
-    const originalItem = selectedInventoryItems.find(item => item.id === originalItemId);
-    
-    // ✅ Reset tracking nếu cần
-    if (originalItem?.isTrackingForExport && selectedExportRequestDetailId) {
-      console.log(`🔄 Resetting tracking for: ${originalItemId}`);
-      
-      const resetSuccess = await resetTracking(
-        selectedExportRequestDetailId.toString(),
-        originalItemId
-      );
-      
-      if (!resetSuccess) {
-        Alert.alert("Lỗi", "Không thể reset tracking. Vui lòng thử lại!");
-        return;
-      }
-      
-      console.log(`✅ Reset tracking thành công`);
-    }
-
-    // ✅ Manual change
-    const result = await changeInventoryItemForExportDetail(
-      originalItemId,
-      selectedManualItem.id,
-      changeReason
-    );
-
-    if (!result) {
-      throw new Error("API call failed");
-    }
-
-    console.log("✅ Manual change thành công");
-
-    // ✅ Update Redux
-    if (selectedExportRequestDetailId) {
-      dispatch(
-        updateInventoryItemId({
-          exportRequestDetailId: selectedExportRequestDetailId.toString(),
-          oldInventoryItemId: originalItemId,
-          newInventoryItemId: selectedManualItem.id,
-        })
-      );
-    }
-
-    // ✅ Chỉ refresh một lần tất cả data
-    await refreshAllData();
-
-    Alert.alert("Thành công", "Đã đổi item thành công!");
-
-    // ✅ Reset states
-    setSelectedManualItem(null);
-    setChangeReason("");
-    setOriginalItemId("");
-
-  } catch (error) {
-    console.error("❌ Error in manual change:", error);
-    
-    let errorMessage = "Không thể đổi item. Vui lòng thử lại!";
-    
-    if (error.response?.data?.message?.includes("already has an export request detail")) {
-      errorMessage = "ID này đã có trong request không thể đổi";
-    }
-    
-    Alert.alert("Lỗi", errorMessage);
-  } finally {
-    setManualChangeLoading(false);
-  }
-};
   // Handle row press to fetch inventory items and item details
   const handleRowPress = async (detail: any) => {
     if (!detail.id) {
       console.error("❌ Export request detail ID not found");
       return;
     }
+
+    // Simple state reset
+    setSelectedManualItem(null);
+    setChangeReason("");
+    setOriginalItemId("");
+    setManualSearchText("");
+    setAllInventoryItems([]);
 
     setSelectedItemCode(detail.itemId || "");
     setSelectedExportRequestDetailId(detail.id);
@@ -507,6 +582,27 @@ const handleManualChangeSubmit = async () => {
     setAutoChangeLoading(null);
     setSelectedManualItem(null);
     setChangeReason("");
+    setOriginalItemId("");
+  };
+
+
+
+  const handleQRScanPress = (mode: 'normal' | 'manual_change' = 'normal', originalItemId?: string) => {
+    console.log(`🔍 QR Scan pressed for itemCode: ${selectedItemCode}, mode: ${mode}, originalItemId: ${originalItemId}`);
+    // Close the modal first
+    setInventoryModalVisible(false);
+
+    if (mode === 'manual_change' && originalItemId) {
+      // Navigate to QR scan for manual change mode
+      router.push(
+        `/export/scan-qr?id=${id}&returnToModal=true&itemCode=${selectedItemCode}&mode=manual_change&originalItemId=${originalItemId}`
+      );
+    } else {
+      // Navigate to QR scan with normal return parameters
+      router.push(
+        `/export/scan-qr?id=${id}&returnToModal=true&itemCode=${selectedItemCode}`
+      );
+    }
   };
 
   const renderSignatureSection = () => {
@@ -642,7 +738,7 @@ const handleManualChangeSubmit = async () => {
           Thông tin phiếu xuất #{id}
         </Text>
       </View>
-      
+
       <ScrollView style={styles.container}>
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Thông tin chi tiết yêu cầu</Text>
@@ -777,12 +873,12 @@ const handleManualChangeSubmit = async () => {
             })}
           </ScrollView>
         </View>
-        
+
         <View style={styles.actionButtonContainer}>{renderActionButton()}</View>
         {renderSignatureSection()}
       </ScrollView>
 
-     
+
       <InventoryModal
         visible={inventoryModalVisible}
         onClose={handleCloseModal}
@@ -805,6 +901,7 @@ const handleManualChangeSubmit = async () => {
         manualChangeLoading={manualChangeLoading}
         onManualItemSelect={handleManualItemSelect}
         onManualChangeSubmit={handleManualChangeSubmit}
+        onQRScanPress={handleQRScanPress}
       />
     </View>
   );

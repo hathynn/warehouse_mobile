@@ -25,22 +25,29 @@ function AuthHandler() {
   useEffect(() => {
     const restoreAuthFromStorage = async () => {
       try {
-        console.log("🔄 Trying to restore authentication state from AsyncStorage...");
+        console.log("🔄 Clearing stored tokens to force login...");
 
-        const [accessToken, refreshToken] = await Promise.all([
-          AsyncStorage.getItem("access_token"),
-          AsyncStorage.getItem("refresh_token")
-        ]);
+        // Clear stored tokens to always show login page
+        await AsyncStorage.removeItem("access_token");
+        await AsyncStorage.removeItem("refresh_token");
 
-        if (accessToken && refreshToken) {
-          console.log("✅ Found token in AsyncStorage, restoring authentication state");
-          dispatch(restoreAuthState({
-            access_token: accessToken,
-            refresh_token: refreshToken
-          }));
-        } else {
-          console.log("🔄 Not logged in, redirecting to login page");
-        }
+        console.log("🔄 Tokens cleared, redirecting to login page");
+
+        // Comment out the auto-restore logic
+        // const [accessToken, refreshToken] = await Promise.all([
+        //   AsyncStorage.getItem("access_token"),
+        //   AsyncStorage.getItem("refresh_token")
+        // ]);
+
+        // if (accessToken && refreshToken) {
+        //   console.log("✅ Found token in AsyncStorage, restoring authentication state");
+        //   dispatch(restoreAuthState({
+        //     access_token: accessToken,
+        //     refresh_token: refreshToken
+        //   }));
+        // } else {
+        //   console.log("🔄 Not logged in, redirecting to login page");
+        // }
       } catch (error) {
         console.error("❌ Error restoring auth state:", error);
         // Clear any corrupted tokens
@@ -68,7 +75,7 @@ function AuthHandler() {
         // Only navigate to tabs if user is properly loaded and has all required properties
         if (user && typeof user === 'object' && user.id && user.email && user.role) {
           console.log("✅ User authenticated, navigating to tabs");
-          router.replace("/(tabs)/import");
+          router.replace("/(tabs)/home"); // Changed from import to home
         } else {
           console.warn("⚠️ User object incomplete, redirecting to login", { user });
           router.replace("/login");

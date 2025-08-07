@@ -46,6 +46,9 @@ interface InventoryModalProps {
   // Stock check specific props (optional for export)
   stockCheck?: any;
   checkedInventoryItemIds?: string[];
+
+  // QR scan navigation callback
+  onQRScanPress?: (mode?: 'normal' | 'manual_change', originalItemId?: string) => void;
 }
 
 type ModalPage = "main" | "manual_select" | "reason_input";
@@ -75,9 +78,12 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
   // Stock check specific props
   stockCheck,
   checkedInventoryItemIds,
+  onQRScanPress,
 }) => {
   const [modalPage, setModalPage] = useState<ModalPage>("main");
   const [originalItemId, setOriginalItemId] = useState<string>("");
+
+
 
   const enhancedSearch = (item: InventoryItem, searchText: string): boolean => {
     if (!searchText) return true;
@@ -212,10 +218,15 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                 <TouchableOpacity
                   style={styles.actionButton}
                   onPress={() => {
-                    handleClose();
-                    router.push(
-                      `/export/scan-qr?id=${exportRequest?.exportRequestId}`
-                    );
+                    if (onQRScanPress) {
+                      onQRScanPress('normal');
+                    } else {
+                      // Fallback to direct navigation if callback not provided
+                      handleClose();
+                      router.push(
+                        `/export/scan-qr?id=${exportRequest?.exportRequestId}`
+                      );
+                    }
                   }}
                 >
                   <Ionicons name="qr-code-outline" size={16} color="white" />
@@ -244,7 +255,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
 
               <TouchableOpacity
                 style={[styles.actionButton, styles.manualChangeActionButton]}
-                onPress={() => onManualChangePress?.(item.id)}
+                onPress={() => handleManualChangePress(item.id)}
               >
                 <Ionicons name="create-outline" size={16} color="white" />
                 <Text style={styles.actionButtonText}>Đổi thủ công</Text>
@@ -382,6 +393,21 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                 value={manualSearchText || ""}
                 onChangeText={onManualSearchTextChange}
               />
+            </View>
+
+            {/* QR Scan Button for Manual Change */}
+            <View style={styles.scanButtonContainer}>
+              <TouchableOpacity
+                style={styles.manualScanButton}
+                onPress={() => {
+                  if (onQRScanPress) {
+                    onQRScanPress('manual_change', originalItemId);
+                  }
+                }}
+              >
+                <Ionicons name="qr-code-outline" size={20} color="white" />
+                <Text style={styles.manualScanButtonText}>Quét QR để chọn item</Text>
+              </TouchableOpacity>
             </View>
 
             <View style={styles.itemCountContainer}>
@@ -742,6 +768,25 @@ const styles = StyleSheet.create({
   submitReasonButtonText: {
     color: "white",
     fontSize: 16,
+    fontWeight: "600",
+  },
+  scanButtonContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  manualScanButton: {
+    backgroundColor: "#6c5ce7",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  manualScanButtonText: {
+    color: "white",
+    fontSize: 14,
     fontWeight: "600",
   },
   emptyContainer: {
