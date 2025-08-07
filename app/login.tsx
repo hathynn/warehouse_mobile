@@ -10,6 +10,7 @@ import {
   StatusBar,
   StyleSheet,
   Dimensions,
+  Image,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useDispatch } from "react-redux";
@@ -77,9 +78,13 @@ const LoginScreen = () => {
         >
           <View style={styles.logoContainer}>
             <View style={styles.logoBackground}>
-              <Ionicons name="business" size={32} color="#1677ff" />
+              <Image
+                source={require('../assets/images/logo.png')}
+                style={styles.logoImage}
+                resizeMode="contain"
+              />
             </View>
-            <Text style={styles.appName}>Warehouse Manager</Text>
+            <Text style={styles.appName}>Warehouse Management System</Text>
           </View>
         </LinearGradient>
 
@@ -188,6 +193,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     alignItems: 'center',
     justifyContent: 'center',
+    marginTop:30,
     marginBottom: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
@@ -195,9 +201,13 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 5,
   },
+  logoImage: {
+    width: 90,
+    height: 70,
+  },
   appName: {
     color: 'white',
-    fontSize: 24,
+    fontSize: 18,
     fontWeight: '700',
     letterSpacing: 0.5,
   },
