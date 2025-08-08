@@ -457,10 +457,35 @@ const StockCheckDetailScreen: React.FC = () => {
   };
 
   // Navigate to signing screen for stock check
-  const handleNavigateToSigning = () => {
-    router.push(`/stock-check/sign-paper/keeper-sign?id=${id}`);
+  const handleCompletecounting = async () => {
+    try {
+      console.log("🔄 Completing counting process...");
+
+      const result = await updateStockCheckStatus(id, StockCheckStatus.COUNTED);
+
+      if (result) {
+        console.log("✅ Đã hoàn tất kiểm đếm thành công");
+        // Refresh data to show updated status
+        const updatedStockCheck = await fetchStockCheckById(id);
+        setStockCheck(updatedStockCheck);
+
+        Alert.alert(
+          "Thành công",
+          "Đã hoàn tất kiểm đếm. Vui lòng chờ xác nhận từ quản lý."
+        );
+      }
+    } catch (error) {
+      console.error("❌ Lỗi khi hoàn tất kiểm đếm:", error);
+      Alert.alert("Lỗi", "Không thể hoàn tất kiểm đếm. Vui lòng thử lại!");
+    }
   };
 
+  // Updated function to navigate to signing (CONFIRM_COUNTED → Navigate to sign)
+  const handleNavigateToSigning = () => {
+    console.log("🚀 Navigating to signing screen...");
+    router.push(`/stock-check/sign-paper/keeper-sign?id=${id}`);
+  };
+  
   const handleCompleteStockCheck = async () => {
     try {
       const statusUpdate = await updateStockCheckStatus(
@@ -723,9 +748,7 @@ const StockCheckDetailScreen: React.FC = () => {
         <View style={styles.signatureRowWrapper}>
           <View style={styles.signatureItemHorizontal}>
             <Text style={styles.signatureLabelHorizontal}>Người kiểm đếm</Text>
-            <Text style={styles.signatureNameHorizontal}>
-              {paper?.signProviderName || "Chưa rõ"}
-            </Text>
+            
             <View style={styles.signatureImageContainerHorizontal}>
               {paper?.signProviderUrl ? (
                 <Image
@@ -746,13 +769,15 @@ const StockCheckDetailScreen: React.FC = () => {
                 </View>
               )}
             </View>
+
+            <Text style={styles.signatureNameHorizontal}>
+              {paper?.signProviderName || "Chưa rõ"}
+            </Text>
           </View>
 
           <View style={styles.signatureItemHorizontal}>
             <Text style={styles.signatureLabelHorizontal}>Người phê duyệt</Text>
-            <Text style={styles.signatureNameHorizontal}>
-              {paper?.signReceiverName || "Chưa rõ"}
-            </Text>
+            
             <View style={styles.signatureImageContainerHorizontal}>
               {paper?.signReceiverUrl ? (
                 <Image
@@ -773,56 +798,71 @@ const StockCheckDetailScreen: React.FC = () => {
                 </View>
               )}
             </View>
+            <Text style={styles.signatureNameHorizontal}>
+              {paper?.signReceiverName || "Chưa rõ"}
+            </Text>
           </View>
         </View>
       </View>
     );
   };
 
-  const renderActionButton = () => {
-    if (!stockCheck) return null;
-    const status = stockCheck.status;
+const renderActionButton = () => {
+  if (!stockCheck) return null;
+  const status = stockCheck.status;
 
-    switch (status) {
-      case StockCheckStatus.NOT_STARTED:
-        return (
-          <View style={styles.actionButtonContainer}>
-            <StyledButton
-              title="Xác nhận kiểm đếm"
-              onPress={handleStartStockCheck}
-              style={{ marginTop: 12 }}
-            />
-          </View>
-        );
+  switch (status) {
+    case StockCheckStatus.NOT_STARTED:
+      return (
+        <View style={styles.actionButtonContainer}>
+          <StyledButton
+            title="Xác nhận kiểm đếm"
+            onPress={handleStartStockCheck}
+            style={{ marginTop: 12 }}
+          />
+        </View>
+      );
 
-      case StockCheckStatus.IN_PROGRESS:
-        return (
-          <View style={styles.actionButtonContainer}>
-            <StyledButton
-              title="Xác nhận kiểm đếm"
-              onPress={handleNavigateToSigning}
-              style={{ marginTop: 12 }}
-            />
-          </View>
-        );
+    case StockCheckStatus.IN_PROGRESS:
+      return (
+        <View style={styles.actionButtonContainer}>
+          <StyledButton
+            title="Xác nhận kiểm đếm"
+            onPress={handleCompletecounting}
+            style={{ marginTop: 12 }}
+          />
+        </View>
+      );
+      
+    // case StockCheckStatus.COUNTED:
+    //   return (
+    //     <View style={styles.actionButtonContainer}>
+    //       <View style={styles.waitingMessageContainer}>
+    //         <Text style={styles.waitingMessage}>
+    //           Đang chờ xác nhận từ quản lý...
+    //         </Text>
+    //       </View>
+    //     </View>
+    //   );
 
-      case StockCheckStatus.COUNTED:
-        return (
-          <View style={styles.actionButtonContainer}>
-            <StyledButton
-              title="Hoàn tất kiểm kho"
-              onPress={handleCompleteStockCheck}
-              style={{ marginTop: 12 }}
-            />
-          </View>
-        );
+    case StockCheckStatus.COUNT_CONFIRMED:
+      return (
+        <View style={styles.actionButtonContainer}>
+          <StyledButton
+            title="Xác nhận kiểm kho"
+            onPress={handleNavigateToSigning}
+            style={{ marginTop: 12 }}
+          />
+        </View>
+      );
 
-      case StockCheckStatus.COMPLETED:
-        return null;
-      default:
-        return null;
-    }
-  };
+    case StockCheckStatus.COMPLETED:
+      return null;
+      
+    default:
+      return null;
+  }
+};
 
   if (__DEV__) {
     console.warn = () => {};
@@ -1201,7 +1241,7 @@ const styles = StyleSheet.create({
   signatureRowWrapper: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginBottom: 20,
+    // marginBottom: 20,
     gap: 12,
   },
   signatureItemHorizontal: {
@@ -1213,7 +1253,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#666",
     textAlign: "center",
-    marginBottom: 6,
+    marginBottom: 10,
   },
   signatureNameHorizontal: {
     fontSize: 14,
@@ -1221,6 +1261,7 @@ const styles = StyleSheet.create({
     color: "#333",
     textAlign: "center",
     marginBottom: 10,
+    marginTop:18,
   },
   signatureImageContainerHorizontal: {
     width: "100%",
@@ -1248,6 +1289,22 @@ const styles = StyleSheet.create({
     marginTop: 6,
     textAlign: "center",
   },
+  
+  waitingMessageContainer: {
+    backgroundColor: '#f0f9ff',
+    padding: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#0ea5e9',
+    marginTop: 12,
+  },
+  waitingMessage: {
+    fontSize: 14,
+    color: '#0369a1',
+    textAlign: 'center',
+    fontWeight: '500',
+  },
+
 });
 
 export default StockCheckDetailScreen;

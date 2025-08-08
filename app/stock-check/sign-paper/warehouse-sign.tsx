@@ -224,7 +224,7 @@ const ManagerSignScreen = () => {
         <Text style={styles.label1}>
           Quản lý kiểm tra thông tin và ký tên tại đây
         </Text>
-        <Text style={styles.signerName}>{managerName}</Text>
+      
 
         {/* Vùng ký */}
         <View style={styles.signatureBox}>
@@ -247,6 +247,8 @@ const ManagerSignScreen = () => {
             style={{ flex: 1, height: 300 }}
           />
         </View>
+
+          <Text style={styles.signerName}>{managerName}</Text>
 
         {/* Action Buttons */}
         {signReceiverUrl && (
@@ -325,6 +327,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     textAlign: "center",
     fontWeight: "500",
+    marginTop:18,
   },
   signatureBox: {
     height: 300,

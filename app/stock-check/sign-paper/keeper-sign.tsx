@@ -173,7 +173,7 @@ const KeeperSignScreen = () => {
             <Text style={styles.label1}>
               Thủ kho kiểm tra thông tin và ký tên tại đây
             </Text>
-            <Text style={styles.signerName}>{keeperName}</Text>
+            
 
             <View style={styles.signatureBox}>
               <Signature
@@ -195,6 +195,8 @@ const KeeperSignScreen = () => {
                 style={{ flex: 1, height: 300 }}
               />
             </View>
+
+            <Text style={styles.signerName}>{keeperName}</Text>
 
             {/* Action Buttons */}
             <View style={styles.actions}>
@@ -268,6 +270,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     textAlign: "center",
     fontWeight: "500",
+    marginTop:18,
   },
   signatureBox: {
     height: 300,
