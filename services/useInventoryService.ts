@@ -74,83 +74,106 @@ const useInventoryService = () => {
     [callApi]
   );
 
-//   const changeInventoryItemForExportDetail = useCallback(
-//   async (oldInventoryItemId: string, newInventoryItemId: string) => {
-//     if (!oldInventoryItemId || !newInventoryItemId) return null;
+  //   const changeInventoryItemForExportDetail = useCallback(
+  //   async (oldInventoryItemId: string, newInventoryItemId: string) => {
+  //     if (!oldInventoryItemId || !newInventoryItemId) return null;
 
-//     try {
-//       const response = await callApi(
-//         "post",
-//         "/inventory-item/change-inventory-item-export-detail",
-//         {
-//           oldInventoryItemId,
-//           newInventoryItemId,
-//         },
-//         undefined,
-//         `✅ Đổi inventory item từ ${oldInventoryItemId} sang ${newInventoryItemId}`
-//       );
+  //     try {
+  //       const response = await callApi(
+  //         "post",
+  //         "/inventory-item/change-inventory-item-export-detail",
+  //         {
+  //           oldInventoryItemId,
+  //           newInventoryItemId,
+  //         },
+  //         undefined,
+  //         `✅ Đổi inventory item từ ${oldInventoryItemId} sang ${newInventoryItemId}`
+  //       );
 
-//       return response;
-//     } catch (error) {
-//       console.error("❌ Lỗi khi đổi inventory item export detail:", error);
-//       return null;
-//     }
-//   },
-//   [callApi]
-// );
+  //       return response;
+  //     } catch (error) {
+  //       console.error("❌ Lỗi khi đổi inventory item export detail:", error);
+  //       return null;
+  //     }
+  //   },
+  //   [callApi]
+  // );
 
+  // Trong useInventoryService.js - THÊM SERVICE MỚI nếu cần reason
+  const changeInventoryItemForExportDetail = useCallback(
+    async (
+      oldInventoryItemId: string,
+      newInventoryItemId: string,
+      note: string
+    ) => {
+      if (!oldInventoryItemId || !newInventoryItemId) return null;
 
-// Trong useInventoryService.js - THÊM SERVICE MỚI nếu cần reason
-const changeInventoryItemForExportDetail = useCallback(
-  async (oldInventoryItemId: string, newInventoryItemId: string, note: string) => {
-    if (!oldInventoryItemId || !newInventoryItemId) return null;
+      try {
+        const response = await callApi(
+          "post",
+          "/inventory-item/change-inventory-item-export-detail",
+          {
+            oldInventoryItemId,
+            newInventoryItemId,
+            note,
+          },
+          undefined,
+          `✅ Manual change với lý do: ${oldInventoryItemId} -> ${newInventoryItemId}`
+        );
 
-    try {
-      const response = await callApi(
-        "post",
-        "/inventory-item/change-inventory-item-export-detail",
-        {
-          oldInventoryItemId,
-          newInventoryItemId,
-          note,
-        },
-        undefined,
-        `✅ Manual change với lý do: ${oldInventoryItemId} -> ${newInventoryItemId}`
-      );
+        return response;
+      } catch (error) {
+        console.error("❌ Lỗi khi đổi inventory item với lý do:", error);
 
-      return response;
-    } catch (error) {
-      console.error("❌ Lỗi khi đổi inventory item với lý do:", error);
-      
-      // ✅ Throw error với message để component cha xử lý
-      throw error;
-    }
-  },
-  [callApi]
-);
-
+        // ✅ Throw error với message để component cha xử lý
+        throw error;
+      }
+    },
+    [callApi]
+  );
 
   const fetchInventoryItemById = useCallback(
-  async (inventoryItemId: string) => {
-    if (!inventoryItemId) return null;
+    async (inventoryItemId: string) => {
+      if (!inventoryItemId) return null;
 
-    try {
-      const response = await callApi(
-        "get",
-        `/inventory-item/${inventoryItemId}`,
-        undefined, 
-        undefined, 
-    
-      );
+      try {
+        const response = await callApi(
+          "get",
+          `/inventory-item/${inventoryItemId}`,
+          undefined,
+          undefined
+        );
 
-      return response.content; 
-    } catch (error) {
-      console.error("❌ Lỗi khi lấy inventory item theo ID:", error);
-      return null;
-    }
-  },
-  [callApi]
-);
+        return response.content;
+      } catch (error) {
+        console.error("❌ Lỗi khi lấy inventory item theo ID:", error);
+        return null;
+      }
+    },
+    [callApi]
+  );
+
+  const updateInventoryItem = useCallback(
+    async (inventoryItemData: InventoryItem) => {
+      if (!inventoryItemData || !inventoryItemData.id) return null;
+
+      try {
+        const response = await callApi(
+          "put",
+          `/inventory-item`,
+          inventoryItemData,
+          undefined,
+          `Cập nhật inventory item ${inventoryItemData.id}`
+        );
+
+        return response;
+      } catch (error) {
+        console.error("❌ Lỗi khi cập nhật inventory item:", error);
+        throw error;
+      }
+    },
+    [callApi]
+  );
 
   return {
     loading,
@@ -160,7 +183,7 @@ const changeInventoryItemForExportDetail = useCallback(
     autoChangeInventoryItem,
     changeInventoryItemForExportDetail,
     fetchInventoryItemById,
-    
+    updateInventoryItem,
   };
 };
 

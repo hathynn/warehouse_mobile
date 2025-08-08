@@ -1,10 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import {
-  Text,
-  View,
-  StyleSheet,
-  SafeAreaView,
-} from "react-native";
+import { Text, View, StyleSheet, SafeAreaView } from "react-native";
 import { Camera, CameraView } from "expo-camera";
 import { router, useLocalSearchParams } from "expo-router";
 import { Button } from "tamagui";
@@ -15,10 +10,13 @@ import useStockCheckDetail from "@/services/useStockCheckDetailService";
 // const { width } = Dimensions.get("window");
 
 export default function StockCheckScanQrScreen() {
-  const { stockCheckId, stockCheckDetailId } = useLocalSearchParams<{
-    stockCheckId: string;
-    stockCheckDetailId: string;
-  }>();
+  const { stockCheckId, stockCheckDetailId, returnToModal, itemCode } =
+    useLocalSearchParams<{
+      stockCheckId: string;
+      stockCheckDetailId: string;
+      returnToModal?: string;
+      itemCode?: string;
+    }>();
 
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [scannedIds, setScannedIds] = useState<string[]>([]);
@@ -30,7 +28,9 @@ export default function StockCheckScanQrScreen() {
   const { trackInventoryItem } = useStockCheckDetail();
   const [scanningEnabled, setScanningEnabled] = useState(true);
 
-  const [lastScannedProduct, setLastScannedProduct] = useState<any | null>(null);
+  const [lastScannedProduct, setLastScannedProduct] = useState<any | null>(
+    null
+  );
   const [audioPlayer, setAudioPlayer] = useState<any>(null);
 
   // Refs for preventing duplicate processing
@@ -87,6 +87,23 @@ export default function StockCheckScanQrScreen() {
       }
     } catch (err) {
       console.warn("🔇 Không thể phát âm:", err);
+    }
+  };
+
+  const handleGoBack = () => {
+    if (returnToModal === "true" && itemCode) {
+      console.log(
+        `🔙 Back pressed - returning to modal with itemCode: ${itemCode}`
+      );
+      // Thêm delay nhỏ để đảm bảo navigation hoàn tất
+      setTimeout(() => {
+        router.replace(
+          `/stock-check/detail/${stockCheckId}?openModal=true&itemCode=${itemCode}`
+        );
+      }, 50);
+    } else {
+      console.log(`🔙 Back pressed - normal navigation`);
+      router.back();
     }
   };
 
@@ -164,6 +181,8 @@ export default function StockCheckScanQrScreen() {
         inventoryItemId: rawInventoryItemId.toUpperCase(),
       });
 
+      // Find the matching stock check detail for this inventory item
+      // This allows scanning any item in the request, not just the specific detail
       const success = await trackInventoryItem({
         stockCheckDetailId: parseInt(stockCheckDetailId),
         inventoryItemId: rawInventoryItemId.toUpperCase(),
@@ -189,7 +208,7 @@ export default function StockCheckScanQrScreen() {
       await playBeep();
       setLastScannedProduct({
         id: rawInventoryItemId,
-        message: "Đã kiểm kho thành công!"
+        message: "Đã kiểm kho thành công!",
       });
 
       // Clear success message after longer duration
@@ -255,7 +274,7 @@ export default function StockCheckScanQrScreen() {
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Button onPress={() => router.back()}>←</Button>
+        <Button onPress={handleGoBack}>←</Button>
         <Text style={styles.headerTitle}>Quét QR Kiểm Kho</Text>
       </View>
 
@@ -292,9 +311,7 @@ export default function StockCheckScanQrScreen() {
             <View style={styles.productBox}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.productName}>Kiểm kho thành công</Text>
-                <Text style={styles.productTitle}>
-                  {lastScannedProduct.id}
-                </Text>
+                <Text style={styles.productTitle}>{lastScannedProduct.id}</Text>
               </View>
             </View>
           </View>

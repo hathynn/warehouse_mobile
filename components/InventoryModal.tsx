@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Modal,
   View,
@@ -14,7 +14,8 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { InventoryItem } from "@/types/inventoryItem.type";
+import { InventoryItem, InventoryItemStatus } from "@/types/inventoryItem.type";
+import useInventoryService from "@/services/useInventoryService";
 import { ExportRequestStatus } from "@/types/exportRequest.type";
 
 interface InventoryModalProps {
@@ -84,8 +85,37 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
 }) => {
   const [modalPage, setModalPage] = useState<ModalPage>("main");
   const [originalItemId, setOriginalItemId] = useState<string>("");
+  const [detailedInventoryItems, setDetailedInventoryItems] = useState<{[key: string]: InventoryItem}>({});
+  const [detailedItemsLoading, setDetailedItemsLoading] = useState(false);
 
+  // Add inventory service
+  const { fetchInventoryItemById } = useInventoryService();
 
+  // Fetch detailed inventory item data when modal opens or items change
+  useEffect(() => {
+    const fetchDetailedItems = async () => {
+      if (!visible || !selectedInventoryItems.length || !stockCheck) return;
+
+      setDetailedItemsLoading(true);
+      const detailedItems: {[key: string]: InventoryItem} = {};
+
+      for (const item of selectedInventoryItems) {
+        try {
+          const detailedItem = await fetchInventoryItemById(item.id);
+          if (detailedItem) {
+            detailedItems[item.id] = detailedItem;
+          }
+        } catch (error) {
+          console.error(`Error fetching detailed item ${item.id}:`, error);
+        }
+      }
+
+      setDetailedInventoryItems(detailedItems);
+      setDetailedItemsLoading(false);
+    };
+
+    fetchDetailedItems();
+  }, [visible, selectedInventoryItems, stockCheck, fetchInventoryItemById]);
 
   const enhancedSearch = (item: InventoryItem, searchText: string): boolean => {
     if (!searchText) return true;
@@ -183,7 +213,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
             <View style={styles.trackingStatusContainer}>
               <Ionicons name="checkmark-circle" size={20} color="#28a745" />
               <Text style={styles.trackingStatusText}>
-                {isStockCheckMode ? "Đã kiểm" : "Đã quét"}
+               Đã quét
               </Text>
             </View>
           )}
@@ -191,12 +221,16 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
 
         <View style={styles.actionButtonsRow}>
           {isStockCheckMode ? (
-            // Stock check mode: Show QR scan button if not checked, Thanh lý button if checked
+            // Stock check mode: Button logic based on status and tracking
             (() => {
               const isChecked = checkedInventoryItemIds?.includes(item.id);
+              const detailedItem = detailedInventoryItems[item.id];
+              const status = detailedItem?.status;
+              const isTracking = isChecked; // isTracking is true when item is checked
 
-              if (isChecked) {
-                // Show "Thanh lý" button for checked items
+              // Logic based on status and tracking state
+              if (status === InventoryItemStatus.AVAILABLE && isTracking) {
+                // Status AVAILABLE + isTracking true = "Thanh lý" button
                 return (
                   <TouchableOpacity
                     style={[
@@ -205,12 +239,44 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                     ]}
                     onPress={() => onResetTracking?.(item.id)}
                   >
-                    <Ionicons name="trash-outline" size={16} color="white" />
+                    <Ionicons name="refresh-outline" size={16} color="white" />
                     <Text style={styles.actionButtonText}>Thanh lý</Text>
                   </TouchableOpacity>
                 );
+              } else if (status === InventoryItemStatus.NEED_LIQUID) {
+                // Status NEED_LIQUID = "Đã yêu cầu thanh lý" button (disabled)
+                return (
+                  <TouchableOpacity
+                    style={[
+                      styles.actionButton,
+                      styles.disabledButton,
+                    ]}
+                    disabled={true}
+                  >
+                    <Ionicons name="checkmark-circle-outline" size={16} color="white" />
+                    <Text style={styles.actionButtonText}>Đã yêu cầu thanh lý</Text>
+                  </TouchableOpacity>
+                );
+              } else if (!isTracking) {
+                // isTracking false = "Quét QR" button
+                return (
+                  <TouchableOpacity
+                    style={[
+                      styles.actionButton,
+                      styles.stockCheckScanButton,
+                    ]}
+                    onPress={() => {
+                      if (onQRScanPress) {
+                        onQRScanPress('normal');
+                      }
+                    }}
+                  >
+                    <Ionicons name="qr-code-outline" size={16} color="white" />
+                    <Text style={styles.actionButtonText}>Quét QR</Text>
+                  </TouchableOpacity>
+                );
               } else {
-                // Show QR scan button for unchecked items
+                // Default fallback - show QR scan button
                 return (
                   <TouchableOpacity
                     style={[
@@ -368,7 +434,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
               )}
             </View>
 
-            {inventoryLoading ? (
+            {inventoryLoading || detailedItemsLoading ? (
               <View style={styles.loadingContainer}>
                 <ActivityIndicator size="large" color="#1677ff" />
                 <Text style={styles.loadingText}>Đang tải danh sách...</Text>
@@ -708,6 +774,10 @@ const styles = StyleSheet.create({
   },
   resetTrackingButton: {
     backgroundColor: "#ff6b35",
+  },
+  disabledButton: {
+    backgroundColor: "#6c757d",
+    opacity: 0.7,
   },
   checkedButton: {
     backgroundColor: "#28a745",
