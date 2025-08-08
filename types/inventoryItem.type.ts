@@ -1,8 +1,13 @@
+export enum InventoryItemStatus {
+  AVAILABLE = "AVAILABLE",
+  NEED_LIQUID = "NEED_LIQUID",
+}
+
 export interface InventoryItem {
   id: string;
   reasonForDisposal: string | null;
   measurementValue: number;
-  status: string | null;
+  status: InventoryItemStatus | null; // ✅ enum
   expiredDate: string; 
   importedDate: string;
   updatedDate: string; 
