@@ -285,6 +285,8 @@ const ImportOrderScreen: React.FC = () => {
                   expect: item.expectQuantity,
                   actual: item.actualQuantity || 0,
                   importOrderId: importOrder.importOrderId,
+                  inventoryItemId: item.inventoryItemId || null,
+                  importOrderDetailId: item.importOrderDetailId,
                 }));
 
                 dispatch(setProducts(products));
@@ -340,6 +342,8 @@ const ImportOrderScreen: React.FC = () => {
                   expect: item.expectQuantity,
                   actual: item.actualQuantity || 0,
                   importOrderId: importOrder.importOrderId,
+                  inventoryItemId: item.inventoryItemId || null,
+                  importOrderDetailId: item.importOrderDetailId,
                 }));
 
                 dispatch(setProducts(products));

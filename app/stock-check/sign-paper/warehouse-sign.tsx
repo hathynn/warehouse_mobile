@@ -139,13 +139,13 @@ const ManagerSignScreen = () => {
               // Update stock check status to COUNTED
               const statusResult = await updateStockCheckStatus(
                 stockCheckId!,
-                StockCheckStatus.COUNTED
+                StockCheckStatus.CONFIRMED
               );
               if (!statusResult) {
                 throw new Error("Không thể cập nhật trạng thái kiểm kho");
               }
 
-              console.log("✅ Stock check status updated to COUNTED");
+              console.log("✅ Stock check status updated to CONFIRMED");
 
               Alert.alert(
                 "Thành công",
