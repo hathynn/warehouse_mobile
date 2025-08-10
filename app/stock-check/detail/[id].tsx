@@ -849,7 +849,7 @@ const renderActionButton = () => {
       return (
         <View style={styles.actionButtonContainer}>
           <StyledButton
-            title="Ký xác nhận"
+            title="Xác nhận kiểm kho"
             onPress={handleNavigateToSigning}
             style={{ marginTop: 12 }}
           />

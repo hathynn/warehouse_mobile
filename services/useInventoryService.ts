@@ -18,9 +18,8 @@ const useInventoryService = () => {
           { params: { page, limit } }, // params qua options
           `✅ Lấy inventory items cho import order detail ${importOrderDetailId}`
         );
-        setInventoryItems(response.content || []);
-        console.log("Invnetory:", response);
 
+        setInventoryItems(response.content || []);
         return response.content || [];
       } catch (error) {
         console.error("❌ Lỗi khi lấy inventory items:", error);
