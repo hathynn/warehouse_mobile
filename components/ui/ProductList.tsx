@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -8,12 +8,18 @@ import {
   ScrollView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import useInventoryService from "@/services/useInventoryService";
+import useItemService from "@/services/useItemService";
 
 type Product = {
   id: string;
   name: string;
   actual: number;
   expect: number;
+  inventoryItemId?: string;
+  actualMeasurementValue?: number;
+  expectMeasurementValue?: number;
+  itemId?: string;
 };
 
 type Props = {
@@ -29,13 +35,65 @@ const SimpleProductList: React.FC<Props> = ({
   scrollEnabled = true,
   onItemPress,
 }) => {
+  const { getItemDetailById } = useItemService();
+  const { fetchInventoryItemById } = useInventoryService();
+  const [inventoryUnits, setInventoryUnits] = useState<{[key: string]: string}>({});
+
+  useEffect(() => {
+    const fetchUnits = async () => {
+      const unitsMap: {[key: string]: string} = {};
+      
+      for (const product of products) {
+        console.log("🔍 Checking product:", {
+          id: product.id,
+          inventoryItemId: product.inventoryItemId,
+          itemId: product.itemId,
+          name: product.name
+        });
+        
+        if (product.inventoryItemId) {
+          try {
+            console.log(`📡 Fetching inventory item: ${product.inventoryItemId}`);
+            const inventoryItem = await fetchInventoryItemById(product.inventoryItemId);
+            console.log("📦 Inventory item response:", inventoryItem);
+            
+            if (inventoryItem && inventoryItem.itemId) {
+              console.log(`📡 Fetching item details for itemId: ${inventoryItem.itemId}`);
+              const itemDetails = await getItemDetailById(inventoryItem.itemId);
+              console.log("📦 Item details response:", itemDetails);
+              
+              if (itemDetails && itemDetails.measurementUnit) {
+                unitsMap[product.inventoryItemId] = itemDetails.measurementUnit;
+                console.log(`✅ Added unit for ${product.inventoryItemId}: ${itemDetails.measurementUnit}`);
+              } else {
+                console.warn(`⚠️ No measurementUnit found for item ${inventoryItem.itemId}`, itemDetails);
+              }
+            } else {
+              console.warn(`⚠️ Inventory item has no itemId:`, inventoryItem);
+            }
+          } catch (error) {
+            console.error(`❌ Error fetching inventory/item details for ${product.inventoryItemId}:`, error);
+          }
+        } else {
+          console.log("⏭️ Skipping product - not an inventory item");
+        }
+      }
+      
+      console.log("🎯 Final units map:", unitsMap);
+      setInventoryUnits(unitsMap);
+    };
+
+    if (products.length > 0) {
+      fetchUnits();
+    }
+  }, [products, getItemDetailById]);
   const getStatusIcon = (actual: number, expect: number) => {
     if (actual === expect) {
-      return { name: "checkmark-circle", color: "#4CAF50" };
+      return { name: "checkmark-circle" as const, color: "#4CAF50" };
     } else if (actual < expect) {
-      return { name: "remove-circle", color: "#F44336" };
+      return { name: "remove-circle" as const, color: "#F44336" };
     } else {
-      return { name: "alert-circle", color: "#FF9800" };
+      return { name: "alert-circle" as const, color: "#FF9800" };
     }
   };
 
@@ -49,12 +107,32 @@ const SimpleProductList: React.FC<Props> = ({
     }
   };
 
+  const getDisplayValues = (product: Product) => {
+    if (product.inventoryItemId) {
+      // For inventory items, use measurement values
+      const actual = product.actualMeasurementValue || 0;
+      const expect = product.expectMeasurementValue || 0;
+      const unit = inventoryUnits[product.inventoryItemId] || '';
+      console.log(`🎯 Display values for ${product.inventoryItemId}:`, {
+        actual,
+        expect,
+        unit,
+        availableUnits: Object.keys(inventoryUnits),
+        unitsMap: inventoryUnits
+      });
+      return { actual, expect, unit, displayName: product.inventoryItemId };
+    } else {
+      // For regular products, use quantity values
+      const actual = product.actual || 0;
+      const expect = product.expect || 0;
+      return { actual, expect, unit: '', displayName: product.name };
+    }
+  };
+
   const renderItem = ({ item: product }: { item: Product }) => {
-    const { name, color } = getStatusIcon(product.actual, product.expect);
-    const statusBackground = getStatusBackground(
-      product.actual,
-      product.expect
-    );
+    const { actual, expect, unit, displayName } = getDisplayValues(product);
+    const { name, color } = getStatusIcon(actual, expect);
+    const statusBackground = getStatusBackground(actual, expect);
 
     return (
       <TouchableOpacity
@@ -71,8 +149,8 @@ const SimpleProductList: React.FC<Props> = ({
             >
               <Ionicons name={name} size={18} color={color} />
             </View>
-            <Text style={styles.productName} numberOfLines={1}>
-              {product.name}
+            <Text style={[styles.productName, product.inventoryItemId && styles.inventoryItemName]} numberOfLines={product.inventoryItemId ? undefined : 1}>
+              {displayName}
             </Text>
           </View>
 
@@ -83,9 +161,9 @@ const SimpleProductList: React.FC<Props> = ({
             ]}
           >
             <Text style={[styles.quantity, { color }]}>
-              {product.actual}
+              {actual}{unit}
               <Text style={styles.slash}>/</Text>
-              <Text style={styles.expected}>{product.expect}</Text>
+              <Text style={styles.expected}>{expect}{unit}</Text>
             </Text>
           </View>
         </View>
@@ -112,14 +190,9 @@ const SimpleProductList: React.FC<Props> = ({
             </View>
           ) : (
             products.map((product) => {
-              const { name, color } = getStatusIcon(
-                product.actual,
-                product.expect
-              );
-              const statusBackground = getStatusBackground(
-                product.actual,
-                product.expect
-              );
+              const { actual, expect, unit, displayName } = getDisplayValues(product);
+              const { name, color } = getStatusIcon(actual, expect);
+              const statusBackground = getStatusBackground(actual, expect);
 
               return (
                 <TouchableOpacity
@@ -137,8 +210,8 @@ const SimpleProductList: React.FC<Props> = ({
                       >
                         <Ionicons name={name} size={18} color={color} />
                       </View>
-                      <Text style={styles.productName} numberOfLines={1}>
-                        {product.name}
+                      <Text style={[styles.productName, product.inventoryItemId && styles.inventoryItemName]} numberOfLines={product.inventoryItemId ? undefined : 1}>
+                        {displayName}
                       </Text>
                     </View>
 
@@ -149,9 +222,9 @@ const SimpleProductList: React.FC<Props> = ({
                       ]}
                     >
                       <Text style={[styles.quantity, { color }]}>
-                        {product.actual}
-                        <Text style={styles.slash}>/</Text>
-                        <Text style={styles.expected}>{product.expect}</Text>
+                        {actual}
+                        <Text>/</Text>
+                        <Text>{expect} ({unit})</Text>
                       </Text>
                     </View>
                   </View>
@@ -205,6 +278,11 @@ const styles = StyleSheet.create({
     fontWeight: "400",
     color: "#212121",
     flex: 1,
+  },
+  inventoryItemName: {
+    fontSize: 14,
+    fontWeight: "500",
+    flexWrap: "wrap",
   },
   quantityContainer: {
     borderRadius: 16,

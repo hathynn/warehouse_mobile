@@ -123,6 +123,11 @@ const KeeperSignScreen = () => {
     name: `Sản phẩm ${item.itemId}`,
     actual: item.actualQuantity ?? 0,
     expect: item.quantity ?? 0,
+    // Check if this item has inventory items (for demonstration)
+    inventoryItemId: item.inventoryItemIds && item.inventoryItemIds.length > 0 ? item.inventoryItemIds[0] : undefined,
+    actualMeasurementValue: item.actualMeasurementValue ?? 0,
+    expectMeasurementValue: item.expectMeasurementValue ?? 0,
+    itemId: item.itemId,
   }));
 
   return (
@@ -173,7 +178,7 @@ const KeeperSignScreen = () => {
             <Text style={styles.label1}>
               Thủ kho kiểm tra thông tin và ký tên tại đây
             </Text>
-            <Text style={styles.signerName}>{keeperName}</Text>
+            
 
             <View style={styles.signatureBox}>
               <Signature
@@ -195,6 +200,8 @@ const KeeperSignScreen = () => {
                 style={{ flex: 1, height: 300 }}
               />
             </View>
+
+            <Text style={styles.signerName}>{keeperName}</Text>
 
             {/* Action Buttons */}
             <View style={styles.actions}>
@@ -268,6 +275,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     textAlign: "center",
     fontWeight: "500",
+    marginTop:18,
   },
   signatureBox: {
     height: 300,

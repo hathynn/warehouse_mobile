@@ -59,7 +59,6 @@ const LoginScreen = () => {
         router.replace("/(tabs)/home");
       }, 200);
     } catch (error: any) {
-      console.error("Login error:", error?.response?.data || error.message);
       Alert.alert("Đăng nhập thất bại", "Email hoặc mật khẩu không chính xác. Vui lòng thử lại.");
     } finally {
       setIsLoading(false);

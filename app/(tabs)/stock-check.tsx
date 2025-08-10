@@ -57,7 +57,7 @@ export default function StockCheckList() {
     return [
       {
         key: "IN_PROGRESS",
-        title: "Chờ xác nhận",
+        title: "Cần kiểm đếm",
         status: StockCheckStatus.IN_PROGRESS,
         count: validStockChecks.filter(
           (stockCheck: any) => stockCheck.status === StockCheckStatus.IN_PROGRESS
@@ -65,18 +65,18 @@ export default function StockCheckList() {
       },
       {
         key: "COUNTED",
-        title: "Đã xác nhận",
+        title: "Đã kiểm đếm",
         status: StockCheckStatus.COUNTED,
         count: validStockChecks.filter(
           (stockCheck: any) => stockCheck.status === StockCheckStatus.COUNTED
         ).length,
       },
       {
-        key: "COUNTED_CONFIRMED",
+        key: "COUNT_CONFIRMED",
         title: "Đã xác nhận",
-        status: StockCheckStatus.COUNTED,
+        status: StockCheckStatus.COUNT_CONFIRMED,
         count: validStockChecks.filter(
-          (stockCheck: any) => stockCheck.status === StockCheckStatus.CONFIRM_COUNTED
+          (stockCheck: any) => stockCheck.status === StockCheckStatus.COUNT_CONFIRMED
         ).length,
       },
       {
