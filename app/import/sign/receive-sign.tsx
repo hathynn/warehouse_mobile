@@ -42,7 +42,7 @@ const SignReceiveScreen = () => {
 
   const dispatch = useDispatch();
   const { createPaper } = usePaperService();
-  const { updateImportOrderDetailsByOrderId } = useImportOrderDetail();
+  const { updateImportOrderDetailsByOrderId, updateImportOrderDetailMeasurement } = useImportOrderDetail();
 
   const selectProducts = (state: RootState) => state.product.products;
   const selectImportOrderId = (state: RootState) => state.paper.importOrderId;
@@ -168,34 +168,115 @@ const SignReceiveScreen = () => {
 
     setIsLoading(true);
 
-    const updatePayload = products.map((p) => ({
-      itemId: p.id,
-      actualQuantity: p.actual ?? 0,
-    }));
-
     try {
+      // Bước 1: Kiểm tra và cập nhật measurement values cho inventory items (nếu có)
+      const inventoryProducts = products.filter(p => 
+        p.inventoryItemId && p.actualMeasurementValue !== undefined && p.actualMeasurementValue > 0
+      );
+
+      // Chỉ gọi API update measurement khi có inventory items
+      if (inventoryProducts.length > 0) {
+        console.log("🔄 Updating measurements for inventory items:", inventoryProducts.length);
+        
+        // Gọi API cho từng inventory item
+        const measurementPromises = inventoryProducts.map(async (product) => {
+          if (!product.inventoryItemId || !product.importOrderDetailId) {
+            console.warn("Missing data for product:", product);
+            return { success: false, productId: product.id };
+          }
+
+          try {
+            // Thử với payload đơn giản hơn - chỉ gửi những field cần thiết
+            const requestData = {
+              inventoryItemId: product.inventoryItemId,
+              actualMeasurement: Number(product.actualMeasurementValue || 0),
+            };
+            
+            console.log(`📡 Calling updateImportOrderDetailMeasurement (simplified):`, {
+              importOrderDetailId: product.importOrderDetailId,
+              requestData,
+              product: {
+                id: product.id,
+                name: product.name,
+                inventoryItemId: product.inventoryItemId,
+                actualMeasurementValue: product.actualMeasurementValue,
+                importOrderDetailId: product.importOrderDetailId
+              }
+            });
+            
+            const result = await updateImportOrderDetailMeasurement(
+              Number(product.importOrderDetailId),
+              requestData
+            );
+            
+            console.log(`✅ API response for product ${product.id}:`, result);
+            return { success: !!result, productId: product.id };
+          } catch (error) {
+            console.error(`❌ Error updating measurement for product ${product.id}:`, error);
+            console.error(`❌ Error details:`, {
+              message: error?.message,
+              response: error?.response?.data,
+              status: error?.response?.status,
+              stack: error?.stack
+            });
+            return { success: false, productId: product.id };
+          }
+        });
+
+        const measurementResults = await Promise.all(measurementPromises);
+        const successfulMeasurements = measurementResults.filter(r => r.success).length;
+        const failedMeasurements = measurementResults.filter(r => !r.success);
+        
+        console.log(`📊 Measurement update results: ${successfulMeasurements}/${inventoryProducts.length} successful`);
+        
+        // Nếu có inventory items, tất cả phải update thành công mới được tiếp tục
+        if (failedMeasurements.length > 0) {
+          console.error("❌ Không thể cập nhật measurement cho tất cả inventory items:", failedMeasurements);
+          alert(`Lỗi: Không thể cập nhật measurement cho ${failedMeasurements.length} inventory items. Vui lòng thử lại.`);
+          return;
+        }
+        
+        console.log("✅ Tất cả inventory item measurements đã được cập nhật thành công");
+      } else {
+        console.log("ℹ️ Không có inventory items nào cần cập nhật measurement");
+      }
+
+      // Bước 2: Cập nhật actualQuantity cho tất cả products (logic cũ)
+      const updatePayload = products.map((p) => ({
+        itemId: p.id,
+        actualQuantity: p.actual ?? 0,
+      }));
+
       const updateResponse = await updateImportOrderDetailsByOrderId(
         importOrderId,
         updatePayload
       );
-      console.log("Cập nhật số lượng thành công");
-      if (updateResponse) {
-        // console.log("🔍 paperData gửi lên:", paperData);
-        const paperResponse = await createPaper({
-          ...paperData,
-          signProviderName: paperData.signProviderName || "",
-          signReceiverName: user.name || "",
-        });
 
-        if (paperResponse) {
-          console.log("✅ Tạo paper thành công");
-          router.push("/(tabs)/import");
-        }
-      } else {
+      if (!updateResponse) {
         console.log("❌ Không thể cập nhật actualQuantity.");
+        alert("Lỗi: Không thể cập nhật số lượng sản phẩm. Vui lòng thử lại.");
+        return;
+      }
+      
+      console.log("✅ Cập nhật số lượng thành công");
+
+      // Bước 3: Tạo paper (chỉ khi tất cả updates thành công)
+      const paperResponse = await createPaper({
+        ...paperData,
+        signProviderName: paperData.signProviderName || "",
+        signReceiverName: user.name || "",
+      });
+
+      if (paperResponse) {
+        console.log("✅ Tạo paper thành công");
+        router.push("/(tabs)/import");
+      } else {
+        console.log("❌ Không thể tạo paper.");
+        alert("Lỗi: Không thể tạo phiếu. Vui lòng thử lại.");
       }
     } catch (error) {
       console.error("❌ Lỗi khi xác nhận:", error);
+      alert("Có lỗi xảy ra khi xác nhận. Vui lòng thử lại.");
     } finally {
       setIsLoading(false);
     }

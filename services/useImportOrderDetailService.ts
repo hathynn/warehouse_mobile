@@ -137,6 +137,45 @@ const useImportOrderDetail = () => {
     [callApi]
   );
 
+const updateImportOrderDetailMeasurement = useCallback(
+  async (
+    importOrderDetailId: number,
+    data: {
+      inventoryItemId: string;
+      actualMeasurement: number;
+      itemId?: string;
+      actualQuantity?: number;
+    }
+  ) => {
+    if (!importOrderDetailId || !data.inventoryItemId) {
+      console.error("Missing required fields for measurement update:", {
+        importOrderDetailId,
+        inventoryItemId: data.inventoryItemId
+      });
+      return null;
+    }
+
+    setLoading(true);
+    try {
+      console.log("→ [API] PUT /import-order-detail/measurement/" + importOrderDetailId, data);
+      const response = await callApi(
+        "put",
+        `/import-order-detail/measurement/${importOrderDetailId}`,
+        data
+      );
+      console.log("← [API SUCCESS] Measurement update response:", response);
+      return response;
+    } catch (error) {
+      console.error("← [API ERROR]", error?.response?.status, error?.message);
+      console.error("Lỗi khi cập nhật actual measurement:", error);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  },
+  [callApi]
+);
+
   return {
     loading,
     inventoryItems,
@@ -147,6 +186,7 @@ const useImportOrderDetail = () => {
     fetchInventoryItemsByImportOrderDetailId,
     updateImportOrderDetail,
     updateImportOrderDetailsByOrderId,
+    updateImportOrderDetailMeasurement
   };
 };
 

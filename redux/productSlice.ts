@@ -6,8 +6,11 @@ interface Product {
   expect: number;
   actual: number;
   importOrderId: string;
-  inventoryItemId: string | null; // Có thể null
-  importOrderDetailId: number; // Thêm field này để mapping
+  inventoryItemId: string | null;
+  importOrderDetailId: number;
+  measurementValue: number | 0;
+  expectMeasurementValue: number | 0;
+  actualMeasurementValue?: number | 0;
 }
 
 interface ProductState {
@@ -41,19 +44,25 @@ const productSlice = createSlice({
         product.actual = action.payload.actual;
       }
     },
-    // Thêm reducer để update bằng inventoryItemId (với kiểm tra null)
-    updateProductByInventoryId: (state, action: PayloadAction<{ inventoryItemId: string; actual: number }>) => {
-      const product = state.products.find(p => 
-        p.inventoryItemId !== null && p.inventoryItemId === action.payload.inventoryItemId
-      );
-      if (product) {
-        product.actual = action.payload.actual;
-      }
-    },
-    updateActual: (state, action: PayloadAction<{ id: string; actual: number }>) => {
+    // Thêm reducer để update bằng inventoryItemId (với measurementValue)
+   updateProductByInventoryId: (state, action: PayloadAction<{ inventoryItemId: string; measurementValue: number }>) => {
+  const product = state.products.find(p => 
+    p.inventoryItemId !== null && p.inventoryItemId === action.payload.inventoryItemId
+  );
+  if (product) {
+    // Chỉ cập nhật measurementValue, không động vào actual
+    product.measurementValue = action.payload.measurementValue;
+  }
+},
+    updateActual: (state, action: PayloadAction<{ id: string; actual?: number; actualMeasurementValue?: number }>) => {
       const product = state.products.find((p) => p.id === action.payload.id);
       if (product) {
-        product.actual = action.payload.actual;
+        if (action.payload.actual !== undefined) {
+          product.actual = action.payload.actual;
+        }
+        if (action.payload.actualMeasurementValue !== undefined) {
+          product.actualMeasurementValue = action.payload.actualMeasurementValue;
+        }
       }
     },
   },

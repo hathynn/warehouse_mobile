@@ -287,9 +287,12 @@ const ImportOrderScreen: React.FC = () => {
                   importOrderId: importOrder.importOrderId,
                   inventoryItemId: item.inventoryItemId || null,
                   importOrderDetailId: item.importOrderDetailId,
+                    measurementValue: item.actualMeasurementValue || 0, // Thêm measurementValue
+      expectMeasurementValue: item.expectMeasurementValue || 0, 
                 }));
 
                 dispatch(setProducts(products));
+                console.log("Product: ", products)
                 dispatch(
                   setPaperData({ importOrderId: importOrder.importOrderId })
                 );
@@ -344,6 +347,8 @@ const ImportOrderScreen: React.FC = () => {
                   importOrderId: importOrder.importOrderId,
                   inventoryItemId: item.inventoryItemId || null,
                   importOrderDetailId: item.importOrderDetailId,
+                    measurementValue: item.actualMeasurementValue || 0, // Thêm measurementValue
+      expectMeasurementValue: item.expectMeasurementValue || 0, 
                 }));
 
                 dispatch(setProducts(products));

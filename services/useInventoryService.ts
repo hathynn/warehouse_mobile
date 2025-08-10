@@ -16,10 +16,10 @@ const useInventoryService = () => {
           `/inventory-item/import-order-detail/${importOrderDetailId}`,
           undefined, // data = undefined cho GET request
           { params: { page, limit } }, // params qua options
-          `✅ Lấy inventory items cho import order detail ${importOrderDetailId}`
+          // `✅ Lấy inventory items cho import order detail ${importOrderDetailId}`
         );
         setInventoryItems(response.content || []);
-        console.log("Invnetory:", response);
+        // console.log("Invnetory:", response);
 
         return response.content || [];
       } catch (error) {
