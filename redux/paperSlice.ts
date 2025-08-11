@@ -4,6 +4,8 @@ interface PaperState {
     importRequestId?: number | null;
     importOrderId: string | null;
     exportRequestId: string | null;
+    stockCheckRequestId: string | null; // Add stock check support
+    importType: string | null;
     signProviderUrl: string | null; // Lưu Base64 string
     signReceiverUrl: string | null; // Lưu Base64 string
     signProviderName: string | null;
@@ -15,6 +17,8 @@ const initialState: PaperState = {
   importRequestId: null,
   importOrderId: null,
   exportRequestId: null,
+  stockCheckRequestId: null, // Add stock check support
+  importType: null,
   signProviderUrl: null,
   signReceiverUrl: null,
   signProviderName: null,

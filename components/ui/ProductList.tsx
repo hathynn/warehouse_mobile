@@ -44,27 +44,27 @@ const SimpleProductList: React.FC<Props> = ({
       const unitsMap: {[key: string]: string} = {};
       
       for (const product of products) {
-        console.log("🔍 Checking product:", {
-          id: product.id,
-          inventoryItemId: product.inventoryItemId,
-          itemId: product.itemId,
-          name: product.name
-        });
+        // console.log("🔍 Checking product:", {
+        //   id: product.id,
+        //   inventoryItemId: product.inventoryItemId,
+        //   itemId: product.itemId,
+        //   name: product.name
+        // });
         
         if (product.inventoryItemId) {
           try {
-            console.log(`📡 Fetching inventory item: ${product.inventoryItemId}`);
+            // console.log(`📡 Fetching inventory item: ${product.inventoryItemId}`);
             const inventoryItem = await fetchInventoryItemById(product.inventoryItemId);
-            console.log("📦 Inventory item response:", inventoryItem);
+            // console.log("📦 Inventory item response:", inventoryItem);
             
             if (inventoryItem && inventoryItem.itemId) {
-              console.log(`📡 Fetching item details for itemId: ${inventoryItem.itemId}`);
+              // console.log(`📡 Fetching item details for itemId: ${inventoryItem.itemId}`);
               const itemDetails = await getItemDetailById(inventoryItem.itemId);
-              console.log("📦 Item details response:", itemDetails);
+              // console.log("📦 Item details response:", itemDetails);
               
               if (itemDetails && itemDetails.measurementUnit) {
                 unitsMap[product.inventoryItemId] = itemDetails.measurementUnit;
-                console.log(`✅ Added unit for ${product.inventoryItemId}: ${itemDetails.measurementUnit}`);
+                // console.log(`✅ Added unit for ${product.inventoryItemId}: ${itemDetails.measurementUnit}`);
               } else {
                 console.warn(`⚠️ No measurementUnit found for item ${inventoryItem.itemId}`, itemDetails);
               }
@@ -79,7 +79,7 @@ const SimpleProductList: React.FC<Props> = ({
         }
       }
       
-      console.log("🎯 Final units map:", unitsMap);
+      // console.log("🎯 Final units map:", unitsMap);
       setInventoryUnits(unitsMap);
     };
 
@@ -113,13 +113,13 @@ const SimpleProductList: React.FC<Props> = ({
       const actual = product.actualMeasurementValue || 0;
       const expect = product.expectMeasurementValue || 0;
       const unit = inventoryUnits[product.inventoryItemId] || '';
-      console.log(`🎯 Display values for ${product.inventoryItemId}:`, {
-        actual,
-        expect,
-        unit,
-        availableUnits: Object.keys(inventoryUnits),
-        unitsMap: inventoryUnits
-      });
+      // console.log(`🎯 Display values for ${product.inventoryItemId}:`, {
+      //   actual,
+      //   expect,
+      //   unit,
+      //   availableUnits: Object.keys(inventoryUnits),
+      //   unitsMap: inventoryUnits
+      // });
       return { actual, expect, unit, displayName: product.inventoryItemId };
     } else {
       // For regular products, use quantity values
@@ -196,7 +196,7 @@ const SimpleProductList: React.FC<Props> = ({
 
               return (
                 <TouchableOpacity
-                  key={`product-${product.id}`}
+                  key={`product-${product.id}-${product.inventoryItemId || 'no-inventory'}`}
                   activeOpacity={onItemPress ? 0.7 : 1}
                   onPress={() => onItemPress && onItemPress(product)}
                 >
@@ -224,7 +224,7 @@ const SimpleProductList: React.FC<Props> = ({
                       <Text style={[styles.quantity, { color }]}>
                         {actual}
                         <Text>/</Text>
-                        <Text>{expect} ({unit})</Text>
+                        <Text>{expect} {unit}</Text>
                       </Text>
                     </View>
                   </View>

@@ -26,6 +26,7 @@ import { router } from "expo-router";
 import { UploadCloud } from "@tamagui/lucide-icons";
 import { createSelector } from "reselect";
 import useImportOrderDetail from "@/services/useImportOrderDetailService";
+import useInventoryService from "@/services/useInventoryService";
 import usePaperService from "@/services/usePaperService";
 import * as ImageManipulator from "expo-image-manipulator";
 import useImportOrder from "@/services/useImportOrderService";
@@ -43,6 +44,7 @@ const SignReceiveScreen = () => {
   const dispatch = useDispatch();
   const { createPaper } = usePaperService();
   const { updateImportOrderDetailsByOrderId, updateImportOrderDetailMeasurement } = useImportOrderDetail();
+  const { fetchInventoryItemById } = useInventoryService();
 
   const selectProducts = (state: RootState) => state.product.products;
   const selectImportOrderId = (state: RootState) => state.paper.importOrderId;
@@ -156,6 +158,12 @@ const SignReceiveScreen = () => {
   };
 
   const handleConfirm = async () => {
+    // Prevent double execution
+    if (isLoading) {
+      console.log("⏳ Already processing, ignoring duplicate call");
+      return;
+    }
+    
     if (!paperData.signProviderUrl || !paperData.signReceiverUrl) {
       console.log("❌ Chưa có đủ chữ ký, vui lòng ký trước khi xác nhận.");
       return;
@@ -169,7 +177,39 @@ const SignReceiveScreen = () => {
     setIsLoading(true);
 
     try {
-      // Bước 1: Kiểm tra và cập nhật measurement values cho inventory items (nếu có)
+      // Debug: Log importOrder để kiểm tra importType
+      console.log("🔍 DEBUG importOrder:", {
+        importOrder: importOrder,
+        importType: importOrder?.importType,
+        isReturn: importOrder?.importType === "RETURN",
+        shouldSkipQuantityUpdate: importOrder?.importType === "RETURN"
+      });
+      
+      // Bước 1: Cập nhật actualQuantity cho tất cả products trước (chỉ khi không phải RETURN)
+      if (importOrder?.importType !== "RETURN") {
+        console.log("🔄 Updating actualQuantity for all products (non-RETURN type)");
+        const updatePayload = products.map((p) => ({
+          itemId: p.id,
+          actualQuantity: p.actual ?? 0,
+        }));
+
+        const updateResponse = await updateImportOrderDetailsByOrderId(
+          importOrderId,
+          updatePayload
+        );
+
+        if (!updateResponse) {
+          console.log("❌ Không thể cập nhật actualQuantity.");
+          alert("Lỗi: Không thể cập nhật số lượng sản phẩm. Vui lòng thử lại.");
+          return;
+        }
+        
+        console.log("✅ Cập nhật số lượng thành công");
+      } else {
+        console.log("ℹ️ Skip actualQuantity update for RETURN type");
+      }
+
+      // Bước 2: Kiểm tra và cập nhật measurement values cho inventory items (nếu có)
       const inventoryProducts = products.filter(p => 
         p.inventoryItemId && p.actualMeasurementValue !== undefined && p.actualMeasurementValue > 0
       );
@@ -178,19 +218,48 @@ const SignReceiveScreen = () => {
       if (inventoryProducts.length > 0) {
         console.log("🔄 Updating measurements for inventory items:", inventoryProducts.length);
         
-        // Gọi API cho từng inventory item
-        const measurementPromises = inventoryProducts.map(async (product) => {
+        // SEQUENTIAL processing để tránh race condition
+        const measurementResults = [];
+        
+        for (let i = 0; i < inventoryProducts.length; i++) {
+          const product = inventoryProducts[i];
+          
           if (!product.inventoryItemId || !product.importOrderDetailId) {
             console.warn("Missing data for product:", product);
-            return { success: false, productId: product.id };
+            measurementResults.push({ success: false, productId: product.id });
+            continue;
           }
 
           try {
-            // Thử với payload đơn giản hơn - chỉ gửi những field cần thiết
+            console.log(`📊 Processing measurement ${i + 1}/${inventoryProducts.length} for product ${product.id}`);
+            
+            // Fetch inventory item to get the correct itemId
+            const inventoryItem = await fetchInventoryItemById(product.inventoryItemId);
+            const correctItemId = inventoryItem?.item?.id || product.id; // Fallback to product.id if fetch fails
+            
+            console.log(`🔍 ItemId correction - Product.id: ${product.id}, Inventory.item.id: ${inventoryItem?.item?.id}, Using: ${correctItemId}`);
+            
+            // Debug inventory item structure if item.id is undefined
+            if (!inventoryItem?.item?.id && inventoryItem) {
+              console.log(`🔍 InventoryItem structure:`, Object.keys(inventoryItem));
+              console.log(`🔍 InventoryItem.item:`, inventoryItem.item);
+            }
+            
+            // Payload with correct itemId from inventory item
+            // Format to match successful Swagger request exactly
             const requestData = {
-              inventoryItemId: product.inventoryItemId,
+              itemId: correctItemId,
+              actualQuantity: importOrder?.importType === "RETURN" ? (product.actual ?? 0) : null,
               actualMeasurement: Number(product.actualMeasurementValue || 0),
+              inventoryItemId: product.inventoryItemId,
             };
+            
+            console.log(`🔍 DEBUG actualQuantity logic:`, {
+              importType: importOrder?.importType,
+              isReturn: importOrder?.importType === "RETURN",
+              productActual: product.actual,
+              resultingActualQuantity: requestData.actualQuantity
+            });
             
             console.log(`📡 Calling updateImportOrderDetailMeasurement (simplified):`, {
               importOrderDetailId: product.importOrderDetailId,
@@ -204,13 +273,35 @@ const SignReceiveScreen = () => {
               }
             });
             
+            // Debug: Verify importOrderDetailId and data types
+            const importOrderDetailIdNum = Number(product.importOrderDetailId);
+            console.log(`🔍 ImportOrderDetailId validation:`, {
+              original: product.importOrderDetailId,
+              type: typeof product.importOrderDetailId,
+              converted: importOrderDetailIdNum,
+              isNaN: isNaN(importOrderDetailIdNum),
+              isValid: !isNaN(importOrderDetailIdNum) && importOrderDetailIdNum > 0
+            });
+            
+            console.log(`🔍 DEBUGGING - ImportOrderDetailId: ${importOrderDetailIdNum}, ItemId being sent: ${correctItemId}, InventoryItemId: ${product.inventoryItemId}`);
+            
+            if (isNaN(importOrderDetailIdNum) || importOrderDetailIdNum <= 0) {
+              throw new Error(`Invalid importOrderDetailId: ${product.importOrderDetailId}`);
+            }
+            
             const result = await updateImportOrderDetailMeasurement(
-              Number(product.importOrderDetailId),
+              importOrderDetailIdNum,
               requestData
             );
             
             console.log(`✅ API response for product ${product.id}:`, result);
-            return { success: !!result, productId: product.id };
+            measurementResults.push({ success: !!result, productId: product.id });
+            
+            // Thêm delay nhỏ giữa các calls để tránh race condition
+            if (i < inventoryProducts.length - 1) {
+              await new Promise(resolve => setTimeout(resolve, 200)); // 200ms delay
+            }
+            
           } catch (error) {
             console.error(`❌ Error updating measurement for product ${product.id}:`, error);
             console.error(`❌ Error details:`, {
@@ -219,11 +310,9 @@ const SignReceiveScreen = () => {
               status: error?.response?.status,
               stack: error?.stack
             });
-            return { success: false, productId: product.id };
+            measurementResults.push({ success: false, productId: product.id });
           }
-        });
-
-        const measurementResults = await Promise.all(measurementPromises);
+        }
         const successfulMeasurements = measurementResults.filter(r => r.success).length;
         const failedMeasurements = measurementResults.filter(r => !r.success);
         
@@ -231,7 +320,7 @@ const SignReceiveScreen = () => {
         
         // Nếu có inventory items, tất cả phải update thành công mới được tiếp tục
         if (failedMeasurements.length > 0) {
-          console.error("❌ Không thể cập nhật measurement cho tất cả inventory items:", failedMeasurements);
+          // console.error("❌ Không thể cập nhật measurement cho tất cả inventory items:", failedMeasurements);
           alert(`Lỗi: Không thể cập nhật measurement cho ${failedMeasurements.length} inventory items. Vui lòng thử lại.`);
           return;
         }
@@ -241,26 +330,7 @@ const SignReceiveScreen = () => {
         console.log("ℹ️ Không có inventory items nào cần cập nhật measurement");
       }
 
-      // Bước 2: Cập nhật actualQuantity cho tất cả products (logic cũ)
-      const updatePayload = products.map((p) => ({
-        itemId: p.id,
-        actualQuantity: p.actual ?? 0,
-      }));
-
-      const updateResponse = await updateImportOrderDetailsByOrderId(
-        importOrderId,
-        updatePayload
-      );
-
-      if (!updateResponse) {
-        console.log("❌ Không thể cập nhật actualQuantity.");
-        alert("Lỗi: Không thể cập nhật số lượng sản phẩm. Vui lòng thử lại.");
-        return;
-      }
-      
-      console.log("✅ Cập nhật số lượng thành công");
-
-      // Bước 3: Tạo paper (chỉ khi tất cả updates thành công)
+      // Bước 3: Tạo paper
       const paperResponse = await createPaper({
         ...paperData,
         signProviderName: paperData.signProviderName || "",

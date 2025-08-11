@@ -28,6 +28,13 @@ const useApi = () => {
           "Content-Type": "application/json",
           ...options?.headers,
         };
+        
+        // Debug: Log headers for measurement update (after headers are defined)
+        if (url.includes('/measurement/')) {
+          console.log("🔍 DEBUG Headers for measurement API:");
+          console.log("- Content-Type:", headers["Content-Type"] || "not set");
+          console.log("- Will have Authorization after interceptor");
+        }
 
         // Nếu data là FormData, bỏ Content-Type để Axios tự thêm boundary
         if (data instanceof FormData) {

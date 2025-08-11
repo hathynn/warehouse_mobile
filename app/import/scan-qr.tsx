@@ -41,6 +41,10 @@ export default function ScanQrScreen() {
   const importOrderId = useSelector(
     (state: RootState) => state.paper.importOrderId
   );
+  
+  const importType = useSelector(
+    (state: RootState) => state.paper.importType
+  );
 
   const products = useSelector((state: RootState) =>
     state.product.products.filter(
@@ -167,114 +171,117 @@ export default function ScanQrScreen() {
   //   }
   // };
 
-const handleBarCodeScanned = async ({ data }: { data: string }) => {
-  console.log("📱 QR Code scanned:", data);
-  
-  // Kiểm tra các điều kiện để ngăn quét liên tục
-  if (!isFocused || !canScan || scanInProgress.current || alertShowing.current) {
-    console.log("⏸️ Scan blocked:", { isFocused, canScan, scanInProgress: scanInProgress.current, alertShowing: alertShowing.current });
-    return;
-  }
+  const handleBarCodeScanned = async ({ data }: { data: string }) => {
+    console.log("📱 QR Code scanned:", data);
 
-  scanInProgress.current = true;
-  setCanScan(false);
-
-  try {
-    let foundProduct = null;
-    let scanMethod = "";
-    const cleanData = data.trim();
-
-    // Kiểm tra xem có phải inventoryItemId không (bắt đầu với ITM-)
-    if (cleanData.startsWith('ITM-')) {
-      // Trường hợp 1: InventoryItemId (chỉ string, không có JSON)
-      foundProduct = products.find(
-        (product) =>
-          product.inventoryItemId !== null &&
-          product.inventoryItemId === cleanData
-      );
-      scanMethod = "inventoryItemId";
-      console.log(`📦 Scanning by inventoryItemId: ${cleanData}, Found: ${!!foundProduct}`);
-
-      // Kiểm tra nếu đã đủ số lượng expected
-      if (foundProduct && foundProduct.actual >= foundProduct.expect) {
-        showAlert("Đã đủ số lượng", `Sản phẩm ${foundProduct.name} đã đủ số lượng dự kiến (${foundProduct.actual}/${foundProduct.expect})`);
-        return;
-      }
-    } else {
-      // Trường hợp 2: ItemId (có thể là JSON hoặc string)
-      try {
-        // Thử parse JSON cho itemId
-        const qrData = JSON.parse(decodeURIComponent(cleanData));
-        console.log("🔍 Parsed as JSON:", qrData);
-        
-        if (qrData.id || qrData.itemId) {
-          const itemId = qrData.id || qrData.itemId;
-          foundProduct = products.find(
-            (product) => product.id === String(itemId)
-          );
-          scanMethod = "itemId";
-          console.log(`🏷️ Scanning by itemId from JSON: ${itemId}, Found: ${!!foundProduct}`);
-        }
-      } catch (jsonError) {
-        // Không phải JSON, xử lý như itemId string
-        foundProduct = products.find(
-          (product) => product.id === cleanData
-        );
-        scanMethod = "itemId";
-        console.log(`🏷️ Scanning by itemId string: ${cleanData}, Found: ${!!foundProduct}`);
-      }
-    }
-
-    if (!foundProduct) {
-      const message = scanMethod === "inventoryItemId"
-        ? "Inventory item này không thuộc đơn nhập hiện tại."
-        : "Sản phẩm không có trong đơn nhập này.";
-      showAlert(message, "⚠️");
+    // Kiểm tra các điều kiện để ngăn quét liên tục
+    if (!isFocused || !canScan || scanInProgress.current || alertShowing.current) {
+      console.log("⏸️ Scan blocked:", { isFocused, canScan, scanInProgress: scanInProgress.current, alertShowing: alertShowing.current });
       return;
     }
 
-    await playBeep();
-    console.log("✅ Product found, updating Redux...");
+    scanInProgress.current = true;
+    setCanScan(false);
 
-    // Cập nhật Redux theo phương thức quét
-    if (scanMethod === "inventoryItemId") {
-      // Với inventoryItemId: cập nhật actual quantity (không phải measurementValue)
-      dispatch(
-        updateProduct({
-          id: foundProduct.id,
-          actual: foundProduct.actual + 1,
-        })
-      );
-    } else {
-      // Với itemId: cập nhật actual quantity
-      dispatch(
-        updateProduct({
-          id: foundProduct.id,
-          actual: foundProduct.actual + 1,
-        })
-      );
+    try {
+      let foundProduct = null;
+      let scanMethod = "";
+      const cleanData = data.trim();
+
+      // Kiểm tra xem có phải inventoryItemId không (bắt đầu với ITM-)
+      if (cleanData.startsWith('ITM-')) {
+        // Trường hợp 1: InventoryItemId (chỉ string, không có JSON)
+        foundProduct = products.find(
+          (product) =>
+            product.inventoryItemId !== null &&
+            product.inventoryItemId === cleanData
+        );
+        scanMethod = "inventoryItemId";
+        console.log(`📦 Scanning by inventoryItemId: ${cleanData}, Found: ${!!foundProduct}`);
+        if (foundProduct) {
+          console.log(`📦 Found product ID: ${foundProduct.id}, name: ${foundProduct.name}, inventoryItemId: ${foundProduct.inventoryItemId}`);
+        }
+
+        // Kiểm tra nếu đã đủ số lượng expected - inventory item chỉ được quét 1 lần
+        // if (foundProduct && foundProduct.actual >= foundProduct.expect) {
+        //   showAlert("Đã đủ số lượng", `Inventory item ${foundProduct.name} đã được quét đủ số lượng dự kiến (${foundProduct.actual}/${foundProduct.expect}). Không thể quét thêm.`);
+        //   return;
+        // }
+      } else {
+        // Trường hợp 2: ItemId (có thể là JSON hoặc string)
+        try {
+          // Thử parse JSON cho itemId
+          const qrData = JSON.parse(decodeURIComponent(cleanData));
+          console.log("🔍 Parsed as JSON:", qrData);
+
+          if (qrData.id || qrData.itemId) {
+            const itemId = qrData.id || qrData.itemId;
+            foundProduct = products.find(
+              (product) => product.id === String(itemId)
+            );
+            scanMethod = "itemId";
+            console.log(`🏷️ Scanning by itemId from JSON: ${itemId}, Found: ${!!foundProduct}`);
+          }
+        } catch (jsonError) {
+          // Không phải JSON, xử lý như itemId string
+          foundProduct = products.find(
+            (product) => product.id === cleanData
+          );
+          scanMethod = "itemId";
+          console.log(`🏷️ Scanning by itemId string: ${cleanData}, Found: ${!!foundProduct}`);
+        }
+      }
+
+      if (!foundProduct) {
+        const message = scanMethod === "inventoryItemId"
+          ? "Inventory item này không thuộc đơn nhập hiện tại."
+          : "Sản phẩm không có trong đơn nhập này.";
+        showAlert(message, "⚠️");
+        return;
+      }
+
+      await playBeep();
+      console.log("✅ Product found, updating Redux...");
+
+      // Cập nhật Redux theo phương thức quét
+      if (scanMethod === "inventoryItemId") {
+        // Với inventoryItemId: cập nhật actual quantity (không phải measurementValue)
+        dispatch(
+          updateProduct({
+            id: foundProduct.id,
+            actual: foundProduct.actual + 1,
+          })
+        );
+      } else {
+        // Với itemId: cập nhật actual quantity
+        dispatch(
+          updateProduct({
+            id: foundProduct.id,
+            actual: foundProduct.actual + 1,
+          })
+        );
+      }
+
+      setLastScannedProduct({
+        ...foundProduct,
+        actual: foundProduct.actual + 1, // Cả hai trường hợp đều tăng actual
+        measurementValue: foundProduct.measurementValue, // Giữ nguyên measurementValue
+        scannedBy: scanMethod,
+      });
+
+      // Reset sau khi quét thành công
+      const resetDelay = scanMethod === "inventoryItemId" ? 5000 : 2000; // 5s cho inventory, 2s cho item
+      setTimeout(() => {
+        setLastScannedProduct(null);
+        scanInProgress.current = false;
+        setCanScan(true);
+      }, resetDelay);
+
+    } catch (error) {
+      console.error("❌ Lỗi xử lý QR:", error);
+      showAlert("Không thể xử lý mã QR này.", "❌");
     }
-
-    setLastScannedProduct({
-      ...foundProduct,
-      actual: foundProduct.actual + 1, // Cả hai trường hợp đều tăng actual
-      measurementValue: foundProduct.measurementValue, // Giữ nguyên measurementValue
-      scannedBy: scanMethod,
-    });
-
-    // Reset sau khi quét thành công
-    const resetDelay = scanMethod === "inventoryItemId" ? 5000 : 2000; // 5s cho inventory, 2s cho item
-    setTimeout(() => {
-      setLastScannedProduct(null);
-      scanInProgress.current = false;
-      setCanScan(true);
-    }, resetDelay);
-    
-  } catch (error) {
-    console.error("❌ Lỗi xử lý QR:", error);
-    showAlert("Không thể xử lý mã QR này.", "❌");
-  }
-};
+  };
 
   const handleScanAgain = () => {
     setError(null);
@@ -290,19 +297,20 @@ const handleBarCodeScanned = async ({ data }: { data: string }) => {
     router.push(`/import/confirm-manual/${importOrderId}`);
   };
 
-const handleConfirm = () => {
-  if (lastScannedProduct?.id) {
-    router.push({
-      pathname: "/import/detail-product/[id]",
-      params: { 
-        id: lastScannedProduct.id.toString(),
-        scanMethod: lastScannedProduct.scannedBy 
-      },
-    });
-  } else {
-    showAlert("Lỗi", "Không tìm thấy mã sản phẩm.");
-  }
-};
+  const handleConfirm = () => {
+    if (lastScannedProduct?.id) {
+      router.push({
+        pathname: "/import/detail-product/[id]",
+        params: {
+          id: lastScannedProduct.id.toString(),
+          scanMethod: lastScannedProduct.scannedBy,
+          inventoryItemId: lastScannedProduct.inventoryItemId || "",
+        },
+      });
+    } else {
+      showAlert("Lỗi", "Không tìm thấy mã sản phẩm.");
+    }
+  };
   if (hasPermission === null) return <Text>Đang xin quyền camera...</Text>;
   if (hasPermission === false) return <Text>Không có quyền dùng camera</Text>;
 
@@ -333,30 +341,28 @@ const handleConfirm = () => {
             <View style={styles.productBox}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.productTitle}>
-                  {lastScannedProduct.id} - ({lastScannedProduct.actual}/
-                  {lastScannedProduct.expect})
+                  {lastScannedProduct.id}
+                  {importType !== "RETURN" && ` - (${lastScannedProduct.actual}/${lastScannedProduct.expect})`}
                 </Text>
                 <Text style={styles.productName}>
                   {lastScannedProduct.name}
                 </Text>
-                <Text
-                  style={[
-                    styles.scanMethod,
-                    {
-                      color:
-                        lastScannedProduct.scannedBy === "inventoryItemId"
-                          ? "#10b981"
-                          : "#3b82f6",
-                      fontSize: 12,
-                      marginTop: 4,
-                    },
-                  ]}
-                >
-                  {lastScannedProduct.scannedBy === "inventoryItemId" &&
-                  lastScannedProduct.inventoryItemId
-                    ? `📦 Inventory: ${lastScannedProduct.inventoryItemId}`
-                    : "🏷️ Quét bằng mã sản phẩm"}
-                </Text>
+                {lastScannedProduct.scannedBy === "inventoryItemId" &&
+                  lastScannedProduct.inventoryItemId && (
+                    <Text
+                      style={[
+                        styles.scanMethod,
+                        {
+                          color: "#10b981",
+                          fontSize: 12,
+                          marginTop: 4,
+                        },
+                      ]}
+                    >
+                      Mã inventory: {lastScannedProduct.inventoryItemId}
+                    </Text>
+                  )}
+
               </View>
 
               <View className="flex-row">

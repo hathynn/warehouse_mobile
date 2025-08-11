@@ -54,15 +54,37 @@ const productSlice = createSlice({
     product.measurementValue = action.payload.measurementValue;
   }
 },
-    updateActual: (state, action: PayloadAction<{ id: string; actual?: number; actualMeasurementValue?: number }>) => {
-      const product = state.products.find((p) => p.id === action.payload.id);
+    updateActual: (state, action: PayloadAction<{ 
+      id: string; 
+      actual?: number; 
+      actualMeasurementValue?: number;
+      inventoryItemId?: string;
+    }>) => {
+      console.log(`🔄 Redux updateActual - Looking for product ID: ${action.payload.id}, inventoryItemId: ${action.payload.inventoryItemId}`);
+      
+      let product;
+      // Nếu có inventoryItemId, tìm theo inventoryItemId
+      if (action.payload.inventoryItemId) {
+        product = state.products.find((p) => p.inventoryItemId === action.payload.inventoryItemId);
+        console.log(`🔍 Searching by inventoryItemId: ${action.payload.inventoryItemId}`);
+      } else {
+        // Ngược lại tìm theo id như cũ
+        product = state.products.find((p) => p.id === action.payload.id);
+        console.log(`🔍 Searching by productId: ${action.payload.id}`);
+      }
+      
       if (product) {
+        console.log(`✅ Found product: ${product.name}, inventoryItemId: ${product.inventoryItemId}`);
         if (action.payload.actual !== undefined) {
           product.actual = action.payload.actual;
+          console.log(`📊 Updated actual quantity to: ${action.payload.actual}`);
         }
         if (action.payload.actualMeasurementValue !== undefined) {
           product.actualMeasurementValue = action.payload.actualMeasurementValue;
+          console.log(`📏 Updated actualMeasurementValue to: ${action.payload.actualMeasurementValue}`);
         }
+      } else {
+        console.warn(`❌ Product not found - ID: ${action.payload.id}, inventoryItemId: ${action.payload.inventoryItemId}`);
       }
     },
   },

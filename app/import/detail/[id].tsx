@@ -13,10 +13,11 @@ import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import useImportOrder from "@/services/useImportOrderService";
-import { ImportOrderStatus } from "@/types/importOrder.type";
+import { ImportOrderStatus, ImportType } from "@/types/importOrder.type";
 import StatusBadge from "@/components/StatusBadge";
 import useImportOrderDetailService from "@/services/useImportOrderDetailService";
 import useInventoryService from "@/services/useInventoryService";
+import useItemService from "@/services/useItemService";
 import ImportOrderDetailsTable from "@/components/ui/ImportOrderDetailsTable";
 import { useDispatch } from "react-redux";
 import { setProducts } from "@/redux/productSlice";
@@ -39,6 +40,7 @@ const ImportOrderScreen: React.FC = () => {
   const { resetPaperById } = usePaperService();
 
   const { fetchInventoryItemsByImportOrderDetailId } = useInventoryService();
+  const { getItemDetailById } = useItemService();
 
   const {
     loading: loadingOrder,
@@ -82,12 +84,24 @@ const ImportOrderScreen: React.FC = () => {
           detail.importOrderDetailId
         );
 
+        // Get item details to fetch measurement unit for return imports
+        let measurementUnit = undefined;
+        if (order.importType === ImportType.RETURN) {
+          const itemDetails = await getItemDetailById(detailData.itemId);
+          measurementUnit = itemDetails?.measurementUnit;
+        }
+
         return {
           id: detailData.importOrderDetailId.toString(),
           productName: detailData.itemName,
           sku: `Mã sản phẩm ${detailData.itemId}`,
+          itemId: detailData.itemId,
+          inventoryItemId: detailData.inventoryItemId,
           expectedQuantity: detailData.expectQuantity,
           countedQuantity: detailData.actualQuantity,
+          expectedMeasurementValue: detailData.expectMeasurementValue,
+          actualMeasurementValue: detailData.actualMeasurementValue,
+          measurementUnit: measurementUnit,
           status: order.status,
           products: inventoryItems.map((inv: any) => ({
             id: inv.id,
@@ -150,12 +164,24 @@ const ImportOrderScreen: React.FC = () => {
             detail.importOrderDetailId
           );
 
+          // Get item details to fetch measurement unit for return imports
+          let measurementUnit = undefined;
+          if (order.importType === ImportType.RETURN) {
+            const itemDetails = await getItemDetailById(detailData.itemId);
+            measurementUnit = itemDetails?.measurementUnit;
+          }
+
           return {
             id: detailData.importOrderDetailId.toString(),
             productName: detailData.itemName,
             sku: `Mã sản phẩm ${detailData.itemId}`,
+            itemId: detailData.itemId,
+            inventoryItemId: detailData.inventoryItemId,
             expectedQuantity: detailData.expectQuantity,
             countedQuantity: detailData.actualQuantity,
+            expectedMeasurementValue: detailData.expectMeasurementValue,
+            actualMeasurementValue: detailData.actualMeasurementValue,
+            measurementUnit: measurementUnit,
             status: order.status,
             products: inventoryItems.map((inv: any) => ({
               id: inv.id, // Sửa lại để trùng với interface
@@ -294,7 +320,11 @@ const ImportOrderScreen: React.FC = () => {
                 dispatch(setProducts(products));
                 console.log("Product: ", products)
                 dispatch(
-                  setPaperData({ importOrderId: importOrder.importOrderId })
+                  setPaperData({ 
+                    importOrderId: importOrder.importOrderId,
+                    importType: importOrder.importType,
+                    exportRequestId: null // Clear export request để tránh nhầm lẫn workflow
+                  })
                 );
 
                 router.push("/import/scan-qr");
@@ -353,7 +383,11 @@ const ImportOrderScreen: React.FC = () => {
 
                 dispatch(setProducts(products));
                 dispatch(
-                  setPaperData({ importOrderId: importOrder.importOrderId })
+                  setPaperData({ 
+                    importOrderId: importOrder.importOrderId,
+                    importType: importOrder.importType,
+                    exportRequestId: null // Clear export request để tránh nhầm lẫn workflow
+                  })
                 );
 
                 router.push(`/import/confirm/${importOrder.importOrderId}`);
@@ -370,6 +404,7 @@ const ImportOrderScreen: React.FC = () => {
         <ImportOrderDetailsTable
           importOrderDetails={importOrderDetails}
           onStorageComplete={handleStorageComplete}
+          importType={importOrder?.importType}
         />
       </ScrollView>
     </View>
