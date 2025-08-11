@@ -137,6 +137,111 @@ const useImportOrderDetail = () => {
     [callApi]
   );
 
+const updateImportOrderDetailMeasurement = useCallback(
+  async (
+    importOrderDetailId: number,
+    data: {
+      inventoryItemId: string;
+      actualMeasurement: number;
+      itemId?: string;
+      actualQuantity?: number;
+    }
+  ) => {
+    if (!importOrderDetailId || !data.inventoryItemId) {
+      console.error("Missing required fields for measurement update:", {
+        importOrderDetailId,
+        inventoryItemId: data.inventoryItemId
+      });
+      return null;
+    }
+
+    setLoading(true);
+    try {
+      console.log("→ [API] PUT /import-order-detail/measurement/" + importOrderDetailId, data);
+      console.log("📋 Request details:", {
+        endpoint: `/import-order-detail/measurement/${importOrderDetailId}`,
+        method: "PUT",
+        payload: {
+          actualMeasurement: data.actualMeasurement,
+          inventoryItemId: data.inventoryItemId,
+          itemId: data.itemId,
+          actualQuantity: data.actualQuantity
+        },
+        payloadKeys: Object.keys(data),
+        payloadTypes: Object.keys(data).map(key => typeof data[key]),
+        payloadSize: JSON.stringify(data).length
+      });
+      
+      // Debug: Log full request details including headers
+      console.log("🔍 FULL REQUEST DEBUG:");
+      const fullURL = `https://warehouse-backend-jlcj5.ondigitalocean.app/import-order-detail/measurement/${importOrderDetailId}`;
+      console.log("- URL:", fullURL);
+      console.log("- importOrderDetailId param:", {
+        value: importOrderDetailId,
+        type: typeof importOrderDetailId,
+        isNumber: typeof importOrderDetailId === 'number',
+        isInteger: Number.isInteger(importOrderDetailId)
+      });
+      console.log("- Method: PUT");
+      console.log("- Body (JSON):", JSON.stringify(data, null, 2));
+      console.log("- Body (stringified length):", JSON.stringify(data).length);
+      console.log("- Data types:", Object.entries(data).map(([key, value]) => `${key}: ${typeof value} (${value})`));
+      
+      console.log("🔍 SWAGGER COMPARISON:");
+      console.log("✅ SWAGGER WORKING FORMAT:");
+      console.log(JSON.stringify({
+        itemId: "VAI-JE-001",
+        actualQuantity: null,
+        actualMeasurement: 140,
+        inventoryItemId: "ITM-VAI-JE-001-DN-PN-20250811-001-P1-1-7"
+      }, null, 2));
+      
+      console.log("📱 MOBILE REQUEST FORMAT:");
+      console.log(JSON.stringify(data, null, 2));
+      
+      console.log("🔍 EXACT MATCH CHECK:");
+      const expectedFormat = {
+        itemId: data.itemId,
+        actualQuantity: null,
+        actualMeasurement: data.actualMeasurement,
+        inventoryItemId: data.inventoryItemId
+      };
+      console.log("Expected order:", Object.keys(expectedFormat));
+      console.log("Actual order:", Object.keys(data));
+      console.log("Order matches:", JSON.stringify(Object.keys(expectedFormat)) === JSON.stringify(Object.keys(data)));
+      
+      const response = await callApi(
+        "put",
+        `/import-order-detail/measurement/${importOrderDetailId}`,
+        data
+      );
+      console.log("← [API SUCCESS] Measurement update response:", response);
+      
+      // Debug: Check if response indicates actual success
+      if (response?.statusCode === 200 && response?.details) {
+        console.log("✅ API confirmed success:", response.details);
+        // Note: Verification disabled due to backend persistence issue
+        // The API returns success but data may not be immediately persisted
+      } else {
+        console.warn("⚠️ API response format unexpected:", {
+          statusCode: response?.statusCode,
+          hasContent: !!response?.content,
+          hasDetails: !!response?.details
+        });
+      }
+      
+      return response;
+    } catch (error) {
+      console.error("← [API ERROR]", error?.response?.status, error?.message);
+      console.error("Lỗi khi cập nhật actual measurement:", error);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  },
+  [callApi]
+);
+
   return {
     loading,
     inventoryItems,
@@ -147,6 +252,7 @@ const useImportOrderDetail = () => {
     fetchInventoryItemsByImportOrderDetailId,
     updateImportOrderDetail,
     updateImportOrderDetailsByOrderId,
+    updateImportOrderDetailMeasurement
   };
 };
 

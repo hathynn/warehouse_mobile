@@ -123,6 +123,11 @@ const KeeperSignScreen = () => {
     name: `Sản phẩm ${item.itemId}`,
     actual: item.actualQuantity ?? 0,
     expect: item.quantity ?? 0,
+    // Check if this item has inventory items (for demonstration)
+    inventoryItemId: item.inventoryItemIds && item.inventoryItemIds.length > 0 ? item.inventoryItemIds[0] : undefined,
+    actualMeasurementValue: item.actualMeasurementValue ?? 0,
+    expectMeasurementValue: item.expectMeasurementValue ?? 0,
+    itemId: item.itemId,
   }));
 
   return (

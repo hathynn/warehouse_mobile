@@ -64,12 +64,27 @@ const Confirm = () => {
   };
 
   const confirmUpdate = () => {
-    const quantity = parseInt(inputValue);
-    if (!isNaN(quantity) && selectedProductId !== null) {
-      dispatch(updateActual({ id: selectedProductId, actual: quantity }));
+    const value = parseFloat(inputValue);
+    if (!isNaN(value) && selectedProductId !== null) {
+      const selectedProduct = filteredProducts.find(p => p.id === selectedProductId);
+      
+      if (selectedProduct?.inventoryItemId) {
+        // Cập nhật giá trị đo lường cho inventory item
+        dispatch(updateActual({ 
+          id: selectedProductId, 
+          actualMeasurementValue: value 
+        }));
+      } else {
+        // Cập nhật số lượng cho sản phẩm thông thường
+        dispatch(updateActual({ 
+          id: selectedProductId, 
+          actual: Math.floor(value) 
+        }));
+      }
     }
     setModalVisible(false);
   };
+
 
   return (
     <View className="flex-1">
@@ -181,34 +196,85 @@ const Confirm = () => {
                 header={
                   <View style={{ flexDirection: "row", alignItems: "center" }}>
                     <Text style={{ fontWeight: "600" }}>
-                      Sản phẩm: {product.name}
+                      {product.inventoryItemId ? 
+                        `Inventory: ${product.inventoryItemId}` : 
+                        `Sản phẩm: ${product.name}`
+                      }
                     </Text>
                   </View>
                 }
               >
-                <View
-                  style={{
-                    flexDirection: "row",
-                    justifyContent: "space-between",
-                    marginBottom: 10,
-                  }}
-                >
-                  <Text>Số lượng yêu cầu</Text>
-                  <Text>{product.expect}</Text>
-                </View>
-                <View
-                  style={{
-                    flexDirection: "row",
-                    justifyContent: "space-between",
-                    marginBottom: 10,
-                  }}
-                >
-                  <Text>Số lượng thực tế</Text>
-                  <Text>{product.actual}</Text>
-                </View>
-                <Button onPress={() => handleUpdateQuantity(product.id)}>
-                  Cập nhật số lượng
-                </Button>
+                {product.inventoryItemId ? (
+                  // Hiển thị cho inventoryItemId
+                  <>
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        justifyContent: "space-between",
+                        marginBottom: 10,
+                      }}
+                    >
+                      <Text>Tên sản phẩm</Text>
+                      <Text>{product.name}</Text>
+                    </View>
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        justifyContent: "space-between",
+                        marginBottom: 10,
+                      }}
+                    >
+                      <Text>Giá trị đo lường yêu cầu</Text>
+                      <Text>
+                        {product.expectMeasurementValue || 0}
+                        {product.measurementUnit && ` ${product.measurementUnit}`}
+                      </Text>
+                    </View>
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        justifyContent: "space-between",
+                        marginBottom: 10,
+                      }}
+                    >
+                      <Text>Giá trị đo lường thực tế</Text>
+                      <Text>
+                        {product.actualMeasurementValue || 0}
+                        {product.measurementUnit && ` ${product.measurementUnit}`}
+                      </Text>
+                    </View>
+                    <Button onPress={() => handleUpdateQuantity(product.id)}>
+                      Cập nhật giá trị đo lường
+                    </Button>
+                  </>
+                ) : (
+                  // Hiển thị cho sản phẩm thông thường
+                  <>
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        justifyContent: "space-between",
+                        marginBottom: 10,
+                      }}
+                    >
+                      <Text>Số lượng yêu cầu</Text>
+                      <Text>{product.expect}</Text>
+                    </View>
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        justifyContent: "space-between",
+                        marginBottom: 10,
+                      }}
+                    >
+                      <Text>Số lượng thực tế</Text>
+                      <Text>{product.actual}</Text>
+                    </View>
+                    <Button onPress={() => handleUpdateQuantity(product.id)}>
+                      Cập nhật số lượng
+                    </Button>
+                  </>
+                )}
               </AccordionItem>
             ))}
           </Accordion>
@@ -229,7 +295,7 @@ const Confirm = () => {
           </Checkbox>
 
           <Label onPress={() => setIsChecked(!isChecked)} fontSize="$4">
-            Tôi xác nhận đã nhập đúng số lượng sản phẩm
+            Tôi xác nhận đã nhập đúng thông tin sản phẩm
           </Label>
         </XStack>
 
@@ -257,13 +323,20 @@ const Confirm = () => {
         <View className="flex-1 justify-center items-center bg-black/10 px-6">
           <View className="bg-white p-6 rounded-xl w-full">
             <Text className="text-lg font-semibold mb-2">
-              Nhập số lượng mới
+              {filteredProducts.find(p => p.id === selectedProductId)?.inventoryItemId ? 
+                "Nhập giá trị đo lường mới" : 
+                "Nhập số lượng mới"
+              }
             </Text>
             <Input
               value={inputValue}
               onChangeText={setInputValue}
               keyboardType="numeric"
-              placeholder="Nhập số lượng"
+              placeholder={
+                filteredProducts.find(p => p.id === selectedProductId)?.inventoryItemId ? 
+                "Nhập giá trị đo lường" : 
+                "Nhập số lượng"
+              }
               className="border border-gray-300 p-3 rounded-md mb-4"
             />
             <View className="flex-row justify-end gap-2 mt-3">

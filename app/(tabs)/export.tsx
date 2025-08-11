@@ -34,6 +34,7 @@ interface StatusTab {
   title: string;
   status: ExportRequestStatus | "ALL";
   count: number;
+  roles?: string[];
 }
 
 // Component hiển thị thông tin với icon
@@ -137,8 +138,8 @@ function ExportListComponent() {
   const dispatch = useDispatch();
   const insets = useSafeAreaInsets();
 
-  const { fetchExportRequestsByStaffId } = useExportRequest();
-  const { data: exportRequests, isLoading } = useQuery({
+  const { fetchExportRequestsByStaffId, filterExportRequestsByRole } = useExportRequest();
+  const { data: allExportRequests, isLoading } = useQuery({
     queryKey: ["export-requests", userId],
     queryFn: () => {
       if (!userId || !user || isLoggingOut) {
@@ -150,7 +151,12 @@ function ExportListComponent() {
     enabled: !!userId && !!user && !isLoggingOut,
   });
 
-  // Định nghĩa các tab status
+  // Filter requests theo role của user
+  const exportRequests = userId && allExportRequests 
+    ? filterExportRequestsByRole(allExportRequests, Number(userId))
+    : [];
+
+  // Định nghĩa các tab status - luôn hiển thị tất cả tabs
   const getStatusTabs = (): StatusTab[] => {
     const validRequests =
       exportRequests?.filter(
@@ -158,6 +164,7 @@ function ExportListComponent() {
           request.status !== ExportRequestStatus.CANCELLED
       ) || [];
 
+    // Luôn return tất cả tabs, chỉ count từ filtered requests
     return [
       {
         key: "IN_PROGRESS",
@@ -187,6 +194,15 @@ function ExportListComponent() {
         ).length,
       },
       {
+        key: "CONFIRMED",
+        title: "Đã xuất kho",
+        status: ExportRequestStatus.CONFIRMED,
+        count: validRequests.filter(
+          (request: ExportRequestType) =>
+            request.status === ExportRequestStatus.CONFIRMED
+        ).length,
+      },
+      {
         key: "WAITING_EXPORT",
         title: "Chờ xuất kho",
         status: ExportRequestStatus.WAITING_EXPORT,
@@ -206,6 +222,9 @@ function ExportListComponent() {
       },
     ];
   };
+
+  const statusTabs = getStatusTabs();
+
 
   // Lọc dữ liệu theo tab active và search
   const getFilteredData = () => {
@@ -352,7 +371,6 @@ function ExportListComponent() {
   );
 
   const filteredData = getFilteredData();
-  const statusTabs = getStatusTabs();
 
   return (
     <View style={styles.container}>

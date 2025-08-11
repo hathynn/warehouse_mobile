@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   SafeAreaView,
   ScrollView,
@@ -16,31 +16,44 @@ import {
 import { useLocalSearchParams, router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useDispatch, useSelector } from "react-redux";
-import { updateProductActual } from "@/redux/productSlice";
+import { updateProductActual, updateActual } from "@/redux/productSlice";
 import { RootState } from "@/redux/store";
 
 export default function SuccessPage() {
-  const { id } = useLocalSearchParams<{ id: any }>();
+  const { id, scanMethod, inventoryItemId } = useLocalSearchParams<{ 
+    id: any; 
+    scanMethod?: string; 
+    inventoryItemId?: string;
+  }>();
   const productId = id;
   const dispatch = useDispatch();
+
+  // Xác định loại input dựa vào scanMethod (move lên trước selector)
+  const isInventoryItemScan = scanMethod === 'inventoryItemId';
 
   const importOrderId = useSelector(
     (state: RootState) => state.paper.importOrderId
   );
 
-const product = useSelector((state: RootState) =>
-  state.product.products.find((p) => p.id === productId)
-);
+  const product = useSelector((state: RootState) => {
+    // Nếu có inventoryItemId và đang scan inventory item, tìm theo inventoryItemId
+    if (inventoryItemId && isInventoryItemScan) {
+      return state.product.products.find((p) => p.inventoryItemId === inventoryItemId);
+    }
+    // Ngược lại, tìm theo productId như cũ
+    return state.product.products.find((p) => p.id === productId);
+  });
+  
+  console.log(`🔍 Detail-product page - ProductID: ${productId}, inventoryItemId param: ${inventoryItemId}, isInventoryItemScan: ${isInventoryItemScan}, Found product:`, {
+    id: product?.id,
+    name: product?.name, 
+    itemId: product?.itemId,
+    inventoryItemId: product?.inventoryItemId,
+    actualMeasurementValue: product?.actualMeasurementValue
+  });
 
   const [quantity, setQuantity] = useState("0");
-
-  // useEffect(() => {
-  //   if (!isNaN(Number(quantity))) {
-  //     dispatch(
-  //       updateProductActual({ productId: id, actual: Number(quantity) })
-  //     );
-  //   }
-  // }, [quantity]);
+  const [measurementValue, setMeasurementValue] = useState("0");
 
   const [fadeAnim] = useState(new Animated.Value(0));
   const [translateY] = useState(new Animated.Value(20));
@@ -61,27 +74,65 @@ const product = useSelector((state: RootState) =>
   }, []);
 
   const handleSubmit = () => {
-    const toAdd = parseInt(quantity) || 0;
-    const newActual = (product?.actual || 0) + toAdd;
+    // Update measurement value immediately for inventory item scans
+    if (isInventoryItemScan && product?.inventoryItemId) {
+      const newMeasurementValue = parseFloat(measurementValue) || 0;
+      dispatch(updateActual({ 
+        id: productId, 
+        actualMeasurementValue: newMeasurementValue,
+        inventoryItemId: product.inventoryItemId
+      }));
+    }
 
-    Animated.sequence([
-      Animated.timing(fadeAnim, {
-        toValue: 0.7,
-        duration: 100,
-        useNativeDriver: true,
-      }),
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 200,
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      dispatch(updateProductActual({ productId, actual: newActual }));
-      router.push(`/import/confirm/${importOrderId}`);
-    });
+    if (isInventoryItemScan) {
+      // Measurement value đã được cập nhật realtime, chỉ cần navigate
+      Animated.sequence([
+        Animated.timing(fadeAnim, {
+          toValue: 0.7,
+          duration: 100,
+          useNativeDriver: true,
+        }),
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+      ]).start(() => {
+        router.push(`/import/confirm/${importOrderId}`);
+      });
+    } else {
+      // Cập nhật actual quantity cho item scan (logic cũ)
+      const toAdd = parseInt(quantity) || 0;
+      const newActual = (product?.actual || 0) + toAdd;
+
+      Animated.sequence([
+        Animated.timing(fadeAnim, {
+          toValue: 0.7,
+          duration: 100,
+          useNativeDriver: true,
+        }),
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+      ]).start(() => {
+        dispatch(updateProductActual({ productId, actual: newActual }));
+        router.push(`/import/confirm/${importOrderId}`);
+      });
+    }
   };
 
   const handleBackToScan = () => {
+    // Update measurement value immediately for inventory item scans before going back
+    if (isInventoryItemScan && product?.inventoryItemId) {
+      const newMeasurementValue = parseFloat(measurementValue) || 0;
+      dispatch(updateActual({ 
+        id: productId, 
+        actualMeasurementValue: newMeasurementValue,
+        inventoryItemId: product.inventoryItemId
+      }));
+    }
     router.push(`/import/scan-qr?id=${importOrderId}`);
   };
 
@@ -108,7 +159,10 @@ const product = useSelector((state: RootState) =>
               <View style={styles.centered}>
                 <Text style={styles.title}>Quét thành công!</Text>
                 <Text style={styles.subtitle}>
-                  Vui lòng kiểm tra lại số lượng sản phẩm trước khi xác nhận
+                  {isInventoryItemScan 
+                    ? "Vui lòng nhập giá trị đo lường của sản phẩm"
+                    : "Vui lòng kiểm tra lại số lượng sản phẩm trước khi xác nhận"
+                  }
                 </Text>
               </View>
 
@@ -120,33 +174,81 @@ const product = useSelector((state: RootState) =>
                       <Text style={styles.value}>{product.name}</Text>
                     </View>
 
-                    <View style={styles.row}>
-                      <Text style={styles.label}>Số lượng dự kiến</Text>
-                      <Text style={styles.value}>{product.expect}</Text>
-                    </View>
+                    {isInventoryItemScan && (
+                      <View style={styles.row}>
+                        <Text style={styles.label}>Inventory Item ID</Text>
+                        <Text style={styles.inventoryValue}>{product.inventoryItemId}</Text>
+                      </View>
+                    )}
 
-                  
+                    {!isInventoryItemScan && (
+                      <>
+                        <View style={styles.row}>
+                          <Text style={styles.label}>Số lượng dự kiến</Text>
+                          <Text style={styles.value}>{product.expect}</Text>
+                        </View>
 
-                    <View style={styles.row}>
-                      <Text style={styles.label}>Số lượng kiểm đếm</Text>
-                      <Text style={styles.valueBold}>
-                        {(product?.actual || 0) + (parseInt(quantity) || 0)}
-                      </Text>
-                    </View>
+                        <View style={styles.row}>
+                          <Text style={styles.label}>Số lượng kiểm đếm</Text>
+                          <Text style={styles.valueBold}>
+                            {(product?.actual || 0) + (parseInt(quantity) || 0)}
+                          </Text>
+                        </View>
+                      </>
+                    )}
+
+                    {isInventoryItemScan && (
+                      <>
+                        <View style={styles.row}>
+                          <Text style={styles.label}>Giá trị đo dự kiến</Text>
+                          <Text style={styles.value}>
+                            {product.expectMeasurementValue || 0}
+                            {product.measurementUnit && ` ${product.measurementUnit}`}
+                          </Text>
+                        </View>
+
+                        <View style={styles.row}>
+                          <Text style={styles.label}>Giá trị đo hiện tại</Text>
+                          <Text style={styles.valueBold}>
+                            {parseFloat(measurementValue) || product?.actualMeasurementValue || 0}
+                            {product.measurementUnit && ` ${product.measurementUnit}`}
+                          </Text>
+                        </View>
+                      </>
+                    )}
                   </>
                 )}
 
                 <View style={styles.separator} />
 
                 <View style={styles.inputContainer}>
-                  <Text style={styles.inputLabel}>Số lượng:</Text>
+                  <Text style={styles.inputLabel}>
+                    {isInventoryItemScan ? "Giá trị đo lường:" : "Số lượng:"}
+                  </Text>
                   <View style={styles.quantityInput}>
                     <TouchableOpacity
                       style={styles.quantityButton}
                       onPress={() => {
-                        const current = parseInt(quantity) || 0;
-                        if (current > 1) {
-                          setQuantity((current - 1).toString());
+                        if (isInventoryItemScan) {
+                          const current = parseFloat(measurementValue) || 0;
+                          if (current >= 1) {
+                            const newValue = (current - 1).toString();
+                            setMeasurementValue(newValue);
+                            
+                            // Update Redux immediately
+                            if (product?.inventoryItemId) {
+                              dispatch(updateActual({ 
+                                id: productId, 
+                                actualMeasurementValue: current - 1,
+                                inventoryItemId: product.inventoryItemId
+                              }));
+                            }
+                          }
+                        } else {
+                          const current = parseInt(quantity) || 0;
+                          if (current > 1) {
+                            setQuantity((current - 1).toString());
+                          }
                         }
                       }}
                     >
@@ -155,20 +257,54 @@ const product = useSelector((state: RootState) =>
 
                     <TextInput
                       style={styles.input}
-                      value={quantity}
+                      value={isInventoryItemScan ? measurementValue : quantity}
                       onChangeText={(text) => {
-                        const numericText = text.replace(/[^0-9]/g, "");
-                        setQuantity(numericText);
+                        if (isInventoryItemScan) {
+                          // Cho phép số thập phân cho measurement
+                          const numericText = text.replace(/[^0-9.]/g, "");
+                          setMeasurementValue(numericText);
+                          
+                          // Update Redux immediately when measurement value changes
+                          if (product?.inventoryItemId && numericText) {
+                            const newMeasurementValue = parseFloat(numericText) || 0;
+                            console.log(`📝 Updating measurement value for productId: ${productId}, inventoryItemId: ${product.inventoryItemId}, newValue: ${newMeasurementValue}`);
+                            dispatch(updateActual({ 
+                              id: productId, 
+                              actualMeasurementValue: newMeasurementValue,
+                              inventoryItemId: product.inventoryItemId // Pass inventoryItemId for precise targeting
+                            }));
+                          }
+                        } else {
+                          // Chỉ số nguyên cho quantity
+                          const numericText = text.replace(/[^0-9]/g, "");
+                          setQuantity(numericText);
+                        }
                       }}
-                      keyboardType="numeric"
+                      keyboardType={isInventoryItemScan ? "decimal-pad" : "numeric"}
                       textAlign="center"
+                      placeholder={isInventoryItemScan ? "0.0" : "0"}
                     />
 
                     <TouchableOpacity
                       style={styles.quantityButton}
                       onPress={() => {
-                        const current = parseInt(quantity) || 0;
-                        setQuantity((current + 1).toString());
+                        if (isInventoryItemScan) {
+                          const current = parseFloat(measurementValue) || 0;
+                          const newValue = (current + 1).toString();
+                          setMeasurementValue(newValue);
+                          
+                          // Update Redux immediately
+                          if (product?.inventoryItemId) {
+                            dispatch(updateActual({ 
+                              id: productId, 
+                              actualMeasurementValue: current + 1,
+                              inventoryItemId: product.inventoryItemId
+                            }));
+                          }
+                        } else {
+                          const current = parseInt(quantity) || 0;
+                          setQuantity((current + 1).toString());
+                        }
                       }}
                     >
                       <Ionicons name="add" size={22} color="#1677ff" />
@@ -210,6 +346,7 @@ const product = useSelector((state: RootState) =>
   );
 }
 
+// Styles giữ nguyên
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -282,6 +419,14 @@ const styles = StyleSheet.create({
   value: {
     fontSize: 16,
     color: "#333",
+  },
+  inventoryValue: {
+    fontSize: 16,
+    color: "#333",
+    textAlign: "right",
+    flexShrink: 1,
+    flexWrap: "wrap",
+    lineHeight: 22,
   },
   valueBold: {
     fontSize: 16,

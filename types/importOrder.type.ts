@@ -12,6 +12,12 @@ export interface ImportOrderType {
   updatedDate: string | null;
   paperIds: number | null;
   assignedWareHouseKeeperId: number;
+  importType: ImportType | null;
+}
+
+export enum ImportType {
+  ORDER="ORDER",
+  RETURN="RETURN",
 }
 
 export enum ImportOrderStatus {
