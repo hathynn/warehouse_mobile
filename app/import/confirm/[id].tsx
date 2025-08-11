@@ -225,7 +225,10 @@ const Confirm = () => {
                       }}
                     >
                       <Text>Giá trị đo lường yêu cầu</Text>
-                      <Text>{product.expectMeasurementValue || 0}</Text>
+                      <Text>
+                        {product.expectMeasurementValue || 0}
+                        {product.measurementUnit && ` ${product.measurementUnit}`}
+                      </Text>
                     </View>
                     <View
                       style={{
@@ -235,7 +238,10 @@ const Confirm = () => {
                       }}
                     >
                       <Text>Giá trị đo lường thực tế</Text>
-                      <Text>{product.actualMeasurementValue || 0}</Text>
+                      <Text>
+                        {product.actualMeasurementValue || 0}
+                        {product.measurementUnit && ` ${product.measurementUnit}`}
+                      </Text>
                     </View>
                     <Button onPress={() => handleUpdateQuantity(product.id)}>
                       Cập nhật giá trị đo lường

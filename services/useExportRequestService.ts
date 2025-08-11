@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { ExportRequestType } from "../types/exportRequest.type";
+import { ExportRequestStatus, ExportRequestType } from "../types/exportRequest.type";
 import useApiService from "./useApi";
 
 
@@ -54,6 +54,33 @@ const useExportRequest = () => {
     },
     [callApi, setIsLoading]
   );
+
+  // Filter export requests theo role của user
+const filterExportRequestsByRole = useCallback(
+  (requests: ExportRequestType[], userId: number) => {
+    if (!requests || !userId) return [];
+
+    return requests.filter((request) => {
+      const isKeeper = request.assignedWareHouseKeeperId === userId;
+      const isCounter = request.countingStaffId === userId;
+
+      if (!isKeeper && !isCounter) return false;
+
+      const allowed = new Set<ExportRequestStatus>();
+      if (isKeeper) {
+        ["WAITING_EXPORT", "COMPLETED"].forEach((s) => allowed.add(s as ExportRequestStatus));
+      }
+      if (isCounter) {
+        ["IN_PROGRESS", "COUNTED", "COUNT_CONFIRMED", "CONFIRMED"].forEach((s) =>
+          allowed.add(s as ExportRequestStatus)
+        );
+      }
+      return allowed.has(request.status);
+    });
+  },
+  []
+);
+
 
   const updateExportRequestStatus = useCallback(
     async (exportRequestId: string, status: string) => {
@@ -129,6 +156,7 @@ const useExportRequest = () => {
     updateExportRequest,
     fetchExportRequestsByStaffId,
     updateExportRequestStatus,
+    filterExportRequestsByRole,
   };
 };
 

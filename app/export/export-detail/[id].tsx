@@ -617,9 +617,7 @@ const handleAutoChange = async (inventoryItemId: string) => {
         <View style={styles.signatureRowWrapper}>
           <View style={styles.signatureItemHorizontal}>
             <Text style={styles.signatureLabelHorizontal}>Người giao hàng</Text>
-            <Text style={styles.signatureNameHorizontal}>
-              {paper?.signProviderName || "Chưa rõ"}
-            </Text>
+           
             <View style={styles.signatureImageContainerHorizontal}>
               {paper?.signProviderUrl ? (
                 <Image
@@ -640,13 +638,14 @@ const handleAutoChange = async (inventoryItemId: string) => {
                 </View>
               )}
             </View>
+             <Text style={styles.signatureNameHorizontal}>
+              {paper?.signProviderName || "Chưa rõ"}
+            </Text>
           </View>
 
           <View style={styles.signatureItemHorizontal}>
             <Text style={styles.signatureLabelHorizontal}>Người nhận hàng</Text>
-            <Text style={styles.signatureNameHorizontal}>
-              {paper?.signReceiverName || "Chưa rõ"}
-            </Text>
+           
             <View style={styles.signatureImageContainerHorizontal}>
               {paper?.signReceiverUrl ? (
                 <Image
@@ -667,6 +666,9 @@ const handleAutoChange = async (inventoryItemId: string) => {
                 </View>
               )}
             </View>
+             <Text style={styles.signatureNameHorizontal}>
+              {paper?.signReceiverName || "Chưa rõ"}
+            </Text>
           </View>
         </View>
       </View>
@@ -1062,14 +1064,14 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#666",
     textAlign: "center",
-    marginBottom: 6,
+    marginBottom: 10,
   },
   signatureNameHorizontal: {
     fontSize: 14,
     fontWeight: "700",
     color: "#333",
     textAlign: "center",
-    marginBottom: 10,
+    marginTop: 10,
   },
   signatureImageContainerHorizontal: {
     width: "100%",

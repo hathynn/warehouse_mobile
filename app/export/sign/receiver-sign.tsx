@@ -9,11 +9,8 @@ import {
   ScrollView,
   StyleSheet,
   ActivityIndicator,
-  TextInput,
   KeyboardAvoidingView,
   Platform,
-  Modal,
-  FlatList,
 } from "react-native";
 import {
   SafeAreaView,
@@ -31,8 +28,6 @@ import { ExportRequestDetailType } from "@/types/exportRequestDetail.type";
 import useExportRequest from "@/services/useExportRequestService";
 import { useFocusEffect } from "@react-navigation/native";
 import useAccountService from "@/services/useAccountService";
-import { DepartmentType } from "@/types/department.type";
-import useDepartment from "@/services/useDepartmentService";
 
 const SignReceiveScreen = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -44,11 +39,6 @@ const SignReceiveScreen = () => {
   const [scrollEnabled, setScrollEnabled] = useState(true);
   const [exportDetails, setExportDetails] = useState<ExportRequestDetailType[]>([]);
   const [providerName, setProviderName] = useState<string>("");
-  
-  // ✅ New states for department selection
-  const [selectedDepartment, setSelectedDepartment] = useState<DepartmentType | null>(null);
-  const [departmentModalVisible, setDepartmentModalVisible] = useState(false);
-  const [departmentSearchText, setDepartmentSearchText] = useState("");
 
   const handleProviderNameChange = (text: string) => {
     setProviderName(text);
@@ -57,7 +47,6 @@ const SignReceiveScreen = () => {
 
   const { fetchExportRequestDetails, updateActualQuantity } = useExportRequestDetail();
   const { createPaper } = usePaperService();
-  const { fetchDepartments, departments, loading: departmentLoading } = useDepartment();
   const paperData = useSelector((state: RootState) => state.paper);
   const { exportRequest, updateExportRequestStatus, fetchExportRequestById } = useExportRequest();
   const exportRequestId = paperData.exportRequestId;
@@ -72,12 +61,6 @@ const SignReceiveScreen = () => {
     phone: "",
   });
 
-  // ✅ Load departments when component mounts (only for non-SELLING exports)
-  useEffect(() => {
-    if (exportRequest?.type && exportRequest.type !== "SELLING") {
-      fetchDepartments(1, 100);
-    }
-  }, [exportRequest?.type]);
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -116,6 +99,14 @@ const SignReceiveScreen = () => {
     }
   }, [exportRequestId]);
 
+  // Auto-set receiverName from export request
+  useEffect(() => {
+    if (exportRequest?.receiverName) {
+      setProviderName(exportRequest.receiverName);
+      dispatch(setPaperData({ signProviderName: exportRequest.receiverName }));
+    }
+  }, [exportRequest?.receiverName]);
+
   useEffect(() => {
     const fetchData = async () => {
       if (exportRequestId) {
@@ -134,20 +125,6 @@ const SignReceiveScreen = () => {
     }, [id])
   );
 
-  // ✅ Handle department selection
-  const handleDepartmentSelect = (department: DepartmentType) => {
-    setSelectedDepartment(department);
-    setProviderName(department.departmentResponsible);
-    dispatch(setPaperData({ signProviderName: department.departmentResponsible }));
-    setDepartmentModalVisible(false);
-    setDepartmentSearchText("");
-  };
-
-  // ✅ Filter departments based on search text
-  const filteredDepartments = departments.filter((dept) =>
-    dept.departmentName.toLowerCase().includes(departmentSearchText.toLowerCase()) ||
-    dept.departmentResponsible.toLowerCase().includes(departmentSearchText.toLowerCase())
-  );
 
   const handleClear = () => {
     setSignature(null);
@@ -164,32 +141,70 @@ const SignReceiveScreen = () => {
   };
 
   const handleConfirm = async () => {
+    console.log("🔍 Validation check:");
+    console.log("- signProviderUrl:", !!paperData.signProviderUrl);
+    console.log("- signReceiverUrl:", !!paperData.signReceiverUrl);
+    console.log("- exportRequestId:", exportRequestId);
+    console.log("- receiverName:", exportRequest?.receiverName);
+
     if (!paperData.signProviderUrl || !paperData.signReceiverUrl) {
-      console.warn("Cần đủ 2 chữ ký trước khi xác nhận.");
+      console.warn("❌ Cần đủ 2 chữ ký trước khi xác nhận.");
+      console.log("signProviderUrl:", paperData.signProviderUrl);
+      console.log("signReceiverUrl:", paperData.signReceiverUrl);
+      alert("Cần đủ 2 chữ ký trước khi xác nhận.");
       return;
     }
 
     if (!exportRequestId) {
-      console.warn("Thiếu exportRequestId");
+      console.warn("❌ Thiếu exportRequestId");
+      alert("Lỗi: Không tìm thấy mã export request.");
       return;
     }
 
-    // ✅ Validation for provider name
-    if (!providerName.trim()) {
-      console.warn("Cần nhập tên người giao hàng.");
+    // Validation for receiver name (should be auto-loaded from export request)
+    if (!exportRequest?.receiverName) {
+      console.warn("❌ Không tìm thấy thông tin người nhận hàng.");
+      alert("Lỗi: Không tìm thấy thông tin người nhận hàng.");
       return;
     }
 
     try {
       setIsLoading(true);
 
-      const response = await createPaper({
-        ...paperData,
+      const paperPayload = {
+        description: paperData.description,
+        exportRequestId: paperData.exportRequestId, // Only export ID for export operation
         signProviderName: user.name || "",
-        signReceiverName: providerName.trim(),
-      });
+        signReceiverName: exportRequest.receiverName,
+        signProviderUrl: paperData.signProviderUrl,
+        signReceiverUrl: paperData.signReceiverUrl,
+        // Explicitly exclude importOrderId and stockCheckRequestId
+      };
       
-      console.log("Responseeeeee", response);
+      console.log("📋 Paper payload detailed:", {
+        description: paperPayload.description,
+        exportRequestId: paperPayload.exportRequestId,
+        signProviderName: paperPayload.signProviderName,
+        signReceiverName: paperPayload.signReceiverName,
+        signProviderUrl: paperPayload.signProviderUrl ? `[Base64: ${paperPayload.signProviderUrl.substring(0, 50)}...]` : null,
+        signReceiverUrl: paperPayload.signReceiverUrl ? `[Base64: ${paperPayload.signReceiverUrl.substring(0, 50)}...]` : null,
+      });
+      console.log("📋 Export Request ID:", exportRequest?.exportRequestId);
+      console.log("📋 User details:", {
+        name: user.name,
+        email: user.email,
+        phone: user.phone
+      });
+      console.log("📋 Checking required fields:");
+      console.log("  - exportRequestId:", !!paperPayload.exportRequestId);
+      console.log("  - signProviderName:", !!paperPayload.signProviderName);
+      console.log("  - signReceiverName:", !!paperPayload.signReceiverName);
+      console.log("  - signProviderUrl:", !!paperPayload.signProviderUrl);
+      console.log("  - signReceiverUrl:", !!paperPayload.signReceiverUrl);
+
+      const response = await createPaper(paperPayload);
+      
+      console.log("📋 Create paper response:", response);
       if (response) {
         console.log("✅ Tạo phiếu thành công");
 
@@ -199,59 +214,25 @@ const SignReceiveScreen = () => {
         );
         console.log("2", statusUpdated);
         if (statusUpdated) {
-          console.log("✅ Đã cập nhật trạng thái CONFIRMED");
+          console.log("✅ Đã cập nhật trạng thái COMPLETED");
         } else {
           console.warn("⚠️ Không thể cập nhật trạng thái");
         }
 
         router.push("/(tabs)/export");
+      } else {
+        console.error("❌ CreatePaper returned null - check API logs for error details");
+        alert("Lỗi: Không thể tạo phiếu. Vui lòng kiểm tra kết nối mạng và thử lại.");
       }
     } catch (err) {
-      console.error("Lỗi khi tạo phiếu:", err);
+      console.error("❌ Exception in handleConfirm:", err);
+      alert(`Lỗi: ${err.message || "Không thể tạo phiếu"}`);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const mappedProducts = exportDetails.map((item) => ({
-    id: item.id,
-    name: `Sản phẩm #${item.itemId}`,
-    actual: item.actualQuantity ?? 0,
-    expect: item.quantity ?? 0,
-  }));
 
-  const getExportTypeLabel = (type: string | undefined) => {
-    switch (type) {
-      case "BORROWING":
-        return "Mượn";
-      case "RETURN":
-        return "Trả";
-      case "LIQUIDATION":
-        return "Thanh lý";
-      case "SELLING":
-        return "Xuất bán";
-      case "INTERNAL":
-        return "Xuất nội bộ";
-      default:
-        return "Không xác định";
-    }
-  };
-
-  // ✅ Render department item for modal
-  const renderDepartmentItem = ({ item }: { item: DepartmentType }) => (
-    <TouchableOpacity
-      style={styles.departmentItem}
-      onPress={() => handleDepartmentSelect(item)}
-    >
-      <View style={styles.departmentContent}>
-        <Text style={styles.departmentName}>{item.departmentName}</Text>
-        <Text style={styles.departmentResponsible}>
-          Người đại diện: {item.departmentResponsible}
-        </Text>
-        <Text style={styles.departmentLocation}>Vị trí: {item.location}</Text>
-      </View>
-    </TouchableOpacity>
-  );
 
   return (
     <KeyboardAvoidingView 
@@ -329,48 +310,24 @@ const SignReceiveScreen = () => {
               />
             </View>
 
-            {/* ✅ Conditional input based on export type */}
+            {/* Display receiver name from export request */}
             <View style={{ marginTop: 15 }}>
-              {exportRequest?.type === "SELLING" ? (
-                // SELLING: Manual text input
-                <TextInput
-                  style={styles.textInput}
-                  value={providerName}
-                  onChangeText={handleProviderNameChange}
-                  placeholder="Nhập tên người nhận hàng"
-                  placeholderTextColor="#999"
-                  returnKeyType="done"
-                />
-              ) : (
-                // Other types: Department selection
-                <View>
-                  <TouchableOpacity
-                    style={styles.departmentSelector}
-                    onPress={() => setDepartmentModalVisible(true)}
-                  >
-                    <Text style={[
-                      styles.departmentSelectorText,
-                      !selectedDepartment && styles.placeholderText
-                    ]}>
-                      {selectedDepartment 
-                        ? selectedDepartment.departmentName 
-                        : "Chọn phòng ban nhận hàng"
-                      }
-                    </Text>
-                    <Ionicons name="chevron-down" size={20} color="#666" />
-                  </TouchableOpacity>
-                  
-                  {/* Display selected department representative */}
-                  {selectedDepartment && (
-                    <View style={styles.selectedDepartmentInfo}>
-                      <Text style={styles.representativeLabel}>Người đại diện:</Text>
-                      <Text style={styles.representativeName}>
-                        {selectedDepartment.departmentResponsible}
-                      </Text>
-                    </View>
-                  )}
-                </View>
-              )}
+              <View style={styles.receiverInfoContainer}>
+                <Text style={styles.receiverLabel}>Người nhận hàng:</Text>
+                <Text style={styles.receiverName}>
+                  {exportRequest?.receiverName || "Đang tải..."}
+                </Text>
+                {exportRequest?.receiverPhone && (
+                  <Text style={styles.receiverPhone}>
+                    Số điện thoại: {exportRequest.receiverPhone}
+                  </Text>
+                )}
+                {/* {exportRequest?.receiverAddress && (
+                  <Text style={styles.receiverAddress}>
+                    Địa chỉ: {exportRequest.receiverAddress}
+                  </Text>
+                )} */}
+              </View>
             </View>
 
             {paperData.signReceiverUrl && (
@@ -397,15 +354,15 @@ const SignReceiveScreen = () => {
 
                 <TouchableOpacity
                   onPress={handleConfirm}
-                  disabled={isLoading || !providerName.trim()}
+                  disabled={isLoading}
                   style={{
                     flex: 1,
                     paddingVertical: 12,
-                    backgroundColor: (isLoading || !providerName.trim()) ? "#a0c4ff" : "#1677ff",
+                    backgroundColor: isLoading ? "#a0c4ff" : "#1677ff",
                     borderRadius: 8,
                     marginLeft: 5,
                     alignItems: "center",
-                    opacity: (isLoading || !providerName.trim()) ? 0.6 : 1,
+                    opacity: isLoading ? 0.6 : 1,
                   }}
                 >
                   {isLoading ? (
@@ -419,69 +376,6 @@ const SignReceiveScreen = () => {
           </View>
         </ScrollView>
 
-        {/* ✅ Department Selection Modal */}
-        <Modal
-          visible={departmentModalVisible}
-          transparent
-          animationType="slide"
-          onRequestClose={() => setDepartmentModalVisible(false)}
-        >
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalContainer}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Chọn phòng ban</Text>
-                <TouchableOpacity
-                  onPress={() => {
-                    setDepartmentModalVisible(false);
-                    setDepartmentSearchText("");
-                  }}
-                  style={styles.closeButton}
-                >
-                  <Ionicons name="close" size={24} color="#666" />
-                </TouchableOpacity>
-              </View>
-
-              {/* Search bar */}
-              <View style={styles.searchContainer}>
-                <Ionicons name="search" size={20} color="#666" style={styles.searchIcon} />
-                <TextInput
-                  style={styles.searchInput}
-                  value={departmentSearchText}
-                  onChangeText={setDepartmentSearchText}
-                  placeholder="Tìm kiếm phòng ban hoặc người đại diện..."
-                  placeholderTextColor="#999"
-                  returnKeyType="search"
-                />
-              </View>
-
-              {departmentLoading ? (
-                <View style={styles.loadingContainer}>
-                  <ActivityIndicator size="large" color="#1677ff" />
-                  <Text style={styles.loadingText}>Đang tải danh sách phòng ban...</Text>
-                </View>
-              ) : (
-                <FlatList
-                  data={filteredDepartments}
-                  renderItem={renderDepartmentItem}
-                  keyExtractor={(item) => item.id.toString()}
-                  style={styles.departmentList}
-                  showsVerticalScrollIndicator={false}
-                  ListEmptyComponent={
-                    <View style={styles.emptyContainer}>
-                      <Ionicons name="business-outline" size={48} color="#ccc" />
-                      <Text style={styles.emptyText}>
-                        {departmentSearchText 
-                          ? "Không tìm thấy phòng ban phù hợp" 
-                          : "Không có phòng ban nào"
-                        }
-                      </Text>
-                    </View>
-                  }
-                />
-              )}
-            </View>
-          </View>
-        </Modal>
       </View>
     </KeyboardAvoidingView>
   );
@@ -514,146 +408,39 @@ const styles = StyleSheet.create({
     backgroundColor: "white",
     color: "#333",
   },
-  // ✅ New styles for department selection
-  departmentSelector: {
-    borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    backgroundColor: "white",
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  departmentSelectorText: {
-    fontSize: 16,
-    color: "#333",
-    flex: 1,
-  },
-  placeholderText: {
-    color: "#999",
-  },
-  selectedDepartmentInfo: {
-    marginTop: 8,
-    padding: 12,
+  // New styles for receiver info display
+  receiverInfoContainer: {
     backgroundColor: "white",
     borderRadius: 8,
-    borderLeftWidth: 3,
-    borderLeftColor: "#1677ff",
-  },
-  representativeLabel: {
-    fontSize: 12,
-    color: "#666",
-    marginBottom: 2,
-  },
-  representativeName: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#333",
-  },
-  // Modal styles
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  modalContainer: {
-    width: "90%",
-    height: "70%",
-    backgroundColor: "white",
-    borderRadius: 12,
-    elevation: 5,
-    flexDirection: "column",
-  },
-  modalHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
     padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
+    borderLeftWidth: 4,
+    borderLeftColor: "#1677ff",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    flex: 1,
-    marginRight: 16,
-  },
-  closeButton: {
-    padding: 4,
-  },
-  searchContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginHorizontal: 16,
-    marginVertical: 12,
-    backgroundColor: "#f8f9fa",
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  searchIcon: {
-    marginRight: 8,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 14,
-    color: "#333",
-  },
-  departmentList: {
-    flex: 1,
-    marginHorizontal: 16,
-    marginBottom: 16,
-  },
-  departmentItem: {
-    paddingVertical: 12,
-    paddingHorizontal: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
-    backgroundColor: "white",
-  },
-  departmentContent: {
-    flex: 1,
-  },
-  departmentName: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#333",
-    marginBottom: 4,
-  },
-  departmentResponsible: {
+  receiverLabel: {
     fontSize: 14,
     color: "#666",
-    marginBottom: 2,
+    marginBottom: 4,
+    fontWeight: "500",
   },
-  departmentLocation: {
-    fontSize: 12,
-    color: "#999",
+  receiverName: {
+    fontSize: 18,
+    color: "#333",
+    fontWeight: "600",
+    marginBottom: 8,
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingVertical: 40,
-  },
-  loadingText: {
-    marginTop: 10,
+  receiverPhone: {
     fontSize: 14,
     color: "#555",
+    marginBottom: 4,
   },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingVertical: 40,
-  },
-  emptyText: {
+  receiverAddress: {
     fontSize: 14,
-    color: "#999",
-    marginTop: 12,
-    textAlign: "center",
+    color: "#555",
   },
   // Keep existing styles
   actions: {

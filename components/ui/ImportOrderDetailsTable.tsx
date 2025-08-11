@@ -10,14 +10,19 @@ import {
 } from "react-native";
 
 import { Ionicons } from "@expo/vector-icons";
-import { ImportOrderStatus } from "@/types/importOrder.type";
+import { ImportOrderStatus, ImportType } from "@/types/importOrder.type";
 
 interface ImportOrderDetailItem {
   id: string;
   productName: string;
   sku: string;
+  itemId: string;
+  inventoryItemId: string;
   expectedQuantity: number;
   countedQuantity: number;
+  expectedMeasurementValue?: number;
+  actualMeasurementValue?: number;
+  measurementUnit?: string;
   status: ImportOrderStatus | null;
   products: {
     id: number;
@@ -34,6 +39,7 @@ interface ImportOrderDetailItem {
 interface ImportOrderDetailsTableProps {
   importOrderDetails: ImportOrderDetailItem[];
   onStorageComplete?: () => void; // Callback khi hoàn thành quy trình nhập kho
+  importType?: ImportType | null;
 }
 
 interface LocationFilter {
@@ -45,6 +51,7 @@ interface LocationFilter {
 const ImportOrderDetailsTable: React.FC<ImportOrderDetailsTableProps> = ({
   importOrderDetails,
   onStorageComplete,
+  importType,
 }) => {
   const [locationFilter, setLocationFilter] = useState<LocationFilter>({
     zone: null,
@@ -53,44 +60,15 @@ const ImportOrderDetailsTable: React.FC<ImportOrderDetailsTableProps> = ({
   });
   const [showFilterModal, setShowFilterModal] = useState(false);
 
-  // State mới cho checkbox
-  const [checkedItems, setCheckedItems] = useState<Set<string>>(new Set());
-
-  // Reset checked items khi importOrderDetails thay đổi
-  useEffect(() => {
-    setCheckedItems(new Set());
-  }, [importOrderDetails]);
 
   // Kiểm tra xem có phải trạng thái READY_TO_STORE không
   const isReadyToStore =
     importOrderDetails.length > 0 &&
     importOrderDetails[0]?.status === ImportOrderStatus.READY_TO_STORE;
 
-  const showCheckbox =
-    importOrderDetails.length > 0 &&
-    importOrderDetails[0]?.status === ImportOrderStatus.READY_TO_STORE;
-
-  // Handler cho việc toggle checkbox
-  const handleCheckboxToggle = (itemId: string) => {
-    setCheckedItems((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(itemId)) {
-        newSet.delete(itemId);
-      } else {
-        newSet.add(itemId);
-      }
-      return newSet;
-    });
-  };
-
-  // Kiểm tra xem tất cả items đã được check chưa
-  const allItemsChecked =
-    importOrderDetails.length > 0 &&
-    importOrderDetails.every((item) => checkedItems.has(item.id));
-
   // Handler để hoàn thành quy trình nhập kho
   const handleCompleteStorage = () => {
-    if (allItemsChecked && onStorageComplete) {
+    if (onStorageComplete) {
       onStorageComplete();
     }
   };
@@ -258,7 +236,6 @@ const ImportOrderDetailsTable: React.FC<ImportOrderDetailsTableProps> = ({
     const isCompleted =
       item.status === ImportOrderStatus.READY_TO_STORE ||
       item.status === ImportOrderStatus.STORED;
-    const isChecked = checkedItems.has(item.id);
 
     const progressPercentage = Math.round(
       (item.countedQuantity / item.expectedQuantity) * 100
@@ -314,24 +291,10 @@ const ImportOrderDetailsTable: React.FC<ImportOrderDetailsTableProps> = ({
       <View style={styles.detailCard}>
         <View style={styles.detailHeader}>
           <View style={styles.detailHeaderLeft}>
-            {/* Checkbox chỉ hiện khi status là READY_TO_STORE */}
-            {showCheckbox && (
-              <TouchableOpacity
-                style={styles.checkboxContainer}
-                onPress={() => handleCheckboxToggle(item.id)}
-              >
-                <View
-                  style={[styles.checkbox, isChecked && styles.checkboxChecked]}
-                >
-                  {isChecked && (
-                    <Ionicons name="checkmark" size={16} color="white" />
-                  )}
-                </View>
-              </TouchableOpacity>
-            )}
-
             <View style={styles.detailIdContainer}>
-              <Text style={styles.detailId}>{item.id}</Text>
+              <Text style={styles.detailId}>
+                {importType === ImportType.RETURN ? item.inventoryItemId || item.id : item.id}
+              </Text>
             </View>
             <View style={styles.detailInfo}>
               <Text
@@ -341,7 +304,11 @@ const ImportOrderDetailsTable: React.FC<ImportOrderDetailsTableProps> = ({
               >
                 {item.productName}
               </Text>
-              <Text style={styles.detailSku}>{item.sku}</Text>
+              <Text style={styles.detailSku}>
+                {importType === ImportType.RETURN 
+                  ? `Mã sản phẩm ${item.inventoryItemId || item.itemId}` 
+                  : `Mã sản phẩm ${item.itemId}`}
+              </Text>
             </View>
           </View>
         </View>
@@ -373,20 +340,52 @@ const ImportOrderDetailsTable: React.FC<ImportOrderDetailsTableProps> = ({
               </View>
             </View>
 
-            <View style={styles.progressContainer}>
-              <View style={styles.progressBackground}>
-                <View
-                  style={[
-                    styles.progressBar,
-                    {
-                      width: `${Math.min(progressPercentage, 100)}%`,
-                      backgroundColor: progressColor,
-                    },
-                  ]}
-                />
+            {/* Show measurement values for return imports */}
+            {importType === ImportType.RETURN && (
+              <View style={styles.quantityRow}>
+                <View style={styles.quantityItem}>
+                  <Text style={styles.quantityLabel}>Giá trị đo lường mong đợi:</Text>
+                  <Text style={styles.quantityValue}>
+                    {item.expectedMeasurementValue || 0}
+                    {item.measurementUnit && ` ${item.measurementUnit}`}
+                  </Text>
+                </View>
+                <View style={styles.quantityItem}>
+                  <Text style={styles.quantityLabel}>Giá trị đo lường kiểm đếm:</Text>
+                  <Text
+                    style={[
+                      styles.quantityValue,
+                      (item.actualMeasurementValue || 0) < (item.expectedMeasurementValue || 0)
+                        ? styles.incompleteQuantity
+                        : (item.actualMeasurementValue || 0) > (item.expectedMeasurementValue || 0)
+                        ? styles.overQuantity
+                        : styles.completeQuantity,
+                    ]}
+                  >
+                    {item.actualMeasurementValue || 0}
+                    {item.measurementUnit && ` ${item.measurementUnit}`}
+                  </Text>
+                </View>
               </View>
-              <Text style={styles.progressText}>{progressPercentage}%</Text>
-            </View>
+            )}
+
+            {/* Hide progress bar for return imports */}
+            {importType !== ImportType.RETURN && (
+              <View style={styles.progressContainer}>
+                <View style={styles.progressBackground}>
+                  <View
+                    style={[
+                      styles.progressBar,
+                      {
+                        width: `${Math.min(progressPercentage, 100)}%`,
+                        backgroundColor: progressColor,
+                      },
+                    ]}
+                  />
+                </View>
+                <Text style={styles.progressText}>{progressPercentage}%</Text>
+              </View>
+            )}
           </View>
         )}
 
@@ -598,14 +597,6 @@ const ImportOrderDetailsTable: React.FC<ImportOrderDetailsTableProps> = ({
       <View style={styles.detailsHeaderContainer}>
         <Text style={styles.cardTitle}>Chi tiết đơn nhập</Text>
         <View style={styles.headerRight}>
-          {/* Progress indicator khi READY_TO_STORE */}
-          {showCheckbox && (
-            <View style={styles.progressIndicator}>
-              <Text style={styles.progressIndicatorText}>
-                {checkedItems.size}/{importOrderDetails.length}
-              </Text>
-            </View>
-          )}
           <View style={styles.detailsCountContainer}>
             <Text style={styles.detailsCountText}>
               {filteredAndSortedData.length}
@@ -715,36 +706,21 @@ const ImportOrderDetailsTable: React.FC<ImportOrderDetailsTableProps> = ({
       />
 
       {/* Button hoàn thành nhập kho */}
-      {showCheckbox && (
+      {isReadyToStore && (
         <View style={styles.actionContainer}>
           <TouchableOpacity
-            style={[
-              styles.completeButton,
-              !allItemsChecked && styles.completeButtonDisabled,
-            ]}
+            style={styles.completeButton}
             onPress={handleCompleteStorage}
-            disabled={!allItemsChecked}
           >
             <Ionicons
               name="checkmark-circle-outline"
               size={20}
-              color={allItemsChecked ? "white" : "#ccc"}
+              color="white"
             />
-            <Text
-              style={[
-                styles.completeButtonText,
-                !allItemsChecked && styles.completeButtonTextDisabled,
-              ]}
-            >
+            <Text style={styles.completeButtonText}>
               Xác nhận hoàn thành nhập kho
             </Text>
           </TouchableOpacity>
-
-          {!allItemsChecked && (
-            <Text style={styles.warningText}>
-              Vui lòng kiểm tra tất cả sản phẩm trước khi hoàn thành
-            </Text>
-          )}
         </View>
       )}
 
@@ -1131,61 +1107,13 @@ const styles = StyleSheet.create({
 
   // Thêm các styles này vào StyleSheet.create của bạn
 
-  // Checkbox styles
-  checkboxContainer: {
-    marginRight: 12,
-    marginTop: 2,
-  },
-  checkbox: {
-    width: 24,
-    height: 24,
-    borderRadius: 6,
-    borderWidth: 2,
-    borderColor: "#dee2e6",
-    backgroundColor: "white",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  checkboxChecked: {
-    backgroundColor: "#1677ff",
-    borderColor: "#1677ff",
-  },
-
-  // Header right container cho progress indicator
+  // Header right container
   headerRight: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
   },
-  progressIndicator: {
-    backgroundColor: "#e3f2fd",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  progressIndicatorText: {
-    fontSize: 12,
-    color: "#1677ff",
-    fontWeight: "600",
-  },
 
-  // Completed badge khi item được check
-  completedBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#ecfdf5",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-    alignSelf: "flex-start",
-    marginTop: 8,
-  },
-  completedText: {
-    fontSize: 12,
-    color: "#10b981",
-    fontWeight: "500",
-    marginLeft: 4,
-  },
 
   // Action container cho button hoàn thành
   actionContainer: {
@@ -1202,25 +1130,12 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 20,
     borderRadius: 8,
-    marginBottom: 8,
-  },
-  completeButtonDisabled: {
-    backgroundColor: "#f5f5f5",
   },
   completeButtonText: {
     color: "white",
     fontSize: 15,
     fontWeight: "600",
     marginLeft: 8,
-  },
-  completeButtonTextDisabled: {
-    color: "#ccc",
-  },
-  warningText: {
-    fontSize: 12,
-    color: "#f59e0b",
-    textAlign: "center",
-    fontStyle: "italic",
   },
 });
 

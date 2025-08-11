@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   SafeAreaView,
   ScrollView,
@@ -20,23 +20,40 @@ import { updateProductActual, updateActual } from "@/redux/productSlice";
 import { RootState } from "@/redux/store";
 
 export default function SuccessPage() {
-  const { id, scanMethod } = useLocalSearchParams<{ id: any; scanMethod?: string }>();
+  const { id, scanMethod, inventoryItemId } = useLocalSearchParams<{ 
+    id: any; 
+    scanMethod?: string; 
+    inventoryItemId?: string;
+  }>();
   const productId = id;
   const dispatch = useDispatch();
+
+  // Xác định loại input dựa vào scanMethod (move lên trước selector)
+  const isInventoryItemScan = scanMethod === 'inventoryItemId';
 
   const importOrderId = useSelector(
     (state: RootState) => state.paper.importOrderId
   );
 
-  const product = useSelector((state: RootState) =>
-    state.product.products.find((p) => p.id === productId)
-  );
+  const product = useSelector((state: RootState) => {
+    // Nếu có inventoryItemId và đang scan inventory item, tìm theo inventoryItemId
+    if (inventoryItemId && isInventoryItemScan) {
+      return state.product.products.find((p) => p.inventoryItemId === inventoryItemId);
+    }
+    // Ngược lại, tìm theo productId như cũ
+    return state.product.products.find((p) => p.id === productId);
+  });
+  
+  console.log(`🔍 Detail-product page - ProductID: ${productId}, inventoryItemId param: ${inventoryItemId}, isInventoryItemScan: ${isInventoryItemScan}, Found product:`, {
+    id: product?.id,
+    name: product?.name, 
+    itemId: product?.itemId,
+    inventoryItemId: product?.inventoryItemId,
+    actualMeasurementValue: product?.actualMeasurementValue
+  });
 
   const [quantity, setQuantity] = useState("0");
   const [measurementValue, setMeasurementValue] = useState("0");
-
-  // Xác định loại input dựa vào scanMethod
-  const isInventoryItemScan = scanMethod === 'inventoryItemId';
 
   const [fadeAnim] = useState(new Animated.Value(0));
   const [translateY] = useState(new Animated.Value(20));
@@ -57,11 +74,18 @@ export default function SuccessPage() {
   }, []);
 
   const handleSubmit = () => {
-    if (isInventoryItemScan) {
-      // Cập nhật measurementValue cho inventory item scan
-      const toAdd = parseFloat(measurementValue) || 0;
-      const newMeasurementValue = (product?.actualMeasurementValue || 0) + toAdd;
+    // Update measurement value immediately for inventory item scans
+    if (isInventoryItemScan && product?.inventoryItemId) {
+      const newMeasurementValue = parseFloat(measurementValue) || 0;
+      dispatch(updateActual({ 
+        id: productId, 
+        actualMeasurementValue: newMeasurementValue,
+        inventoryItemId: product.inventoryItemId
+      }));
+    }
 
+    if (isInventoryItemScan) {
+      // Measurement value đã được cập nhật realtime, chỉ cần navigate
       Animated.sequence([
         Animated.timing(fadeAnim, {
           toValue: 0.7,
@@ -74,12 +98,6 @@ export default function SuccessPage() {
           useNativeDriver: true,
         }),
       ]).start(() => {
-        if (product?.inventoryItemId) {
-          dispatch(updateActual({ 
-            id: productId, 
-            actualMeasurementValue: newMeasurementValue 
-          }));
-        }
         router.push(`/import/confirm/${importOrderId}`);
       });
     } else {
@@ -106,6 +124,15 @@ export default function SuccessPage() {
   };
 
   const handleBackToScan = () => {
+    // Update measurement value immediately for inventory item scans before going back
+    if (isInventoryItemScan && product?.inventoryItemId) {
+      const newMeasurementValue = parseFloat(measurementValue) || 0;
+      dispatch(updateActual({ 
+        id: productId, 
+        actualMeasurementValue: newMeasurementValue,
+        inventoryItemId: product.inventoryItemId
+      }));
+    }
     router.push(`/import/scan-qr?id=${importOrderId}`);
   };
 
@@ -147,6 +174,13 @@ export default function SuccessPage() {
                       <Text style={styles.value}>{product.name}</Text>
                     </View>
 
+                    {isInventoryItemScan && (
+                      <View style={styles.row}>
+                        <Text style={styles.label}>Inventory Item ID</Text>
+                        <Text style={styles.inventoryValue}>{product.inventoryItemId}</Text>
+                      </View>
+                    )}
+
                     {!isInventoryItemScan && (
                       <>
                         <View style={styles.row}>
@@ -167,13 +201,17 @@ export default function SuccessPage() {
                       <>
                         <View style={styles.row}>
                           <Text style={styles.label}>Giá trị đo dự kiến</Text>
-                          <Text style={styles.value}>{product.expectMeasurementValue}</Text>
+                          <Text style={styles.value}>
+                            {product.expectMeasurementValue || 0}
+                            {product.measurementUnit && ` ${product.measurementUnit}`}
+                          </Text>
                         </View>
 
                         <View style={styles.row}>
                           <Text style={styles.label}>Giá trị đo hiện tại</Text>
                           <Text style={styles.valueBold}>
-                            {(product?.actualMeasurementValue || 0) + (parseFloat(measurementValue) || 0)}
+                            {parseFloat(measurementValue) || product?.actualMeasurementValue || 0}
+                            {product.measurementUnit && ` ${product.measurementUnit}`}
                           </Text>
                         </View>
                       </>
@@ -194,7 +232,17 @@ export default function SuccessPage() {
                         if (isInventoryItemScan) {
                           const current = parseFloat(measurementValue) || 0;
                           if (current >= 1) {
-                            setMeasurementValue((current - 1).toString());
+                            const newValue = (current - 1).toString();
+                            setMeasurementValue(newValue);
+                            
+                            // Update Redux immediately
+                            if (product?.inventoryItemId) {
+                              dispatch(updateActual({ 
+                                id: productId, 
+                                actualMeasurementValue: current - 1,
+                                inventoryItemId: product.inventoryItemId
+                              }));
+                            }
                           }
                         } else {
                           const current = parseInt(quantity) || 0;
@@ -215,6 +263,17 @@ export default function SuccessPage() {
                           // Cho phép số thập phân cho measurement
                           const numericText = text.replace(/[^0-9.]/g, "");
                           setMeasurementValue(numericText);
+                          
+                          // Update Redux immediately when measurement value changes
+                          if (product?.inventoryItemId && numericText) {
+                            const newMeasurementValue = parseFloat(numericText) || 0;
+                            console.log(`📝 Updating measurement value for productId: ${productId}, inventoryItemId: ${product.inventoryItemId}, newValue: ${newMeasurementValue}`);
+                            dispatch(updateActual({ 
+                              id: productId, 
+                              actualMeasurementValue: newMeasurementValue,
+                              inventoryItemId: product.inventoryItemId // Pass inventoryItemId for precise targeting
+                            }));
+                          }
                         } else {
                           // Chỉ số nguyên cho quantity
                           const numericText = text.replace(/[^0-9]/g, "");
@@ -231,7 +290,17 @@ export default function SuccessPage() {
                       onPress={() => {
                         if (isInventoryItemScan) {
                           const current = parseFloat(measurementValue) || 0;
-                          setMeasurementValue((current + 1).toString());
+                          const newValue = (current + 1).toString();
+                          setMeasurementValue(newValue);
+                          
+                          // Update Redux immediately
+                          if (product?.inventoryItemId) {
+                            dispatch(updateActual({ 
+                              id: productId, 
+                              actualMeasurementValue: current + 1,
+                              inventoryItemId: product.inventoryItemId
+                            }));
+                          }
                         } else {
                           const current = parseInt(quantity) || 0;
                           setQuantity((current + 1).toString());
@@ -350,6 +419,14 @@ const styles = StyleSheet.create({
   value: {
     fontSize: 16,
     color: "#333",
+  },
+  inventoryValue: {
+    fontSize: 16,
+    color: "#333",
+    textAlign: "right",
+    flexShrink: 1,
+    flexWrap: "wrap",
+    lineHeight: 22,
   },
   valueBold: {
     fontSize: 16,
