@@ -6,7 +6,7 @@ import {
   SafeAreaView,
   ScrollView,
   Alert,
-} from "react-native";
+ Dimensions } from "react-native";
 import { Camera, CameraView } from "expo-camera";
 import { router, useLocalSearchParams } from "expo-router";
 import { useDispatch, useSelector } from "react-redux";
@@ -16,7 +16,6 @@ import {
   updateProduct,
   updateProductByInventoryId,
 } from "@/redux/productSlice";
-import { Dimensions } from "react-native";
 import { Audio } from "expo-av";
 import { useIsFocused } from "@react-navigation/native";
 

@@ -1,11 +1,3 @@
-const formatDate = (date) => {
-  return date.toLocaleDateString("vi-VN", {
-    weekday: "long",
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
-};
 import { RootState } from "@/redux/store";
 import useAccountService from "@/services/useAccountService";
 import { Ionicons } from "@expo/vector-icons";
@@ -23,6 +15,14 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useDispatch, useSelector } from "react-redux";
+const formatDate = (date) => {
+  return date.toLocaleDateString("vi-VN", {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+};
 
 const { width } = Dimensions.get("window");
 

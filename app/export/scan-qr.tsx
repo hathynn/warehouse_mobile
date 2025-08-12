@@ -14,54 +14,41 @@ import {
 } from "react-native";
 import { Camera, CameraView } from "expo-camera";
 import { router, useLocalSearchParams } from "expo-router";
-import { useDispatch, useSelector } from "react-redux";
+import { useSelector } from "react-redux";
 import { RootState } from "@/redux/store";
 import { Button } from "tamagui";
-import { setExportRequestDetail } from "@/redux/exportRequestDetailSlice";
 import { useIsFocused } from "@react-navigation/native";
 import { Audio } from "expo-av";
 import useExportRequestDetail from "@/services/useExportRequestDetailService";
-import useInventoryService from "@/services/useInventoryService";
 
-const { width } = Dimensions.get("window");
 
 export default function ScanQrScreen() {
-  const { id, returnToModal, itemCode, mode, originalItemId } = useLocalSearchParams<{
+  const { id } = useLocalSearchParams<{
     id: string;
-    returnToModal?: string;
-    itemCode?: string;
-    mode?: string;
-    originalItemId?: string;
   }>();
 
-  console.log(`📱 QR Scan screen loaded with params:`, { id, returnToModal, itemCode, mode, originalItemId });
+  console.log(`📱 QR Scan screen loaded with params:`, { id });
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [scannedIds, setScannedIds] = useState<string[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [isPaused, setIsPaused] = useState(false);
   const [cameraKey, setCameraKey] = useState(0);
-  const dispatch = useDispatch();
   const isFocused = useIsFocused();
-  const { updateActualQuantity, resetTracking } = useExportRequestDetail();
-  const { changeInventoryItemForExportDetail } = useInventoryService();
+  const { updateActualQuantity } = useExportRequestDetail();
   const [scanningEnabled, setScanningEnabled] = useState(true);
-
-  // Manual change mode states
-  const [showReasonInput, setShowReasonInput] = useState(false);
-  const [changeReason, setChangeReason] = useState("");
-  const [scannedNewItemId, setScannedNewItemId] = useState<string | null>(null);
 
   const [lastScannedProduct, setLastScannedProduct] = useState<any | null>(
     null
   );
+  const [scannedItemCode, setScannedItemCode] = useState<string>("");
 
-  // ✅ Enhanced debounce mechanism and processing tracking
+  // Enhanced debounce mechanism and processing tracking
   const lastScanTimeRef = useRef<number>(0);
   const currentlyProcessingRef = useRef<string | null>(null);
-  const lastProcessedQRRef = useRef<string | null>(null); // Track last processed QR
-  const SCAN_DEBOUNCE_MS = 2000; // Increased to 2 seconds
-  const SUCCESS_COOLDOWN_MS = 3000; // Cooldown after successful scan
+  const lastProcessedQRRef = useRef<string | null>(null);
+  const SCAN_DEBOUNCE_MS = 2000;
+  const SUCCESS_COOLDOWN_MS = 3000;
+  const [itemIdForNavigation, setItemIdForNavigation] = useState<string>("");
 
   const scanMappings = useSelector(
     (state: RootState) => state.exportRequestDetail.scanMappings
@@ -109,7 +96,7 @@ export default function ScanQrScreen() {
     })();
   }, []);
 
-  // ✅ Reset scanning state when screen is focused
+  // Reset scanning state when screen is focused
   useEffect(() => {
     if (isFocused) {
       console.log("🔄 Screen focused, resetting scan state");
@@ -119,63 +106,62 @@ export default function ScanQrScreen() {
       setLastScannedProduct(null);
       lastScanTimeRef.current = 0;
       currentlyProcessingRef.current = null;
-      lastProcessedQRRef.current = null; // Reset last processed QR
+      lastProcessedQRRef.current = null;
     }
   }, [isFocused]);
 
   const handleBarCodeScanned = async ({ data }: { data: string }) => {
     if (__DEV__) {
-      console.warn = () => {};
-      console.error = () => {};
+      console.warn = () => { };
+      console.error = () => { };
     }
 
     const currentTime = Date.now();
-    const rawInventoryItemId = data.trim();
-    const normalizedId = rawInventoryItemId.toLowerCase();
+    const rawInventoryItemId = data.trim().toUpperCase(); // Always convert to uppercase
+    const inventoryItemId = rawInventoryItemId; // Use uppercase consistently
 
-    console.log(`📱 Scanning QR: ${normalizedId}`);
+    console.log(`📱 Scanning QR: ${inventoryItemId}`);
     console.log(`📋 Previously scanned: ${JSON.stringify(scannedIds)}`);
     console.log(
       `🔍 Current state - scanningEnabled: ${scanningEnabled}, isProcessing: ${isProcessing}`
     );
     console.log(`🔍 Currently processing: ${currentlyProcessingRef.current}`);
 
-    // ✅ Check if this exact QR is already being processed
-    if (currentlyProcessingRef.current === normalizedId) {
-      console.log(`🚫 Already processing this QR: ${normalizedId}`);
+    // Check if this exact QR is already being processed
+    if (currentlyProcessingRef.current === inventoryItemId) {
+      console.log(`🚫 Already processing this QR: ${inventoryItemId}`);
       return;
     }
 
-    // ✅ Check if this is the same QR that was just processed successfully
-    if (lastProcessedQRRef.current === normalizedId) {
+    // Check if this is the same QR that was just processed successfully
+    if (lastProcessedQRRef.current === inventoryItemId) {
       const timeSinceLastProcess = currentTime - lastScanTimeRef.current;
       if (timeSinceLastProcess < SUCCESS_COOLDOWN_MS) {
         console.log(
-          `🚫 Cooldown active for recently processed QR: ${normalizedId} (${timeSinceLastProcess}ms)`
+          `🚫 Cooldown active for recently processed QR: ${inventoryItemId} (${timeSinceLastProcess}ms)`
         );
         return;
       }
     }
 
-    // ✅ Enhanced debounce check
+    // Enhanced debounce check
     if (currentTime - lastScanTimeRef.current < SCAN_DEBOUNCE_MS) {
       console.log(
-        `🚫 Debounce: Too soon since last scan (${
-          currentTime - lastScanTimeRef.current
+        `🚫 Debounce: Too soon since last scan (${currentTime - lastScanTimeRef.current
         }ms)`
       );
       return;
     }
 
-    // ✅ Check scanning state
+    // Check scanning state
     if (!scanningEnabled || isProcessing) {
       console.log("🚫 Scan disabled or processing, ignoring scan");
       return;
     }
 
-    // ✅ Check duplicate scan
-    if (scannedIds.includes(normalizedId)) {
-      console.log("🚫 Already scanned this QR:", normalizedId);
+    // Check duplicate scan
+    if (scannedIds.includes(inventoryItemId)) {
+      console.log("🚫 Already scanned this QR:", inventoryItemId);
       setErrorMessage("Sản phẩm này đã được quét trước đó!");
 
       // Temporarily disable scanning to prevent spam
@@ -187,107 +173,96 @@ export default function ScanQrScreen() {
       return;
     }
 
-    // ✅ IMMEDIATELY disable scanning and set processing state
+    // IMMEDIATELY disable scanning and set processing state
     setScanningEnabled(false);
     setIsProcessing(true);
-    currentlyProcessingRef.current = normalizedId;
+    currentlyProcessingRef.current = inventoryItemId.toUpperCase();
     lastScanTimeRef.current = currentTime;
 
-    console.log(`🔒 Processing started for: ${normalizedId}`);
+    console.log(`🔒 Processing started for: ${inventoryItemId}`);
 
-    // ✅ Clear previous messages
+    // Clear previous messages
     setErrorMessage(null);
     setLastScannedProduct(null);
 
     try {
       console.log("📦 Raw QR data:", data);
-      console.log("🔍 inventoryItemId:", normalizedId);
+      console.log("🔍 inventoryItemId:", inventoryItemId);
 
-      if (mode === 'manual_change' && originalItemId) {
-        // Manual change mode: Accept any valid inventory item ID
-        console.log(`📝 Manual change mode: Scanned new item ${normalizedId} to replace ${originalItemId}`);
+      // Normal scan mode: Check scan mappings
+      console.log("🔍 All scanMappings:", scanMappings.map(m => m.inventoryItemId.toUpperCase()));
+      console.log("🔍 Looking for inventoryItemId:", inventoryItemId);
 
-        // For manual change, we don't need to check scan mappings
-        // Just validate that it's a valid inventory item format and not the same as original
-        if (normalizedId === originalItemId.toLowerCase()) {
-          throw new Error("Không thể đổi sang cùng một inventory item!");
-        }
+      const mapping = scanMappings.find(
+        (m) => m.inventoryItemId.toUpperCase() === inventoryItemId.toUpperCase()
+      );
 
-        setScannedNewItemId(normalizedId.toUpperCase());
-        setShowReasonInput(true);
-        await playBeep();
-        setLastScannedProduct({
-          id: normalizedId,
-          itemId: normalizedId,
-          message: "Đã quét item mới. Vui lòng nhập lý do thay đổi."
-        });
-      } else {
-        // Normal scan mode: Check scan mappings
-        const mapping = scanMappings.find(
-          (m) => m.inventoryItemId.toLowerCase() === normalizedId
-        );
-
-        console.log("🔍 Mapping found:", mapping);
-        if (!mapping) {
-          throw new Error("Không tìm thấy sản phẩm tương ứng với mã QR");
-        }
-
-        const exportRequestDetailId = mapping.exportRequestDetailId;
-        const inventoryItemIdForApi = mapping.inventoryItemId;
-        const matched = exportDetails.find((d) => d.id === exportRequestDetailId);
-
-        if (!matched) {
-          throw new Error("Không tìm thấy sản phẩm tương ứng với mã QR.");
-        }
-
-        if (matched.actualQuantity >= matched.quantity) {
-          throw new Error("Sản phẩm đã được quét đủ.");
-        }
-
-        console.log("🔄 Call API với:", {
-          exportRequestDetailId,
-          inventoryItemIdForApi,
-        });
-
-        // Normal mode: Update actual quantity
-        const success = await updateActualQuantity(
-          exportRequestDetailId,
-          inventoryItemIdForApi.toUpperCase()
-        );
-
-        if (!success) throw new Error("Lỗi cập nhật số lượng");
-
-        // ✅ Success - add to scannedIds and show success message
-        setScannedIds((prev) => {
-          if (!prev.includes(normalizedId)) {
-            const newIds = [...prev, normalizedId];
-            console.log(
-              `📝 Added to scannedIds after success: ${JSON.stringify(newIds)}`
-            );
-            return newIds;
-          }
-          return prev;
-        });
-
-        // ✅ Mark this QR as successfully processed
-        lastProcessedQRRef.current = normalizedId;
-
-        await playBeep();
-        setLastScannedProduct(matched);
-
-        // ✅ Clear success message after longer duration
-        setTimeout(() => {
-          setLastScannedProduct(null);
-
-          // If returnToModal is true and not manual change, automatically go back to modal after successful scan
-          if (returnToModal === 'true' && itemCode && mode !== 'manual_change') {
-            console.log(`✅ Auto-returning to modal with itemCode: ${itemCode}`);
-            router.replace(`/export/export-detail/${id}?openModal=true&itemCode=${itemCode}`);
-          }
-        }, 2000); // Reduced to 2 seconds for better UX
-
-        console.log("✅ Scan successful for:", normalizedId);
+      console.log("🔍 Mapping found:", mapping);
+      if (!mapping) {
+        throw new Error("Không tìm thấy sản phẩm tương ứng với mã QR");
       }
+
+      const exportRequestDetailId = mapping.exportRequestDetailId;
+      const inventoryItemIdForApi = mapping.inventoryItemId.toUpperCase();
+      const matched = exportDetails.find((d) => d.id === exportRequestDetailId);
+
+      if (!matched) {
+        throw new Error("Không tìm thấy sản phẩm tương ứng với mã QR.");
+      }
+
+      if (matched.actualQuantity >= matched.quantity) {
+        throw new Error("Sản phẩm đã được quét đủ.");
+      }
+
+      console.log("🔄 Call API với:", {
+        exportRequestDetailId,
+        inventoryItemIdForApi,
+      });
+
+      // Normal mode: Update actual quantity
+      console.log("🔄 About to call updateActualQuantity");
+      let success = false;
+      try {
+        success = await updateActualQuantity(
+          exportRequestDetailId,
+          inventoryItemIdForApi
+        );
+        console.log("✅ updateActualQuantity returned:", success);
+      } catch (apiError) {
+        console.error("❌ updateActualQuantity threw error:", apiError);
+        throw apiError;
+      }
+
+      if (!success) throw new Error("Lỗi cập nhật số lượng");
+
+      // Success - add to scannedIds and show success message
+      setScannedIds((prev) => {
+        if (!prev.includes(inventoryItemId)) {
+          const newIds = [...prev, inventoryItemId];
+          console.log(
+            `📝 Added to scannedIds after success: ${JSON.stringify(newIds)}`
+          );
+          return newIds;
+        }
+        return prev;
+      });
+
+      // Mark this QR as successfully processed
+      lastProcessedQRRef.current = inventoryItemId;
+
+      // Store itemCode for back navigation
+      setScannedItemCode(matched.itemId);
+
+      await playBeep();
+      setLastScannedProduct(matched);
+
+      // Clear success message after longer duration
+      setTimeout(() => {
+        setLastScannedProduct(null);
+        // Remove auto-navigation, only back button will navigate to modal
+      }, 2000);
+
+      console.log("✅ Scan successful for:", inventoryItemId);
     } catch (err: any) {
       console.error("❌ Scan error:", err);
 
@@ -297,10 +272,10 @@ export default function ScanQrScreen() {
 
       if (message.toLowerCase().includes("has been tracked")) {
         displayMessage = "Sản phẩm này đã được quét trước đó!";
-        // ✅ If API says already tracked, add to scannedIds
+        // If API says already tracked, add to scannedIds
         setScannedIds((prev) => {
-          if (!prev.includes(normalizedId)) {
-            const newIds = [...prev, normalizedId];
+          if (!prev.includes(inventoryItemId)) {
+            const newIds = [...prev, inventoryItemId];
             console.log(
               `🔄 API says already tracked, adding to scannedIds: ${JSON.stringify(
                 newIds
@@ -310,7 +285,7 @@ export default function ScanQrScreen() {
           }
           return prev;
         });
-        lastProcessedQRRef.current = normalizedId; // Mark as processed to prevent re-scanning
+        lastProcessedQRRef.current = inventoryItemId;
       } else if (message.toLowerCase().includes("not stable")) {
         displayMessage = "Sản phẩm không hợp lệ.";
       } else {
@@ -319,20 +294,20 @@ export default function ScanQrScreen() {
 
       setErrorMessage(displayMessage);
 
-      // ✅ Clear error message after 4s
+      // Clear error message after 4s
       setTimeout(() => setErrorMessage(null), 4000);
     } finally {
-      // ✅ Clear the currently processing ref
+      // Clear the currently processing ref
       currentlyProcessingRef.current = null;
       console.log("🔓 Cleared processing ref");
 
       setIsProcessing(false);
 
-      // ✅ Re-enable scanning after longer delay
+      // Re-enable scanning after longer delay
       setTimeout(() => {
         setScanningEnabled(true);
         console.log("✅ Scanning re-enabled");
-      }, 2500); // Increased delay to 2.5 seconds
+      }, 2500);
     }
   };
 
@@ -343,7 +318,7 @@ export default function ScanQrScreen() {
     setIsProcessing(false);
     lastScanTimeRef.current = 0;
     currentlyProcessingRef.current = null;
-    lastProcessedQRRef.current = null; // Reset last processed QR
+    lastProcessedQRRef.current = null;
 
     setTimeout(() => {
       setScanningEnabled(true);
@@ -352,103 +327,6 @@ export default function ScanQrScreen() {
     }, 300);
   };
 
-  const handleManualChangeSubmit = async () => {
-    if (!scannedNewItemId || !originalItemId || !changeReason.trim()) {
-      setErrorMessage("Vui lòng nhập lý do thay đổi");
-      return;
-    }
-
-    // Prevent multiple submissions
-    if (isProcessing) {
-      console.log("🚫 Already processing manual change, ignoring duplicate submission");
-      return;
-    }
-
-    try {
-      setIsProcessing(true);
-      setErrorMessage(null);
-      console.log(`🔄 QR Manual change: ${originalItemId} -> ${scannedNewItemId}, reason: ${changeReason}`);
-
-      // Check if original item was scanned and reset tracking if needed
-      const originalItemMapping = scanMappings.find(
-        mapping => mapping.inventoryItemId === originalItemId.toLowerCase().trim()
-      );
-
-      if (originalItemMapping) {
-        console.log(`🔄 Resetting tracking for old item: ${originalItemId}`);
-
-        const resetSuccess = await resetTracking(
-          originalItemMapping.exportRequestDetailId.toString(),
-          originalItemId
-        );
-
-        if (!resetSuccess) {
-          throw new Error("Không thể reset tracking cho item cũ");
-        }
-        console.log(`✅ Reset tracking successful for: ${originalItemId}`);
-      } else {
-        console.log(`ℹ️ Original item ${originalItemId} not tracked, proceeding with manual change`);
-      }
-
-      // Perform manual change
-      const success = await changeInventoryItemForExportDetail(
-        originalItemId,
-        scannedNewItemId,
-        changeReason
-      );
-
-      if (!success) {
-        throw new Error("Manual change API failed");
-      }
-
-      console.log("✅ QR Manual change successful");
-
-      // Clear states
-      setShowReasonInput(false);
-      setChangeReason("");
-      setScannedNewItemId(null);
-      setIsProcessing(false);
-
-      // Show success with callback to return to modal (like manual selection)
-      setLastScannedProduct({
-        id: scannedNewItemId,
-        message: "Đã thay đổi item thành công!"
-      });
-
-      // Return to modal after success with modal opening
-      setTimeout(() => {
-        setLastScannedProduct(null);
-        if (returnToModal === 'true' && itemCode) {
-          console.log(`✅ QR Manual change complete, returning to modal with itemCode: ${itemCode}`);
-          router.replace(`/export/export-detail/${id}?openModal=true&itemCode=${itemCode}`);
-        }
-      }, 2000);
-
-    } catch (error: any) {
-      console.error("❌ QR Manual change error:", error);
-      const message = error?.response?.data?.message || error?.message || "Lỗi không xác định";
-      setErrorMessage(`Lỗi thay đổi item: ${message}`);
-
-      // Clear states on error
-      setShowReasonInput(false);
-      setChangeReason("");
-      setScannedNewItemId(null);
-      setIsProcessing(false);
-
-      // Re-enable scanning after error
-      setTimeout(() => {
-        setScanningEnabled(true);
-        setErrorMessage(null);
-      }, 3000);
-    }
-  };
-
-  const handleContinue = () => {
-    setIsPaused(false);
-    setTimeout(() => {
-      setCameraKey((prev) => prev + 1);
-    }, 200);
-  };
 
   if (hasPermission === null) return <Text>Đang xin quyền camera...</Text>;
   if (hasPermission === false) return <Text>Không có quyền dùng camera</Text>;
@@ -458,14 +336,15 @@ export default function ScanQrScreen() {
       {/* Header */}
       <View style={styles.header}>
         <Button onPress={() => {
-          if (returnToModal === 'true' && itemCode && mode !== 'manual_change') {
-            console.log(`🔙 Back pressed - returning to modal with itemCode: ${itemCode}`);
-            // Return to export detail with modal open (only for normal modal scan)
-            router.replace(`/export/export-detail/${id}?openModal=true&itemCode=${itemCode}`);
-          } else {
-            console.log(`🔙 Back pressed - normal navigation`);
-            router.back();
-          }
+          console.log(`🔙 Back pressed - navigating with openModal params for itemCode: ${scannedItemCode}`);
+          router.replace({
+            pathname: '/export/export-detail/[id]',
+            params: {
+              id: String(id),
+              openModal: 'true',
+              itemCode: String(itemIdForNavigation || scannedItemCode || '')
+            },
+          });
         }}>←</Button>
         <Text style={styles.headerTitle}>Quét QR</Text>
       </View>
@@ -498,7 +377,7 @@ export default function ScanQrScreen() {
           </View>
         )}
 
-        {lastScannedProduct && !showReasonInput && (
+        {lastScannedProduct && (
           <View style={styles.bottomBox}>
             <View style={styles.productBox}>
               <View style={{ flex: 1 }}>
@@ -511,59 +390,6 @@ export default function ScanQrScreen() {
               </View>
             </View>
           </View>
-        )}
-
-        {showReasonInput && (
-          <KeyboardAvoidingView
-            style={styles.keyboardAvoidingView}
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
-          >
-            <ScrollView
-              contentContainerStyle={styles.scrollViewContent}
-              keyboardShouldPersistTaps="handled"
-            >
-              <View style={styles.reasonInputBox}>
-                <Text style={styles.reasonTitle}>Nhập lý do thay đổi item:</Text>
-                <TextInput
-                  style={styles.reasonInput}
-                  placeholder="Nhập lý do thay đổi..."
-                  value={changeReason}
-                  onChangeText={setChangeReason}
-                  multiline
-                  numberOfLines={3}
-                  textAlignVertical="top"
-                  autoFocus={true}
-                />
-                <View style={styles.reasonButtonRow}>
-                  <TouchableOpacity
-                    style={[styles.reasonButton, styles.cancelButton]}
-                    onPress={() => {
-                      setShowReasonInput(false);
-                      setChangeReason("");
-                      setScannedNewItemId(null);
-                      setScanningEnabled(true);
-                    }}
-                  >
-                    <Text style={styles.cancelButtonText}>Hủy</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[
-                      styles.reasonButton,
-                      styles.submitButton,
-                      (!changeReason.trim() || isProcessing) && styles.disabledButton
-                    ]}
-                    onPress={handleManualChangeSubmit}
-                    disabled={!changeReason.trim() || isProcessing}
-                  >
-                    <Text style={styles.submitButtonText}>
-                      {isProcessing ? "Đang xử lý..." : "Xác nhận"}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </ScrollView>
-          </KeyboardAvoidingView>
         )}
       </View>
     </SafeAreaView>

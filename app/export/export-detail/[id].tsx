@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import {
   ScrollView,
   View,
@@ -20,6 +20,7 @@ import { router } from "expo-router";
 import { useDispatch, useSelector } from "react-redux";
 import {
   setExportRequestDetail,
+  setPendingModalNavigation,
   setScanMappings,
   updateInventoryItemId,
 } from "@/redux/exportRequestDetailSlice";
@@ -28,7 +29,7 @@ import { ExportRequestStatus } from "@/types/exportRequest.type";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import StyledButton from "@/components/ui/StyledButton";
 import StatusBadge from "@/components/StatusBadge";
-import { InventoryItem } from "@/types/inventoryItem.type";
+import { InventoryItem, InventoryItemStatus } from "@/types/inventoryItem.type";
 import InventoryModal from "@/components/InventoryModal"; // Import modal component
 
 interface RouteParams {
@@ -36,6 +37,9 @@ interface RouteParams {
   openModal?: string;
   itemCode?: string;
 }
+
+let globalPendingItemCode = "";
+let globalShouldReopenModal = false;
 
 const ExportRequestScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
@@ -69,13 +73,21 @@ const ExportRequestScreen: React.FC = () => {
   // Auto-change loading state
   const [autoChangeLoading, setAutoChangeLoading] = useState<string | null>(null);
 
+  // Global loading state for data refresh operations
+  const [isDataRefreshing, setIsDataRefreshing] = useState(false);
+  const [modalReopeningLoading, setModalReopeningLoading] = useState(false);
+
   // Manual change states
   const [allInventoryItems, setAllInventoryItems] = useState<InventoryItem[]>([]);
   const [manualSearchText, setManualSearchText] = useState("");
   const [selectedManualItem, setSelectedManualItem] = useState<InventoryItem | null>(null);
   const [changeReason, setChangeReason] = useState("");
   const [manualChangeLoading, setManualChangeLoading] = useState(false);
-const [originalItemId, setOriginalItemId] = useState<string>("");
+  const [originalItemId, setOriginalItemId] = useState<string>("");
+  const modalReopenProcessed = useRef(false);
+  const lastReopenTimestamp = useRef<number>(0);
+  const timeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
+  const autoChangeInProgress = useRef(false);
 
   const getExportTypeLabel = (type: string | undefined) => {
     switch (type) {
@@ -103,7 +115,7 @@ const [originalItemId, setOriginalItemId] = useState<string>("");
     updateExportRequestStatus,
   } = useExportRequest();
 
-  const { loading: loadingDetails, fetchExportRequestDetails, resetTracking  } = useExportRequestDetail();
+  const { loading: loadingDetails, fetchExportRequestDetails, resetTracking } = useExportRequestDetail();
 
   const scanMappings = useSelector(
     (state: RootState) => state.exportRequestDetail.scanMappings
@@ -159,75 +171,140 @@ const [originalItemId, setOriginalItemId] = useState<string>("");
     }
   }, [exportRequest?.paperId, exportRequest?.status]);
 
+  // Cleanup timeout when component unmounts
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
+
   // Handle modal reopening when returning from QR scan (including QR manual change)
   useEffect(() => {
     if (openModal === 'true' && itemCode && savedExportRequestDetails.length > 0) {
       console.log(`🔍 QR return: Looking for itemCode: ${itemCode}`);
       console.log(`📋 Available details:`, savedExportRequestDetails.map(d => d.itemId));
 
+      // RESET the ref first to allow reprocessing
+      modalReopenProcessed.current = false;
+
+      // Set GLOBAL variables before clearing URL
+      globalPendingItemCode = itemCode;
+      globalShouldReopenModal = true;
+
       // Clear URL parameters immediately to prevent infinite loop
-      router.replace(`/export/export-detail/${id}`);
+      router.replace({ pathname: '/export/export-detail/[id]', params: { id: String(id) } });
 
-      // Delay to ensure any data changes from QR manual change are processed
-      setTimeout(async () => {
-        try {
-          // Refresh data first to get latest changes from QR manual change
-          const refreshedData = await fetchExportRequestDetails(id, 1, 100);
-          const refreshedDetails = refreshedData.map((item) => ({
-            ...item,
-            actualQuantity: item.actualQuantity ?? 0,
-            inventoryItemIds: item.inventoryItemIds ?? [],
-          }));
-          dispatch(setExportRequestDetail(refreshedDetails));
-          console.log(`✅ Data refreshed for QR return`);
-
-          // Find the detail that matches the itemCode exactly
-          const targetDetail = refreshedDetails.find((detail: any) => detail.itemId === itemCode);
-
-          if (targetDetail) {
-            console.log(`✅ Found matching detail for QR return:`, targetDetail);
-
-            // Explicitly set modal states instead of relying on handleRowPress
-            setSelectedItemCode(targetDetail.itemId || "");
-            setSelectedExportRequestDetailId(Number(targetDetail.id));
-            setInventoryModalVisible(true);
-            setSearchText("");
-            setItemUnitType("");
-
-            // Fetch inventory items for the modal
-            try {
-              const inventoryItems = await fetchInventoryItemsByExportRequestDetailId(Number(targetDetail.id));
-              setSelectedInventoryItems(inventoryItems);
-              console.log(`✅ Modal explicitly opened with ${inventoryItems.length} inventory items`);
-
-              // Fetch item details
-              const itemDetails = await getItemDetailById(targetDetail.itemId);
-              if (itemDetails?.unitType) {
-                setItemUnitType(itemDetails.unitType);
-              } else {
-                setItemUnitType("đơn vị");
-              }
-
-              console.log(`✅ QR return modal fully loaded for itemCode: ${itemCode}`);
-            } catch (error) {
-              console.error(`❌ Error loading modal data for QR return:`, error);
-              // Fallback to handleRowPress
-              handleRowPress(targetDetail);
-            }
-          } else {
-            console.warn(`❌ No matching detail found for itemCode: ${itemCode}`);
-          }
-        } catch (error) {
-          console.error(`❌ Error refreshing data and reopening modal:`, error);
-          // Fallback to original logic
-          const targetDetail = savedExportRequestDetails.find((detail: any) => detail.itemId === itemCode);
-          if (targetDetail) {
-            handleRowPress(targetDetail);
-          }
+      // Force trigger modal reopen after brief delay
+      setTimeout(() => {
+        if (globalShouldReopenModal && globalPendingItemCode && savedExportRequestDetails.length > 0) {
+          console.log(`🔄 Force triggering modal reopen for: ${globalPendingItemCode}`);
+          handleGlobalModalReopen();
         }
-      }, 300);
+      }, 100);
     }
-  }, [openModal, itemCode]); // Removed savedExportRequestDetails to prevent infinite loop
+  }, [openModal, itemCode, id]); // Add id dependency and remove savedExportRequestDetails to prevent infinite loop
+
+  // Handle global variables for modal reopening 
+  useEffect(() => {
+    // Only trigger if we have global variables set and data is available
+    if (!globalShouldReopenModal || !globalPendingItemCode || savedExportRequestDetails.length === 0) {
+      return;
+    }
+
+    // Early return if already processed to prevent duplicate execution
+    if (modalReopenProcessed.current) {
+      console.log(`🚫 Modal reopen already processed, skipping`);
+      return;
+    }
+
+    // Throttle mechanism to prevent rapid successive calls
+    const now = Date.now();
+    if (now - lastReopenTimestamp.current < 500) {
+      console.log(`🚫 Throttled: Too soon since last reopen attempt (${now - lastReopenTimestamp.current}ms)`);
+      return;
+    }
+
+    // Move the modal reopen logic to a separate function
+    handleGlobalModalReopen();
+  }, [savedExportRequestDetails]); // Add dependency to trigger when data is available
+
+  // Separate function to handle modal reopening
+  const handleGlobalModalReopen = async () => {
+    console.log(`🔍 Modal reopen check:`, {
+      globalShouldReopenModal,
+      globalPendingItemCode,
+      exportDetailsLength: savedExportRequestDetails.length,
+      modalReopenProcessed: modalReopenProcessed.current,
+    });
+
+    if (
+      !globalShouldReopenModal ||
+      !globalPendingItemCode ||
+      savedExportRequestDetails.length === 0 ||
+      modalReopenProcessed.current ||
+      modalReopeningLoading
+    ) {
+      return; // Early exit if conditions not met or already loading
+    }
+
+    setModalReopeningLoading(true);
+
+    console.log(
+      `🔄 ✅ ALL CONDITIONS MET - Attempting to reopen modal for: ${globalPendingItemCode}`
+    );
+
+    // Set flag immediately to prevent duplicate execution
+    modalReopenProcessed.current = true;
+    lastReopenTimestamp.current = Date.now();
+
+    // Find the matching export detail
+    const targetDetail = savedExportRequestDetails.find(
+      (detail) => detail.itemId === globalPendingItemCode
+    );
+
+    if (!targetDetail) {
+      console.log(`❌ Could not find detail with itemCode: ${globalPendingItemCode}`);
+      // Clear globals if not found
+      globalShouldReopenModal = false;
+      globalPendingItemCode = "";
+      modalReopenProcessed.current = false;
+      return;
+    }
+
+    try {
+      console.log(`✅ Found matching detail, reopening modal:`, targetDetail);
+      console.log(`🔄 Setting modal state...`);
+
+      // Use existing data instead of refetching to prevent loops
+      setSelectedItemCode(targetDetail.itemId || "");
+      setSelectedExportRequestDetailId(Number(targetDetail.id));
+
+      // Fetch and show inventory items
+      const inventoryItems = await fetchInventoryItemsByExportRequestDetailId(Number(targetDetail.id));
+      setSelectedInventoryItems(inventoryItems);
+
+      // Only open modal if it's not already open to prevent flicker
+      if (!inventoryModalVisible) {
+        setInventoryModalVisible(true);
+      }
+
+      console.log(`✅ Modal reopened successfully`);
+
+      // Clear global variables
+      globalShouldReopenModal = false;
+      globalPendingItemCode = "";
+      setModalReopeningLoading(false);
+    } catch (error) {
+      console.error(`❌ Error reopening modal:`, error);
+      // Clear globals on error too
+      globalShouldReopenModal = false;
+      globalPendingItemCode = "";
+      modalReopenProcessed.current = false;
+      setModalReopeningLoading(false);
+    }
+  };
 
   if (loadingRequest || loadingDetails) {
     return (
@@ -237,6 +314,22 @@ const [originalItemId, setOriginalItemId] = useState<string>("");
       </View>
     );
   }
+
+  // Loading overlay component
+  const renderLoadingOverlay = () => {
+    if (!isDataRefreshing && !modalReopeningLoading) return null;
+
+    return (
+      <View style={styles.loadingOverlay}>
+        <View style={styles.loadingOverlayContent}>
+          <ActivityIndicator size="large" color="#1677ff" />
+          <Text style={styles.loadingOverlayText}>
+            {modalReopeningLoading ? "Đang mở modal..." : "Đang cập nhật dữ liệu..."}
+          </Text>
+        </View>
+      </View>
+    );
+  };
 
   const handleConfirm = async () => {
     try {
@@ -255,23 +348,7 @@ const [originalItemId, setOriginalItemId] = useState<string>("");
     }
   };
 
-  // Function to refresh inventory items
-  const refreshInventoryItems = async () => {
-    if (!selectedExportRequestDetailId) return;
-
-    try {
-      console.log(
-        `🔄 Refreshing inventory items for exportRequestDetailId: ${selectedExportRequestDetailId}`
-      );
-      const inventoryItems = await fetchInventoryItemsByExportRequestDetailId(
-        selectedExportRequestDetailId
-      );
-      setSelectedInventoryItems(inventoryItems);
-      console.log(`✅ Refreshed ${inventoryItems.length} inventory items`);
-    } catch (error) {
-      console.error("❌ Error refreshing inventory items:", error);
-    }
-  };
+  // Function to refresh inventory items - removed as unused
 
   // ✅ NEW: Manual Change Function 1 - Select from list manually
   const handleManualChangePress = async (originalInventoryItemId: string) => {
@@ -327,27 +404,30 @@ const [originalItemId, setOriginalItemId] = useState<string>("");
     setManualChangeLoading(true);
 
     try {
-      console.log(`🔄 Manual change: ${originalItemId} -> ${selectedManualItem.id}`);
-
-      // Check if old item was scanned and reset tracking if needed
+      // Lấy trạng thái tracking của item gốc (để quyết định có reset hay không)
       const originalItem = selectedInventoryItems.find(item => item.id === originalItemId);
+
+      // ✅ 1) RESET TRACKING TRƯỚC
       if (originalItem?.isTrackingForExport && selectedExportRequestDetailId) {
-        console.log(`🔄 Resetting tracking for old item: ${originalItemId}`);
-
-        const resetSuccess = await resetTracking(
-          selectedExportRequestDetailId.toString(),
-          originalItemId
-        );
-
-        if (!resetSuccess) {
+        try {
+          const resetPromise = resetTracking(
+            selectedExportRequestDetailId.toString(),
+            originalItemId
+          );
+          const timeoutPromise = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error("Reset tracking timeout")), 10000)
+          );
+          await Promise.race([resetPromise, timeoutPromise]);
+          console.log("✅ Reset tracking thành công trước khi đổi (manual)");
+        } catch (e) {
+          console.error("❌ Reset tracking thất bại/timeout (manual):", e);
           setManualChangeLoading(false);
-          Alert.alert("Lỗi", "Không thể reset tracking cho item cũ");
-          return;
+          Alert.alert("Lỗi", "Không thể huỷ tracking mã cũ. Vui lòng thử lại!");
+          return; // ⛔ DỪNG — không tiếp tục đổi
         }
-        console.log(`✅ Reset tracking successful for: ${originalItemId}`);
       }
 
-      // Perform manual change
+      // ✅ 2) THỰC HIỆN ĐỔI SAU KHI RESET THÀNH CÔNG
       const result = await changeInventoryItemForExportDetail(
         originalItemId,
         selectedManualItem.id,
@@ -362,7 +442,16 @@ const [originalItemId, setOriginalItemId] = useState<string>("");
 
       console.log("✅ Manual change successful");
 
-      // Reset loading and manual change states
+      // Update scanMappings with new inventory item ID  
+      const updatedScanMappings = scanMappings.map(mapping => {
+        if (mapping.inventoryItemId.toUpperCase() === originalItemId.toUpperCase()) {
+          return { ...mapping, inventoryItemId: selectedManualItem.id };
+        }
+        return mapping;
+      });
+      dispatch(setScanMappings(updatedScanMappings));
+
+      // Reset UI state
       setManualChangeLoading(false);
       setSelectedManualItem(null);
       setChangeReason("");
@@ -370,51 +459,32 @@ const [originalItemId, setOriginalItemId] = useState<string>("");
       setManualSearchText("");
       setAllInventoryItems([]);
 
-      // Show success with callback to reopen modal
-      Alert.alert(
-        "Thành công",
-        "Đã đổi item thành công!",
-        [
-          {
-            text: "OK",
-            onPress: () => {
-              console.log("✅ Alert dismissed, ensuring modal stays open");
-              setInventoryModalVisible(true);
-            }
-          }
-        ]
-      );
+      Alert.alert("Thành công", "Đã đổi item thành công!", [{ text: "OK" }]);
 
-      // Refresh data and update modal inventory items
-      setTimeout(async () => {
+      // Refresh dữ liệu + modal
+      setIsDataRefreshing(true);
+      timeoutRef.current = setTimeout(async () => {
         try {
-          // Refresh export request details
           const refreshedData = await fetchExportRequestDetails(id, 1, 100);
-          const refreshedDetails = refreshedData.map((item) => ({
+          const refreshedDetails = refreshedData.map(item => ({
             ...item,
             actualQuantity: item.actualQuantity ?? 0,
             inventoryItemIds: item.inventoryItemIds ?? [],
           }));
           dispatch(setExportRequestDetail(refreshedDetails));
 
-          // Refresh inventory items for the modal
           if (selectedExportRequestDetailId) {
             const inventoryItems = await fetchInventoryItemsByExportRequestDetailId(
               selectedExportRequestDetailId
             );
             setSelectedInventoryItems(inventoryItems);
-            console.log("✅ Modal inventory items refreshed after manual change");
           }
-
-          // Force modal to be visible after data refresh
-          setInventoryModalVisible(true);
-          console.log("✅ Data refreshed after manual change, modal reopened");
         } catch (error) {
           console.error("❌ Error refreshing data:", error);
-          // Even on error, ensure modal is open
-          setInventoryModalVisible(true);
+        } finally {
+          setIsDataRefreshing(false);
         }
-      }, 500); // Slightly longer delay to ensure alert is handled
+      }, 500) as unknown as NodeJS.Timeout;
 
     } catch (error) {
       console.error("❌ Error in manual change:", error);
@@ -422,9 +492,8 @@ const [originalItemId, setOriginalItemId] = useState<string>("");
 
       let errorMessage = "Không thể đổi item. Vui lòng thử lại!";
       if (error?.response?.data?.message?.includes("already has an export request detail")) {
-        errorMessage = "ID này đã có trong request không thể đổi";
+        errorMessage = "ID này đã có trong đơn xuất khác, không thể đổi.";
       }
-
       Alert.alert("Lỗi", errorMessage);
     }
   };
@@ -433,95 +502,117 @@ const [originalItemId, setOriginalItemId] = useState<string>("");
 
 
   // Handle auto-change inventory item
-const handleAutoChange = async (inventoryItemId: string) => {
-  try {
-    setAutoChangeLoading(inventoryItemId);
+  const handleAutoChange = async (inventoryItemId: string) => {
+    try {
+      if (autoChangeInProgress.current || autoChangeLoading) {
+        return;
+      }
 
-    Alert.alert(
-      "Xác nhận đổi mã",
-      `Bạn có chắc chắn muốn đổi mã inventory item: ${inventoryItemId}?`,
-      [
-        {
-          text: "Hủy",
-          style: "cancel",
-          onPress: () => setAutoChangeLoading(null),
-        },
-        {
-          text: "Đồng ý",
-          onPress: async () => {
-            try {
-              console.log(`🔄 Auto-changing inventory item: ${inventoryItemId}`);
+      autoChangeInProgress.current = true;
+      setAutoChangeLoading(inventoryItemId);
 
-              const currentItem = selectedInventoryItems.find(item => item.id === inventoryItemId);
+      Alert.alert(
+        "Xác nhận đổi mã",
+        `Bạn có chắc chắn muốn đổi mã inventory item: ${inventoryItemId}?`,
+        [
+          { text: "Hủy", style: "cancel", onPress: () => { setAutoChangeLoading(null); autoChangeInProgress.current = false; } },
+          {
+            text: "Đồng ý",
+            onPress: async () => {
+              try {
+                // Lấy item hiện tại để biết đang tracking hay không
+                const currentItem = selectedInventoryItems.find(item => item.id === inventoryItemId);
 
-              // ✅ Reset tracking nếu cần
-              if (currentItem?.isTrackingForExport && selectedExportRequestDetailId) {
-                console.log(`🔄 Resetting tracking for: ${inventoryItemId}`);
-
-                const resetSuccess = await resetTracking(
-                  selectedExportRequestDetailId.toString(),
-                  inventoryItemId
-                );
-
-                if (!resetSuccess) {
-                  Alert.alert("Lỗi", "Không thể reset tracking. Vui lòng thử lại!");
-                  return;
+                // ✅ 1) RESET TRACKING TRƯỚC
+                if (currentItem?.isTrackingForExport && selectedExportRequestDetailId) {
+                  try {
+                    const resetPromise = resetTracking(
+                      selectedExportRequestDetailId.toString(),
+                      inventoryItemId
+                    );
+                    const timeoutPromise = new Promise((_, reject) =>
+                      setTimeout(() => reject(new Error("Reset tracking timeout")), 10000)
+                    );
+                    await Promise.race([resetPromise, timeoutPromise]);
+                    console.log("✅ Reset tracking thành công trước khi auto-change");
+                  } catch (e) {
+                    console.error("❌ Reset tracking thất bại/timeout (auto):", e);
+                    Alert.alert("Lỗi", "Không thể huỷ tracking mã cũ. Vui lòng thử lại!");
+                    return; // ⛔ DỪNG — không tiếp tục đổi
+                  }
                 }
 
-                console.log(`✅ Reset tracking thành công`);
+                // ✅ 2) THỰC HIỆN AUTO-CHANGE SAU KHI RESET THÀNH CÔNG
+                const result = await autoChangeInventoryItem(inventoryItemId);
+                console.log("✅ Auto change thành công:", result);
+
+                // Cập nhật scanMappings nếu có id mới
+                if (result?.content?.id) {
+                  const newInventoryItemId = result.content.id;
+                  const updatedScanMappings = scanMappings.map(mapping => {
+                    if (mapping.inventoryItemId.toUpperCase() === inventoryItemId.toUpperCase()) {
+                      return { ...mapping, inventoryItemId: newInventoryItemId };
+                    }
+                    return mapping;
+                  });
+                  dispatch(setScanMappings(updatedScanMappings));
+                }
+
+                // Refresh dữ liệu + modal
+                setIsDataRefreshing(true);
+                timeoutRef.current = setTimeout(async () => {
+                  try {
+                    const refreshedData = await fetchExportRequestDetails(id, 1, 100);
+                    const refreshedDetails = refreshedData.map(item => ({
+                      ...item,
+                      actualQuantity: item.actualQuantity ?? 0,
+                      inventoryItemIds: item.inventoryItemIds ?? [],
+                    }));
+                    dispatch(setExportRequestDetail(refreshedDetails));
+
+                    if (inventoryModalVisible && selectedExportRequestDetailId) {
+                      const refreshedInventoryItems =
+                        await fetchInventoryItemsByExportRequestDetailId(selectedExportRequestDetailId);
+                      setSelectedInventoryItems(refreshedInventoryItems);
+                    }
+                  } catch (error) {
+                    console.error("❌ Error refreshing data after auto change:", error);
+                  } finally {
+                    setIsDataRefreshing(false);
+                  }
+                }, 500) as unknown as NodeJS.Timeout;
+
+              } catch (error) {
+                console.error("❌ Error auto-changing:", error);
+                let errorMessage = "Không thể đổi mã inventory item. Vui lòng thử lại!";
+                if (error?.response?.data?.message) {
+                  errorMessage = `Lỗi: ${error.response.data.message}`;
+                }
+                Alert.alert("Lỗi", errorMessage);
+              } finally {
+                setAutoChangeLoading(null);
+                autoChangeInProgress.current = false;
               }
-
-              // ✅ Auto change inventory item
-              const result = await autoChangeInventoryItem(inventoryItemId);
-              console.log("✅ Auto change thành công:", result);
-
-              // ✅ Show success message first
-              Alert.alert("Thành công", "Đã đổi mã inventory item thành công!");
-
-              // ✅ Close modal immediately
-              setInventoryModalVisible(false);
-
-              // ✅ Simple refresh without reopening modal
-              setTimeout(async () => {
-                try {
-                  const refreshedData = await fetchExportRequestDetails(id, 1, 100);
-                  const refreshedDetails = refreshedData.map((item) => ({
-                    ...item,
-                    actualQuantity: item.actualQuantity ?? 0,
-                    inventoryItemIds: item.inventoryItemIds ?? [],
-                  }));
-                  dispatch(setExportRequestDetail(refreshedDetails));
-                  console.log("✅ Simple data refresh completed after auto change");
-                } catch (error) {
-                  console.error("❌ Error refreshing data after auto change:", error);
-                }
-              }, 500);
-
-            } catch (error) {
-              console.error("❌ Error auto-changing:", error);
-              Alert.alert("Lỗi", "Không thể đổi mã inventory item. Vui lòng thử lại!");
-            } finally {
-              setAutoChangeLoading(null);
-            }
+            },
           },
-        },
-      ]
-    );
-  } catch (error) {
-    console.error("❌ Error in handleAutoChange:", error);
-    setAutoChangeLoading(null);
-  }
-};
+        ]
+      );
+    } catch (error) {
+      console.error("❌ Error in handleAutoChange:", error);
+      setAutoChangeLoading(null);
+      autoChangeInProgress.current = false;
+    }
+  };
 
 
   // Handle manual item selection
- const handleManualItemSelect = (
-  selectedItem: InventoryItem,
-  originalInventoryItemId: string
-) => {
-  setSelectedManualItem(selectedItem);
-  setOriginalItemId(originalInventoryItemId); // ✅ Lưu originalItemId
-};
+  const handleManualItemSelect = (
+    selectedItem: InventoryItem,
+    originalInventoryItemId: string
+  ) => {
+    setSelectedManualItem(selectedItem);
+    setOriginalItemId(originalInventoryItemId); // ✅ Lưu originalItemId
+  };
 
 
   // Handle row press to fetch inventory items and item details
@@ -594,9 +685,17 @@ const handleAutoChange = async (inventoryItemId: string) => {
 
     if (mode === 'manual_change' && originalItemId) {
       // Navigate to QR scan for manual change mode
-      router.push(
-        `/export/scan-qr?id=${id}&returnToModal=true&itemCode=${selectedItemCode}&mode=manual_change&originalItemId=${originalItemId}`
-      );
+      router.push({
+        pathname: '/export/scan-qr-manual',
+        params: {
+          id: String(id),
+          returnToModal: 'true',
+          itemCode: String(selectedItemCode),
+          originalItemId: String(originalItemId),
+          exportRequestDetailId: String(selectedExportRequestDetailId),
+        },
+      });
+
     } else {
       // Navigate to QR scan with normal return parameters
       router.push(
@@ -617,7 +716,7 @@ const handleAutoChange = async (inventoryItemId: string) => {
         <View style={styles.signatureRowWrapper}>
           <View style={styles.signatureItemHorizontal}>
             <Text style={styles.signatureLabelHorizontal}>Người giao hàng</Text>
-           
+
             <View style={styles.signatureImageContainerHorizontal}>
               {paper?.signProviderUrl ? (
                 <Image
@@ -638,14 +737,14 @@ const handleAutoChange = async (inventoryItemId: string) => {
                 </View>
               )}
             </View>
-             <Text style={styles.signatureNameHorizontal}>
+            <Text style={styles.signatureNameHorizontal}>
               {paper?.signProviderName || "Chưa rõ"}
             </Text>
           </View>
 
           <View style={styles.signatureItemHorizontal}>
             <Text style={styles.signatureLabelHorizontal}>Người nhận hàng</Text>
-           
+
             <View style={styles.signatureImageContainerHorizontal}>
               {paper?.signReceiverUrl ? (
                 <Image
@@ -666,7 +765,7 @@ const handleAutoChange = async (inventoryItemId: string) => {
                 </View>
               )}
             </View>
-             <Text style={styles.signatureNameHorizontal}>
+            <Text style={styles.signatureNameHorizontal}>
               {paper?.signReceiverName || "Chưa rõ"}
             </Text>
           </View>
@@ -759,10 +858,10 @@ const handleAutoChange = async (inventoryItemId: string) => {
             <Text style={styles.value}>
               {exportRequest?.exportDate
                 ? new Date(exportRequest?.exportDate).toLocaleString("vi-VN", {
-                    day: "2-digit",
-                    month: "2-digit",
-                    year: "numeric",
-                  })
+                  day: "2-digit",
+                  month: "2-digit",
+                  year: "numeric",
+                })
                 : "--"}
             </Text>
           </View>
@@ -772,10 +871,10 @@ const handleAutoChange = async (inventoryItemId: string) => {
             <Text style={styles.value}>
               {exportRequest?.exportDate
                 ? new Date(exportRequest?.exportDate).toLocaleString("vi-VN", {
-                    day: "2-digit",
-                    month: "2-digit",
-                    year: "numeric",
-                  })
+                  day: "2-digit",
+                  month: "2-digit",
+                  year: "numeric",
+                })
                 : "--"}
             </Text>
           </View>
@@ -807,8 +906,8 @@ const handleAutoChange = async (inventoryItemId: string) => {
               ExportRequestStatus.IN_PROGRESS,
               ExportRequestStatus.COUNTED,
             ].includes(exportRequest?.status as ExportRequestStatus) && (
-              <Text style={styles.scanHeader}></Text>
-            )}
+                <Text style={styles.scanHeader}></Text>
+              )}
           </View>
 
           <ScrollView
@@ -841,32 +940,37 @@ const handleAutoChange = async (inventoryItemId: string) => {
                     ].includes(
                       exportRequest?.status as ExportRequestStatus
                     ) && (
-                      <View style={styles.scanCell}>
-                        <TouchableOpacity
-                          style={[
-                            styles.scanButton,
-                            isDisabled && styles.scanButtonDisabled,
-                          ]}
-                          disabled={isDisabled}
-                          onPress={(e) => {
-                            e.stopPropagation();
-                            router.push(
-                              `/export/scan-qr?id=${exportRequest?.exportRequestId}`
-                            );
-                          }}
-                        >
-                          {isDisabled ? (
-                            <Text style={styles.scanText}>Đã đủ</Text>
-                          ) : (
-                            <Ionicons
-                              name="qr-code-outline"
-                              size={18}
-                              color="white"
-                            />
-                          )}
-                        </TouchableOpacity>
-                      </View>
-                    )}
+                        <View style={styles.scanCell}>
+                          <TouchableOpacity
+                            style={[
+                              styles.scanButton,
+                              isDisabled && styles.scanButtonDisabled,
+                            ]}
+                            disabled={isDisabled}
+                            onPress={(e) => {
+                              e.stopPropagation();
+                              // Set pending modal navigation for QR scan from table
+                              dispatch(setPendingModalNavigation({
+                                exportRequestId: id,
+                                itemCode: detail.itemId
+                              }));
+                              router.push(
+                                `/export/scan-qr?id=${exportRequest?.exportRequestId}`
+                              );
+                            }}
+                          >
+                            {isDisabled ? (
+                              <Text style={styles.scanText}>Đã đủ</Text>
+                            ) : (
+                              <Ionicons
+                                name="qr-code-outline"
+                                size={18}
+                                color="white"
+                              />
+                            )}
+                          </TouchableOpacity>
+                        </View>
+                      )}
                   </TouchableOpacity>
 
                   {!isLastItem && <View style={styles.divider} />}
@@ -905,6 +1009,8 @@ const handleAutoChange = async (inventoryItemId: string) => {
         onManualChangeSubmit={handleManualChangeSubmit}
         onQRScanPress={handleQRScanPress}
       />
+
+      {renderLoadingOverlay()}
     </View>
   );
 };
@@ -1072,6 +1178,30 @@ const styles = StyleSheet.create({
     color: "#333",
     textAlign: "center",
     marginTop: 10,
+  },
+  loadingOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0, 0, 0, 0.7)",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 9999,
+  },
+  loadingOverlayContent: {
+    backgroundColor: "white",
+    borderRadius: 12,
+    padding: 24,
+    alignItems: "center",
+    minWidth: 150,
+  },
+  loadingOverlayText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: "#333",
+    textAlign: "center",
   },
   signatureImageContainerHorizontal: {
     width: "100%",
