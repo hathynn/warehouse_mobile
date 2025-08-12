@@ -11,6 +11,7 @@ interface Product {
   measurementValue: number | 0;
   expectMeasurementValue: number | 0;
   actualMeasurementValue?: number | 0;
+  measurementUnit?: string;
 }
 
 interface ProductState {

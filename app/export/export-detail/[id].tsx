@@ -823,7 +823,7 @@ const ExportRequestScreen: React.FC = () => {
         }}
       >
         <TouchableOpacity
-          onPress={() => router.back()}
+          onPress={() => router.push('/(tabs)/export')}
           style={{ paddingRight: 12, marginTop: 7 }}
         >
           <Ionicons name="arrow-back" size={24} color="white" />

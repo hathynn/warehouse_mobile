@@ -47,7 +47,7 @@ export default function StockCheckList() {
   // const { fetchStockCheckDetails } = useStockCheckDetailService();
   const insets = useSafeAreaInsets();
 
-  // Định nghĩa các tab status cho stock check
+  // Định nghĩa các tab status cho stock check - simplified workflow
   const getStatusTabs = (): StatusTab[] => {
     const validStockChecks = allStockChecks.filter(
       (stockCheck: any) => stockCheck.status !== StockCheckStatus.CANCELLED &&
@@ -65,10 +65,10 @@ export default function StockCheckList() {
       },
       {
         key: "COUNTED",
-        title: "Đã kiểm đếm",
+        title: "Chờ xác nhận",
         status: StockCheckStatus.COUNTED,
         count: validStockChecks.filter(
-          (stockCheck: any) => stockCheck.status === StockCheckStatus.COUNTED
+          (stockCheck: any) => stockCheck.status === StockCheckStatus.IN_PROGRESS
         ).length,
       },
       {
@@ -76,7 +76,7 @@ export default function StockCheckList() {
         title: "Đã xác nhận",
         status: StockCheckStatus.COUNT_CONFIRMED,
         count: validStockChecks.filter(
-          (stockCheck: any) => stockCheck.status === StockCheckStatus.COUNT_CONFIRMED
+          (stockCheck: any) => stockCheck.status === StockCheckStatus.IN_PROGRESS
         ).length,
       },
       {
@@ -87,8 +87,6 @@ export default function StockCheckList() {
           (stockCheck: any) => stockCheck.status === StockCheckStatus.COMPLETED
         ).length,
       },
-    
-   
     ];
   };
 

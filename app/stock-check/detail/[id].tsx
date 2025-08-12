@@ -113,26 +113,26 @@ const StockCheckDetailScreen: React.FC = () => {
     }, [id])
   );
 
-  // Fetch paper data when stockCheck has paperId and status is COMPLETED
-  useEffect(() => {
-    if (
-      stockCheck?.paperId &&
-      stockCheck?.status === StockCheckStatus.COMPLETED
-    ) {
-      console.log("🔍 Fetching paper with ID:", stockCheck.paperId);
-      setPaperLoading(true);
-      getPaperById(stockCheck.paperId)
-        .then((data: any) => {
-          console.log("✅ Paper data received:", data);
-          setPaper(data);
-        })
-        .catch((error) => {
-          console.error("❌ Lỗi lấy chứng từ:", error);
-          setPaper(null);
-        })
-        .finally(() => setPaperLoading(false));
-    }
-  }, [stockCheck?.paperId, stockCheck?.status]);
+  // Comment out paper fetching as signing is no longer needed
+  // useEffect(() => {
+  //   if (
+  //     stockCheck?.paperId &&
+  //     stockCheck?.status === StockCheckStatus.COMPLETED
+  //   ) {
+  //     console.log("🔍 Fetching paper with ID:", stockCheck.paperId);
+  //     setPaperLoading(true);
+  //     getPaperById(stockCheck.paperId)
+  //       .then((data: any) => {
+  //         console.log("✅ Paper data received:", data);
+  //         setPaper(data);
+  //       })
+  //       .catch((error) => {
+  //         console.error("❌ Lỗi lấy chứng từ:", error);
+  //         setPaper(null);
+  //       })
+  //       .finally(() => setPaperLoading(false));
+  //   }
+  // }, [stockCheck?.paperId, stockCheck?.status]);
 
   // Add a ref to prevent multiple modal openings
   const modalReopenProcessed = useRef(false);
@@ -455,51 +455,41 @@ const StockCheckDetailScreen: React.FC = () => {
     }
   };
 
-  // Navigate to signing screen for stock check
+  // Complete counting and finish stock check process
   const handleCompletecounting = async () => {
     try {
-      console.log("🔄 Completing counting process...");
+      console.log("🔄 Completing stock check process...");
 
+      // Directly complete the stock check (skip COUNTED status)
       const result = await updateStockCheckStatus(id, StockCheckStatus.COUNTED);
 
       if (result) {
-        console.log("✅ Đã hoàn tất kiểm đếm thành công");
+        console.log("✅ Đã hoàn tất kiểm kho thành công");
         // Refresh data to show updated status
         const updatedStockCheck = await fetchStockCheckById(id);
         setStockCheck(updatedStockCheck);
 
         Alert.alert(
-          "Thành công",
-          "Đã hoàn tất kiểm đếm. Vui lòng chờ xác nhận từ quản lý."
+          "Thành công", 
+          "Đã hoàn tất kiểm kho thành công!",
+          [
+            {
+              text: "OK",
+              onPress: () => {
+                // Navigate back to stock check list
+                router.push("/(tabs)/stock-check");
+              }
+            }
+          ]
         );
-      }
-    } catch (error) {
-      console.error("❌ Lỗi khi hoàn tất kiểm đếm:", error);
-      Alert.alert("Lỗi", "Không thể hoàn tất kiểm đếm. Vui lòng thử lại!");
-    }
-  };
-
-  // Updated function to navigate to signing (CONFIRM_COUNTED → Navigate to sign)
-  const handleNavigateToSigning = () => {
-    console.log("🚀 Navigating to signing screen...");
-    router.push(`/stock-check/sign-paper/keeper-sign?id=${id}`);
-  };
-  
-  const handleCompleteStockCheck = async () => {
-    try {
-      const statusUpdate = await updateStockCheckStatus(
-        id,
-        StockCheckStatus.COMPLETED
-      );
-      if (statusUpdate) {
-        console.log("✅ Đã hoàn tất kiểm kho");
-        router.push("/(tabs)/stock-check");
       }
     } catch (error) {
       console.error("❌ Lỗi khi hoàn tất kiểm kho:", error);
       Alert.alert("Lỗi", "Không thể hoàn tất kiểm kho. Vui lòng thử lại!");
     }
   };
+
+  // Removed signing-related functions as they are no longer needed
 
   // Function to refresh inventory items
   const refreshInventoryItems = async () => {
@@ -735,76 +725,77 @@ const StockCheckDetailScreen: React.FC = () => {
     );
   };
 
-  const renderSignatureSection = () => {
-    if (
-      stockCheck?.status !== StockCheckStatus.COMPLETED ||
-      !stockCheck?.paperId
-    )
-      return null;
+  // Comment out signature section for stock check
+  // const renderSignatureSection = () => {
+  //   if (
+  //     stockCheck?.status !== StockCheckStatus.COMPLETED ||
+  //     !stockCheck?.paperId
+  //   )
+  //     return null;
 
-    return (
-      <View style={styles.signatureContainer}>
-        <View style={styles.signatureRowWrapper}>
-          <View style={styles.signatureItemHorizontal}>
-            <Text style={styles.signatureLabelHorizontal}>Người kiểm đếm</Text>
+  //   return (
+  //     <View style={styles.signatureContainer}>
+  //       <View style={styles.signatureRowWrapper}>
+  //         <View style={styles.signatureItemHorizontal}>
+  //           <Text style={styles.signatureLabelHorizontal}>Người kiểm đếm</Text>
             
-            <View style={styles.signatureImageContainerHorizontal}>
-              {paper?.signProviderUrl ? (
-                <Image
-                  source={{ uri: paper.signProviderUrl }}
-                  style={styles.signatureImageHorizontal}
-                  resizeMode="contain"
-                />
-              ) : (
-                <View style={styles.noSignatureHorizontal}>
-                  <Ionicons
-                    name="document-text-outline"
-                    size={30}
-                    color="#ccc"
-                  />
-                  <Text style={styles.noSignatureTextHorizontal}>
-                    Chưa có chữ ký
-                  </Text>
-                </View>
-              )}
-            </View>
+  //           <View style={styles.signatureImageContainerHorizontal}>
+  //             {paper?.signProviderUrl ? (
+  //               <Image
+  //                 source={{ uri: paper.signProviderUrl }}
+  //                 style={styles.signatureImageHorizontal}
+  //                 resizeMode="contain"
+  //               />
+  //             ) : (
+  //               <View style={styles.noSignatureHorizontal}>
+  //                 <Ionicons
+  //                   name="document-text-outline"
+  //                   size={30}
+  //                   color="#ccc"
+  //                 />
+  //                 <Text style={styles.noSignatureTextHorizontal}>
+  //                   Chưa có chữ ký
+  //                 </Text>
+  //               </View>
+  //             )}
+  //           </View>
 
-            <Text style={styles.signatureNameHorizontal}>
-              {paper?.signProviderName || "Chưa rõ"}
-            </Text>
-          </View>
+  //           <Text style={styles.signatureNameHorizontal}>
+  //             {paper?.signProviderName || "Chưa rõ"}
+  //           </Text>
+  //         </View>
 
-          <View style={styles.signatureItemHorizontal}>
-            <Text style={styles.signatureLabelHorizontal}>Người phê duyệt</Text>
+  //         <View style={styles.signatureItemHorizontal}>
+  //           <Text style={styles.signatureLabelHorizontal}>Người phê duyệt</Text>
             
-            <View style={styles.signatureImageContainerHorizontal}>
-              {paper?.signReceiverUrl ? (
-                <Image
-                  source={{ uri: paper.signReceiverUrl }}
-                  style={styles.signatureImageHorizontal}
-                  resizeMode="contain"
-                />
-              ) : (
-                <View style={styles.noSignatureHorizontal}>
-                  <Ionicons
-                    name="document-text-outline"
-                    size={30}
-                    color="#ccc"
-                  />
-                  <Text style={styles.noSignatureTextHorizontal}>
-                    Chưa có chữ ký
-                  </Text>
-                </View>
-              )}
-            </View>
-            <Text style={styles.signatureNameHorizontal}>
-              {paper?.signReceiverName || "Chưa rõ"}
-            </Text>
-          </View>
-        </View>
-      </View>
-    );
-  };
+  //           <View style={styles.signatureImageContainerHorizontal}>
+  //             {paper?.signReceiverUrl ? (
+  //               <Image
+  //                 source={{ uri: paper.signReceiverUrl }}
+  //                 style={styles.signatureImageHorizontal}
+  //                 resizeMode="contain"
+  //               />
+  //             ) : (
+  //               <View style={styles.noSignatureHorizontal}>
+  //                 <Ionicons
+  //                   name="document-text-outline"
+  //                   size={30}
+  //                   color="#ccc"
+  //                 />
+  //                 <Text style={styles.noSignatureTextHorizontal}>
+  //                   Chưa có chữ ký
+  //                 </Text>
+  //               </View>
+  //             )}
+  //           </View>
+  //           <Text style={styles.signatureNameHorizontal}>
+  //             {paper?.signReceiverName || "Chưa rõ"}
+  //           </Text>
+  //         </View>
+  //       </View>
+  //     </View>
+  //   );
+  // };
 
 const renderActionButton = () => {
   if (!stockCheck) return null;
@@ -815,7 +806,7 @@ const renderActionButton = () => {
       return (
         <View style={styles.actionButtonContainer}>
           <StyledButton
-            title="Xác nhận kiểm đếm"
+            title="Bắt đầu kiểm đếm"
             onPress={handleStartStockCheck}
             style={{ marginTop: 12 }}
           />
@@ -826,37 +817,24 @@ const renderActionButton = () => {
       return (
         <View style={styles.actionButtonContainer}>
           <StyledButton
-            title="Xác nhận kiểm đếm"
+            title="Xác nhận kiểm kho"
             onPress={handleCompletecounting}
             style={{ marginTop: 12 }}
           />
         </View>
       );
       
-    // case StockCheckStatus.COUNTED:
+    // case StockCheckStatus.COMPLETED:
     //   return (
     //     <View style={styles.actionButtonContainer}>
-    //       <View style={styles.waitingMessageContainer}>
-    //         <Text style={styles.waitingMessage}>
-    //           Đang chờ xác nhận từ quản lý...
+    //       <View style={styles.completedMessageContainer}>
+    //         <Ionicons name="checkmark-circle" size={24} color="#28a745" />
+    //         <Text style={styles.completedMessage}>
+    //           Đã hoàn tất kiểm kho
     //         </Text>
     //       </View>
     //     </View>
     //   );
-
-    case StockCheckStatus.COUNT_CONFIRMED:
-      return (
-        <View style={styles.actionButtonContainer}>
-          <StyledButton
-            title="Ký xác nhận"
-            onPress={handleNavigateToSigning}
-            style={{ marginTop: 12 }}
-          />
-        </View>
-      );
-
-    case StockCheckStatus.COMPLETED:
-      return null;
       
     default:
       return null;
@@ -1067,7 +1045,7 @@ const renderActionButton = () => {
         </View>
 
         <View style={styles.actionButtonContainer}>{renderActionButton()}</View>
-        {renderSignatureSection()}
+        {/* {renderSignatureSection()} */}
       </ScrollView>
 
       <InventoryModal
@@ -1302,6 +1280,24 @@ const styles = StyleSheet.create({
     color: '#0369a1',
     textAlign: 'center',
     fontWeight: '500',
+  },
+  completedMessageContainer: {
+    backgroundColor: '#f0f8f4',
+    padding: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#28a745',
+    marginTop: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  completedMessage: {
+    fontSize: 14,
+    color: '#28a745',
+    textAlign: 'center',
+    fontWeight: '600',
+    marginLeft: 8,
   },
 
 });
