@@ -18,6 +18,7 @@ import { InventoryItem, InventoryItemStatus } from "@/types/inventoryItem.type";
 import useInventoryService from "@/services/useInventoryService";
 import useItemService from "@/services/useItemService";
 import { ExportRequestStatus } from "@/types/exportRequest.type";
+import { StockCheckStatus } from "@/types/stockCheck.type";
 
 interface InventoryModalProps {
   visible: boolean;
@@ -56,6 +57,17 @@ interface InventoryModalProps {
 
 type ModalPage = "main" | "manual_select" | "reason_input";
 
+// Function to format location string from English to Vietnamese
+const formatLocationString = (locationStr: string): string => {
+  if (!locationStr) return locationStr;
+  
+  return locationStr
+    .replace(/Zone:/g, 'Khu:')
+    .replace(/Floor:/g, 'Tầng:')
+    .replace(/Row:/g, 'Dãy:')
+    .replace(/Line:/g, 'Hàng:');
+};
+
 const InventoryModal: React.FC<InventoryModalProps> = ({
   visible,
   onClose,
@@ -88,6 +100,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
   const [originalItemId, setOriginalItemId] = useState<string>("");
   const [detailedInventoryItems, setDetailedInventoryItems] = useState<{ [key: string]: InventoryItem }>({});
   const [detailedItemsLoading, setDetailedItemsLoading] = useState(false);
+  const [showMeasurementWarning, setShowMeasurementWarning] = useState(false);
   const [itemData, setItemData] = useState<any | null>(null);
 
   // Add inventory service
@@ -202,171 +215,259 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
     setModalPage("reason_input");
   };
 
+  // Function to check measurement warning before manual change submit
+  const handleManualChangeSubmit = async () => {
+    // Check if we have both selected manual item and original item data
+    if (selectedManualItem && itemData) {
+      const selectedMeasurement = selectedManualItem.measurementValue || 0;
+      const requiredMeasurement = itemData.measurementValue || 0;
+      
+      // Check if measurement values are different (vượt hoặc thiếu)
+      if (selectedMeasurement !== requiredMeasurement) {
+        console.log(`⚠️ Measurement value difference detected: selected ${selectedMeasurement} vs required ${requiredMeasurement}`);
+        setShowMeasurementWarning(true);
+        return; // Show warning and wait for user confirmation
+      }
+    }
+    
+    // If no measurement difference or no measurement values, proceed directly
+    if (onManualChangeSubmit) {
+      onManualChangeSubmit();
+    }
+  };
+
+  // Handle warning confirmation
+  const handleMeasurementWarningConfirm = async () => {
+    setShowMeasurementWarning(false);
+    if (onManualChangeSubmit) {
+      onManualChangeSubmit();
+    }
+  };
+
+  // Handle warning cancel
+  const handleMeasurementWarningCancel = () => {
+    setShowMeasurementWarning(false);
+    // Optional: Reset selection or go back to manual selection
+  };
+
   const handleClose = () => {
     setModalPage("main");
     setOriginalItemId("");
     onClose();
   };
 
-  const renderInventoryItem = ({ item }: { item: InventoryItem }) => {
-    // Determine if this is stock check mode
+  // Group inventory items by measurement value
+  const getGroupedInventoryItems = () => {
+    const grouped: { [key: string]: InventoryItem[] } = {};
+    
+    filteredInventoryItems.forEach(item => {
+      const measurementValue = item.measurementValue?.toString() || '0';
+      if (!grouped[measurementValue]) {
+        grouped[measurementValue] = [];
+      }
+      grouped[measurementValue].push(item);
+    });
+
+    return Object.entries(grouped).map(([measurementValue, items]) => ({
+      measurementValue,
+      items,
+      key: `${measurementValue}-${items.length}`
+    }));
+  };
+
+  const renderGroupedInventoryItems = ({ item: group }: { item: { measurementValue: string; items: InventoryItem[]; key: string } }) => {
+    const { measurementValue, items } = group;
     const isStockCheckMode = !!stockCheck;
 
+    // Calculate how many items in this group are checked
+    const checkedCount = items.filter(item => 
+      checkedInventoryItemIds?.includes(item.id)
+    ).length;
+
     return (
-      <View style={styles.inventoryItemContainer}>
-        <View style={styles.inventoryItemRow}>
-          <View style={styles.inventoryItemContent}>
-            <Text style={styles.inventoryItemId}>{item.id}</Text>
-            <Text style={styles.inventoryItemSubtext}>
-              Vị trí: {item.storedLocationName}
-            </Text>
-            {exportRequest?.type === "INTERNAL" && (
-              <Text style={styles.inventoryItemSubtext}>
-                Giá trị xuất: {item.measurementValue}{" "}
-                {itemUnitType || "đơn vị"}
-              </Text>
-            )}
-          </View>
-
-          {/* Show tracking status for both export and stock check */}
-          {(item.isTrackingForExport || (isStockCheckMode && checkedInventoryItemIds?.includes(item.id))) && (
-            <View style={styles.trackingStatusContainer}>
-              <Ionicons name="checkmark-circle" size={20} color="#28a745" />
-              <Text style={styles.trackingStatusText}>
-                Đã quét
-              </Text>
-            </View>
-          )}
+      <View style={styles.groupContainer}>
+        {/* Group header showing measurement value */}
+        <View style={styles.groupHeader}>
+          <Text style={styles.groupMeasurementValue}>
+            Giá trị đo: {measurementValue} {itemUnitType || 'đơn vị'}
+          </Text>
+          <Text style={styles.groupItemCount}>
+            ({items.length} sản phẩm{checkedCount > 0 ? ` - ${checkedCount} đã quét` : ''})
+          </Text>
         </View>
 
-        <View style={styles.actionButtonsRow}>
-          {isStockCheckMode ? (
-            // Stock check mode: Button logic based on status and tracking
-            (() => {
-              const isChecked = checkedInventoryItemIds?.includes(item.id);
-              const detailedItem = detailedInventoryItems[item.id];
-              const status = detailedItem?.status;
-              const isTracking = isChecked; // isTracking is true when item is checked
-
-              // Logic based on status and tracking state
-              if (status === InventoryItemStatus.AVAILABLE && isTracking) {
-                // Status AVAILABLE + isTracking true = "Thanh lý" button
-                return (
-                  <TouchableOpacity
-                    style={[
-                      styles.actionButton,
-                      styles.resetTrackingButton,
-                    ]}
-                    onPress={() => onResetTracking?.(item.id)}
-                  >
-                    <Ionicons name="refresh-outline" size={16} color="white" />
-                    <Text style={styles.actionButtonText}>Thanh lý</Text>
-                  </TouchableOpacity>
-                );
-              } else if (status === InventoryItemStatus.NEED_LIQUID) {
-                // Status NEED_LIQUID = "Đã yêu cầu thanh lý" button (disabled)
-                return (
-                  <TouchableOpacity
-                    style={[
-                      styles.actionButton,
-                      styles.disabledButton,
-                    ]}
-                    disabled={true}
-                  >
-                    <Ionicons name="checkmark-circle-outline" size={16} color="white" />
-                    <Text style={styles.actionButtonText}>Đã yêu cầu thanh lý</Text>
-                  </TouchableOpacity>
-                );
-              } else if (!isTracking) {
-                // isTracking false = "Quét QR" button
-                return (
-                  <TouchableOpacity
-                    style={[
-                      styles.actionButton,
-                      styles.stockCheckScanButton,
-                    ]}
-                    onPress={() => {
-                      if (onQRScanPress) {
-                        onQRScanPress('normal');
-                      }
-                    }}
-                  >
-                    <Ionicons name="qr-code-outline" size={16} color="white" />
-                    <Text style={styles.actionButtonText}>Quét QR</Text>
-                  </TouchableOpacity>
-                );
-              } else {
-                // Default fallback - show QR scan button
-                return (
-                  <TouchableOpacity
-                    style={[
-                      styles.actionButton,
-                      styles.stockCheckScanButton,
-                    ]}
-                    onPress={() => {
-                      if (onQRScanPress) {
-                        onQRScanPress('normal');
-                      }
-                    }}
-                  >
-                    <Ionicons name="qr-code-outline" size={16} color="white" />
-                    <Text style={styles.actionButtonText}>Quét QR</Text>
-                  </TouchableOpacity>
-                );
-              }
-            })()
-          ) : (
-            // Export mode: Show original export buttons
-            <>
-              {!item.isTrackingForExport && (
-                <TouchableOpacity
-                  style={styles.actionButton}
-                  onPress={() => {
-                    if (onQRScanPress) {
-                      onQRScanPress('normal');
-                    } else {
-                      // Fallback to direct navigation if callback not provided
-                      handleClose();
-                      router.push(
-                        `/export/scan-qr?id=${exportRequest?.exportRequestId}`
-                      );
-                    }
-                  }}
-                >
-                  <Ionicons name="qr-code-outline" size={16} color="white" />
-                  <Text style={styles.actionButtonText}>Quét QR</Text>
-                </TouchableOpacity>
-              )}
-
-              <TouchableOpacity
-                style={[
-                  styles.actionButton,
-                  styles.autoChangeActionButton,
-                  autoChangeLoading === item.id && styles.actionButtonDisabled,
-                ]}
-                onPress={() => onAutoChange?.(item.id)}
-                disabled={autoChangeLoading === item.id}
-              >
-                {autoChangeLoading === item.id ? (
-                  <ActivityIndicator size="small" color="white" />
-                ) : (
-                  <>
-                    <Ionicons name="refresh-outline" size={16} color="white" />
-                    <Text style={styles.actionButtonText}>Đổi tự động</Text>
-                  </>
+        {/* List of inventory items in this group */}
+        {items.map(item => (
+          <View key={item.id} style={styles.inventoryItemContainer}>
+            <View style={styles.inventoryItemRow}>
+              <View style={styles.inventoryItemContent}>
+                <Text style={styles.inventoryItemId}>{item.id}</Text>
+                <Text style={styles.inventoryItemSubtext}>
+                  Vị trí: {formatLocationString(item.storedLocationName)}
+                </Text>
+                {exportRequest?.type === "INTERNAL" && (
+                  <Text style={styles.inventoryItemSubtext}>
+                    Giá trị xuất: {item.measurementValue}{" "}
+                    {itemUnitType || "đơn vị"}
+                  </Text>
                 )}
-              </TouchableOpacity>
+              </View>
 
-              <TouchableOpacity
-                style={[styles.actionButton, styles.manualChangeActionButton]}
-                onPress={() => handleManualChangePress(item.id)}
-              >
-                <Ionicons name="create-outline" size={16} color="white" />
-                <Text style={styles.actionButtonText}>Đổi thủ công</Text>
-              </TouchableOpacity>
-            </>
-          )}
-        </View>
+              {/* Show tracking status for both export and stock check */}
+              {(item.isTrackingForExport || (isStockCheckMode && checkedInventoryItemIds?.includes(item.id))) && (
+                <View style={styles.trackingStatusContainer}>
+                  <Ionicons name="checkmark-circle" size={20} color="#28a745" />
+                  <Text style={styles.trackingStatusText}>
+                    Đã quét
+                  </Text>
+                </View>
+              )}
+            </View>
+
+            <View style={styles.actionButtonsRow}>
+              {isStockCheckMode ? (
+                // Stock check mode: Button logic based on status and tracking
+                (() => {
+                  // Hide buttons if stock check status is COUNTED
+                  if (stockCheck?.status === StockCheckStatus.COUNTED) {
+                    return null;
+                  }
+
+                  const isChecked = checkedInventoryItemIds?.includes(item.id);
+                  const detailedItem = detailedInventoryItems[item.id];
+                  const status = detailedItem?.status;
+                  const isTracking = isChecked; // isTracking is true when item is checked
+
+                  // Logic based on status and tracking state
+                  if (status === InventoryItemStatus.AVAILABLE && isTracking) {
+                    // Status AVAILABLE + isTracking true = "Thanh lý" button
+                    return (
+                      <TouchableOpacity
+                        style={[
+                          styles.actionButton,
+                          styles.resetTrackingButton,
+                        ]}
+                        onPress={() => onResetTracking?.(item.id)}
+                      >
+                        <Ionicons name="refresh-outline" size={16} color="white" />
+                        <Text style={styles.actionButtonText}>Thanh lý</Text>
+                      </TouchableOpacity>
+                    );
+                  } else if (status === InventoryItemStatus.NEED_LIQUID) {
+                    // Status NEED_LIQUID = "Đã yêu cầu thanh lý" button (disabled)
+                    return (
+                      <TouchableOpacity
+                        style={[
+                          styles.actionButton,
+                          styles.disabledButton,
+                        ]}
+                        disabled={true}
+                      >
+                        <Ionicons name="checkmark-circle-outline" size={16} color="white" />
+                        <Text style={styles.actionButtonText}>Đã yêu cầu thanh lý</Text>
+                      </TouchableOpacity>
+                    );
+                  } else if (!isTracking) {
+                    // isTracking false = "Quét QR" button
+                    return (
+                      <TouchableOpacity
+                        style={[
+                          styles.actionButton,
+                          styles.stockCheckScanButton,
+                        ]}
+                        onPress={() => {
+                          if (onQRScanPress) {
+                            onQRScanPress('normal');
+                          }
+                        }}
+                      >
+                        <Ionicons name="qr-code-outline" size={16} color="white" />
+                        <Text style={styles.actionButtonText}>Quét QR</Text>
+                      </TouchableOpacity>
+                    );
+                  } else {
+                    // Default fallback - show QR scan button
+                    return (
+                      <TouchableOpacity
+                        style={[
+                          styles.actionButton,
+                          styles.stockCheckScanButton,
+                        ]}
+                        onPress={() => {
+                          if (onQRScanPress) {
+                            onQRScanPress('normal');
+                          }
+                        }}
+                      >
+                        <Ionicons name="qr-code-outline" size={16} color="white" />
+                        <Text style={styles.actionButtonText}>Quét QR</Text>
+                      </TouchableOpacity>
+                    );
+                  }
+                })()
+              ) : (
+                // Export mode: Show original export buttons
+                (() => {
+                  // Hide buttons if export request status is COUNTED
+                  if (exportRequest?.status === ExportRequestStatus.COUNTED) {
+                    return null;
+                  }
+
+                  return (
+                    <>
+                      {!item.isTrackingForExport && (
+                        <TouchableOpacity
+                          style={styles.actionButton}
+                          onPress={() => {
+                            if (onQRScanPress) {
+                              onQRScanPress('normal');
+                            } else {
+                              // Fallback to direct navigation if callback not provided
+                              handleClose();
+                              router.push(
+                                `/export/scan-qr?id=${exportRequest?.exportRequestId}`
+                              );
+                            }
+                          }}
+                        >
+                          <Ionicons name="qr-code-outline" size={16} color="white" />
+                          <Text style={styles.actionButtonText}>Quét QR</Text>
+                        </TouchableOpacity>
+                      )}
+
+                      <TouchableOpacity
+                        style={[
+                          styles.actionButton,
+                          styles.autoChangeActionButton,
+                          autoChangeLoading === item.id && styles.actionButtonDisabled,
+                        ]}
+                        onPress={() => onAutoChange?.(item.id)}
+                        disabled={autoChangeLoading === item.id}
+                      >
+                        {autoChangeLoading === item.id ? (
+                          <ActivityIndicator size="small" color="white" />
+                        ) : (
+                          <>
+                            <Ionicons name="refresh-outline" size={16} color="white" />
+                            <Text style={styles.actionButtonText}>Đổi tự động</Text>
+                          </>
+                        )}
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={[styles.actionButton, styles.manualChangeActionButton]}
+                        onPress={() => handleManualChangePress(item.id)}
+                      >
+                        <Ionicons name="create-outline" size={16} color="white" />
+                        <Text style={styles.actionButtonText}>Đổi thủ công</Text>
+                      </TouchableOpacity>
+                    </>
+                  );
+                })()
+              )}
+            </View>
+          </View>
+        ))}
       </View>
     );
   };
@@ -376,7 +477,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
       <View style={styles.inventoryItemContent}>
         <Text style={styles.inventoryItemId}>{item.id}</Text>
         <Text style={styles.inventoryItemSubtext}>
-          Vị trí: {item.storedLocationName}
+          Vị trí: {formatLocationString(item.storedLocationName)}
         </Text>
         <Text style={styles.inventoryItemSubtext}>
           Giá trị: {item.measurementValue} {itemUnitType || "đơn vị"}
@@ -423,6 +524,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
           </TouchableOpacity>
         )}
 
+
         <Text
           style={[styles.modalTitle, modalPage !== "main" && { marginLeft: 8 }]}
         >
@@ -459,7 +561,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
           <>
             <View style={styles.itemCountContainer}>
               <Text style={styles.sectionTitle}>
-                Mã sản phẩm tồn kho ({filteredInventoryItems.length} sản phẩm)
+                Sản phẩm tồn kho ({filteredInventoryItems.length} sản phẩm)
               </Text>
               {inventoryLoading && (
                 <ActivityIndicator
@@ -475,10 +577,109 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                 <ActivityIndicator size="large" color="#1677ff" />
                 <Text style={styles.loadingText}>Đang tải danh sách...</Text>
               </View>
+            ) : stockCheck ? (
+              // Stock check mode: Show grouped items by measurement value
+              <FlatList
+                data={getGroupedInventoryItems()}
+                renderItem={renderGroupedInventoryItems}
+                keyExtractor={(item) => item.key}
+                style={styles.inventoryList}
+                showsVerticalScrollIndicator={false}
+                ListEmptyComponent={
+                  <View style={styles.emptyContainer}>
+                    <Ionicons name="archive-outline" size={48} color="#ccc" />
+                    <Text style={styles.emptyText}>
+                      {searchText
+                        ? "Không tìm thấy sản phẩm phù hợp"
+                        : "Không có sản phẩm tồn kho"}
+                    </Text>
+                  </View>
+                }
+              />
             ) : (
+              // Export mode: Show individual items
               <FlatList
                 data={filteredInventoryItems}
-                renderItem={renderInventoryItem}
+                renderItem={({ item }) => (
+                  <View style={styles.inventoryItemContainer}>
+                    <View style={styles.inventoryItemRow}>
+                      <View style={styles.inventoryItemContent}>
+                        <Text style={styles.inventoryItemId}>{item.id}</Text>
+                        <Text style={styles.inventoryItemSubtext}>
+                          Vị trí: {formatLocationString(item.storedLocationName)}
+                        </Text>
+                        {exportRequest?.type === "INTERNAL" && (
+                          <Text style={styles.inventoryItemSubtext}>
+                            Giá trị xuất: {item.measurementValue}{" "}
+                            {itemUnitType || "đơn vị"}
+                          </Text>
+                        )}
+                      </View>
+
+                      {item.isTrackingForExport && (
+                        <View style={styles.trackingStatusContainer}>
+                          <Ionicons name="checkmark-circle" size={20} color="#28a745" />
+                          <Text style={styles.trackingStatusText}>
+                            Đã quét
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+
+                    <View style={styles.actionButtonsRow}>
+                      {/* Hide buttons if export request status is COUNTED */}
+                      {exportRequest?.status !== ExportRequestStatus.COUNTED && (
+                        <>
+                          {!item.isTrackingForExport && (
+                            <TouchableOpacity
+                              style={styles.actionButton}
+                              onPress={() => {
+                                if (onQRScanPress) {
+                                  onQRScanPress('normal');
+                                } else {
+                                  handleClose();
+                                  router.push(
+                                    `/export/scan-qr?id=${exportRequest?.exportRequestId}`
+                                  );
+                                }
+                              }}
+                            >
+                              <Ionicons name="qr-code-outline" size={16} color="white" />
+                              <Text style={styles.actionButtonText}>Quét QR</Text>
+                            </TouchableOpacity>
+                          )}
+
+                          <TouchableOpacity
+                            style={[
+                              styles.actionButton,
+                              styles.autoChangeActionButton,
+                              autoChangeLoading === item.id && styles.actionButtonDisabled,
+                            ]}
+                            onPress={() => onAutoChange?.(item.id)}
+                            disabled={autoChangeLoading === item.id}
+                          >
+                            {autoChangeLoading === item.id ? (
+                              <ActivityIndicator size="small" color="white" />
+                            ) : (
+                              <>
+                                <Ionicons name="refresh-outline" size={16} color="white" />
+                                <Text style={styles.actionButtonText}>Đổi tự động</Text>
+                              </>
+                            )}
+                          </TouchableOpacity>
+
+                          <TouchableOpacity
+                            style={[styles.actionButton, styles.manualChangeActionButton]}
+                            onPress={() => handleManualChangePress(item.id)}
+                          >
+                            <Ionicons name="create-outline" size={16} color="white" />
+                            <Text style={styles.actionButtonText}>Đổi thủ công</Text>
+                          </TouchableOpacity>
+                        </>
+                      )}
+                    </View>
+                  </View>
+                )}
                 keyExtractor={(item) => item.id}
                 style={styles.inventoryList}
                 showsVerticalScrollIndicator={false}
@@ -567,7 +768,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                   {selectedManualItem?.id}
                 </Text>
                 <Text style={styles.selectedItemSubtext}>
-                  Vị trí: {selectedManualItem?.storedLocationName}
+                  Vị trí: {formatLocationString(selectedManualItem?.storedLocationName)}
                 </Text>
                 <Text style={styles.selectedItemSubtext}>
                   Giá trị: {selectedManualItem?.measurementValue}{" "}
@@ -598,7 +799,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                     // ✅ Disable khi loading hoặc không có lý do
                     (manualChangeLoading || !(changeReason || "").trim()) && styles.submitReasonButtonDisabled,
                   ]}
-                  onPress={onManualChangeSubmit}
+                  onPress={handleManualChangeSubmit}
                   disabled={!(changeReason || "").trim() || manualChangeLoading} // ✅ Disable logic
                 >
                   {manualChangeLoading ? (
@@ -634,6 +835,40 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
           {renderModalContent()}
         </View>
       </View>
+      
+      {/* Measurement Warning Dialog */}
+      {showMeasurementWarning && selectedManualItem && itemData && (
+        <View style={styles.warningOverlay}>
+          <View style={styles.warningDialog}>
+            <Text style={styles.warningTitle}>Cảnh báo giá trị xuất</Text>
+            <Text style={styles.warningText}>
+              Giá trị đo lường của inventory item này đã vượt quá hoặc thiếu so với giá trị cần xuất.
+            </Text>
+            <View style={styles.warningMeasurementInfo}>
+              <Text style={styles.warningMeasurementText}>
+                Giá trị đo lường cần xuất: {itemData.measurementValue || 0} {itemUnitType || ''}
+              </Text>
+              <Text style={styles.warningMeasurementText}>
+                Giá trị đo lường đã chọn: {selectedManualItem.measurementValue || 0} {itemUnitType || ''}
+              </Text>
+            </View>
+            <View style={styles.warningButtonRow}>
+              <TouchableOpacity
+                style={[styles.warningButton, styles.warningCancelButton]}
+                onPress={handleMeasurementWarningCancel}
+              >
+                <Text style={styles.warningCancelButtonText}>Hủy</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.warningButton, styles.warningConfirmButton]}
+                onPress={handleMeasurementWarningConfirm}
+              >
+                <Text style={styles.warningConfirmButtonText}>Xác nhận</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      )}
     </Modal>
   );
 };
@@ -958,6 +1193,102 @@ const styles = StyleSheet.create({
     marginBottom:5,
     borderWidth: 1,
     borderColor: "#ffeaa7",
+  },
+  groupContainer: {
+    marginBottom: 16,
+    backgroundColor: "#f8f9fa",
+    borderRadius: 8,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: "#e9ecef",
+  },
+  groupHeader: {
+    marginBottom: 12,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: "#dee2e6",
+  },
+  groupMeasurementValue: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#495057",
+    marginBottom: 4,
+  },
+  groupItemCount: {
+    fontSize: 12,
+    color: "#6c757d",
+    fontStyle: "italic",
+  },
+  // Warning Dialog Styles
+  warningOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    zIndex: 1000,
+  },
+  warningDialog: {
+    backgroundColor: "white",
+    borderRadius: 12,
+    padding: 20,
+    width: "100%",
+    maxWidth: 400,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  warningTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#dc3545",
+    textAlign: "center",
+    marginBottom: 12,
+  },
+  warningText: {
+    fontSize: 14,
+    color: "#495057",
+    textAlign: "center",
+    marginBottom: 16,
+    lineHeight: 20,
+  },
+  warningMeasurementText: {
+    fontSize: 14,
+    color: "#856404",
+    marginBottom: 4,
+    textAlign: "center",
+  },
+  warningButtonRow: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  warningButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  warningCancelButton: {
+    backgroundColor: "#c1c1c1ff",
+  },
+  warningCancelButtonText: {
+    color: "white",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  warningConfirmButton: {
+    backgroundColor: "#1677ff",
+  },
+  warningConfirmButtonText: {
+    color: "white",
+    fontSize: 14,
+    fontWeight: "600",
   },
 });
 

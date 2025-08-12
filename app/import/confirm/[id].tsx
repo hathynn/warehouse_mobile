@@ -4,7 +4,7 @@ import { RootState } from "@/redux/store";
 import { Ionicons } from "@expo/vector-icons";
 import { ChevronDown } from "@tamagui/lucide-icons";
 import { router, useLocalSearchParams } from "expo-router";
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import {
   Text,
   View,
@@ -19,6 +19,8 @@ import {
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
 import { useDispatch, useSelector } from "react-redux";
+import useInventoryService from "@/services/useInventoryService";
+import useItemService from "@/services/useItemService";
 import {
   Button,
   Checkbox,
@@ -39,15 +41,59 @@ const Confirm = () => {
   const [searchId, setSearchId] = useState("");
   const [filtered, setFiltered] = useState(false);
   const [isChecked, setIsChecked] = useState(false);
+  const [inventoryUnits, setInventoryUnits] = useState<{[key: string]: string}>({});
 
   const { id } = useLocalSearchParams<{ id: string }>();
   const products = useSelector((state: RootState) => state.product.products);
+  
+  // Services
+  const { getItemDetailById } = useItemService();
+  const { fetchInventoryItemById } = useInventoryService();
+
+  // Fetch units for inventory items
+  useEffect(() => {
+    const fetchUnits = async () => {
+      const unitsMap: {[key: string]: string} = {};
+      
+      for (const product of products) {
+        if (product.inventoryItemId) {
+          try {
+            const inventoryItem = await fetchInventoryItemById(product.inventoryItemId);
+            
+            if (inventoryItem && inventoryItem.itemId) {
+              const itemDetails = await getItemDetailById(inventoryItem.itemId);
+              
+              if (itemDetails && itemDetails.measurementUnit) {
+                unitsMap[product.inventoryItemId] = itemDetails.measurementUnit;
+              }
+            }
+          } catch (error) {
+            console.error(`Error fetching inventory/item details for ${product.inventoryItemId}:`, error);
+          }
+        }
+      }
+      
+      setInventoryUnits(unitsMap);
+    };
+
+    if (products.length > 0) {
+      fetchUnits();
+    }
+  }, [products, getItemDetailById, fetchInventoryItemById]);
 
   const filteredProducts = filtered
     ? products.filter((p) =>
         (p.name || "").toLowerCase().includes(searchId.trim().toLowerCase())
       )
     : products;
+
+  // Get unit for a product
+  const getUnit = (product: any): string => {
+    if (product.inventoryItemId && inventoryUnits[product.inventoryItemId]) {
+      return inventoryUnits[product.inventoryItemId];
+    }
+    return '';
+  };
 
   const dispatch = useDispatch();
 
@@ -227,7 +273,7 @@ const Confirm = () => {
                       <Text>Giá trị đo lường yêu cầu</Text>
                       <Text>
                         {product.expectMeasurementValue || 0}
-                        {product.measurementUnit && ` ${product.measurementUnit}`}
+                        {getUnit(product) && ` ${getUnit(product)}`}
                       </Text>
                     </View>
                     <View
@@ -240,7 +286,7 @@ const Confirm = () => {
                       <Text>Giá trị đo lường thực tế</Text>
                       <Text>
                         {product.actualMeasurementValue || 0}
-                        {product.measurementUnit && ` ${product.measurementUnit}`}
+                        {getUnit(product) && ` ${getUnit(product)}`}
                       </Text>
                     </View>
                     <Button onPress={() => handleUpdateQuantity(product.id)}>
