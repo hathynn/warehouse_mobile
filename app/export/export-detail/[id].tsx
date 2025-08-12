@@ -1023,6 +1023,7 @@ const ExportRequestScreen: React.FC = () => {
         searchText={searchText}
         onSearchTextChange={setSearchText}
         exportRequest={exportRequest}
+        exportRequestDetailId={selectedExportRequestDetailId}
         autoChangeLoading={autoChangeLoading}
         onAutoChange={handleAutoChange}
         onManualChangePress={handleManualChangePress}

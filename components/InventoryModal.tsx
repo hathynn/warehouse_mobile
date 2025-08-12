@@ -10,12 +10,14 @@ import {
   TouchableWithoutFeedback,
   Keyboard,
   StyleSheet,
+  Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { InventoryItem, InventoryItemStatus } from "@/types/inventoryItem.type";
 import useInventoryService from "@/services/useInventoryService";
 import useItemService from "@/services/useItemService";
+import useExportRequestDetail from "@/services/useExportRequestDetailService";
 import { ExportRequestStatus } from "@/types/exportRequest.type";
 import { StockCheckStatus } from "@/types/stockCheck.type";
 
@@ -31,6 +33,7 @@ interface InventoryModalProps {
 
   // Export-specific props (optional for stock check)
   exportRequest?: any;
+  exportRequestDetailId?: number | null;
   autoChangeLoading?: string | null;
   onAutoChange?: (inventoryItemId: string) => void;
   onManualChangePress?: (originalInventoryItemId: string) => void;
@@ -77,6 +80,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
   searchText,
   onSearchTextChange,
   exportRequest,
+  exportRequestDetailId,
   autoChangeLoading,
   onAutoChange,
   onManualChangePress,
@@ -102,9 +106,57 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
   const [showMeasurementWarning, setShowMeasurementWarning] = useState(false);
   const [itemData, setItemData] = useState<any | null>(null);
 
+  // Validation function for measurement replacement
+  const validateMeasurementForReplacement = async (
+    oldItemId: string,
+    newItem: InventoryItem,
+    exportRequestDetailId: number
+  ) => {
+    try {
+      // Get old item data
+      const oldItem = await fetchInventoryItemById(oldItemId);
+      if (!oldItem) {
+        throw new Error("Không tìm thấy thông tin inventory item cũ");
+      }
+
+      // Get all items in the same export request detail
+      const allItemsInDetail = await fetchInventoryItemsByExportRequestDetailId(exportRequestDetailId);
+      
+      // Calculate total measurement value of other items (excluding old item)
+      const otherItemsTotal = allItemsInDetail
+        .filter(item => item.id !== oldItemId)
+        .reduce((sum, item) => sum + (item.measurementValue || 0), 0);
+      
+      // Total after change
+      const totalAfterChange = (newItem.measurementValue || 0) + otherItemsTotal;
+      
+      // Get required value from export request detail
+      const exportDetail = await fetchExportRequestDetailById(exportRequestDetailId);
+      const requiredValue = exportDetail?.measurementValue || 0;
+      
+      return {
+        isValid: totalAfterChange >= requiredValue,
+        totalAfterChange,
+        requiredValue,
+        oldItemValue: oldItem.measurementValue || 0,
+        newItemValue: newItem.measurementValue || 0
+      };
+    } catch (error) {
+      console.error("❌ Error validating measurement replacement:", error);
+      return {
+        isValid: true, // Allow if validation fails to avoid blocking legitimate operations
+        totalAfterChange: 0,
+        requiredValue: 0,
+        oldItemValue: 0,
+        newItemValue: 0
+      };
+    }
+  };
+
   // Add inventory service
-  const { fetchInventoryItemById } = useInventoryService();
+  const { fetchInventoryItemById, fetchInventoryItemsByExportRequestDetailId } = useInventoryService();
   const { getItemDetailById } = useItemService();
+  const { fetchExportRequestDetailById } = useExportRequestDetail();
 
   // Fetch item data for measurement value display
   useEffect(() => {
@@ -209,7 +261,39 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
     setModalPage("manual_select");
   };
 
-  const handleManualItemSelect = (item: InventoryItem) => {
+  const handleManualItemSelect = async (item: InventoryItem) => {
+    // Validate measurement for replacement when new item has lower measurement value (INTERNAL exports only)
+    if (exportRequest?.type === "INTERNAL" && exportRequestDetailId && originalItemId) {
+      // First, get original item to compare measurement values
+      try {
+        const originalItem = await fetchInventoryItemById(originalItemId);
+        if (originalItem && (item.measurementValue || 0) < (originalItem.measurementValue || 0)) {
+          console.log(`🔍 INTERNAL export - InventoryModal - Validating measurement replacement: new ${item.measurementValue} < old ${originalItem.measurementValue}`);
+          
+          const validation = await validateMeasurementForReplacement(
+            originalItemId,
+            item,
+            exportRequestDetailId
+          );
+          
+          if (!validation.isValid) {
+            console.log(`❌ INTERNAL export - InventoryModal - Measurement replacement validation failed: total ${validation.totalAfterChange} < required ${validation.requiredValue}`);
+            
+            // Show error message
+            Alert.alert(
+              "Không thể chọn",
+              "Giá trị đo lường của sản phẩm tồn kho không phù hợp với giá trị xuất của sản phẩm"
+            );
+            return; // Stop processing and don't select the item
+          }
+          console.log(`✅ INTERNAL export - InventoryModal - Measurement replacement validation passed: total ${validation.totalAfterChange} >= required ${validation.requiredValue}`);
+        }
+      } catch (error) {
+        console.error("❌ Error validating original item:", error);
+        // Continue with selection if validation fails to avoid blocking legitimate operations
+      }
+    }
+
     onManualItemSelect?.(item, originalItemId);
     setModalPage("reason_input");
   };
