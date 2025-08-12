@@ -16,7 +16,7 @@ import useStockCheckDetail from "@/services/useStockCheckDetailService";
 import useInventoryService from "@/services/useInventoryService";
 import useItemService from "@/services/useItemService";
 import usePaperService from "@/services/usePaperService";
-import { router } from "expo-router";
+import { router , useLocalSearchParams } from "expo-router";
 import { useDispatch, useSelector } from "react-redux";
 import { RootState } from "@/redux/store";
 import { StockCheckStatus } from "@/types/stockCheck.type";
@@ -29,7 +29,6 @@ import StyledButton from "@/components/ui/StyledButton";
 import StatusBadge from "@/components/StatusBadge";
 import { InventoryItem } from "@/types/inventoryItem.type";
 import InventoryModal from "@/components/InventoryModal";
-import { useLocalSearchParams } from "expo-router";
 
 interface RouteParams {
   id: string;

@@ -34,11 +34,14 @@ const useExportRequestDetail = () => {
     inventoryItemId: string
   ): Promise<boolean> => {
     try {
+      console.log("🔄 updateActualQuantity called with:", { exportRequestDetailId, inventoryItemId });
       const payload = {
         exportRequestDetailId,
         inventoryItemId,
       };
-      await callApi("put", `/export-request-detail/actual-quantity`, payload);
+      console.log("📦 Payload:", payload);
+      const response = await callApi("put", `/export-request-detail/actual-quantity`, payload);
+      console.log("✅ API response:", response);
       return true;
     } catch (error: any) {
       console.error(

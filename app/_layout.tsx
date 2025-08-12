@@ -1,7 +1,7 @@
 import { Stack, useRouter } from "expo-router";
 import { Provider, useSelector, useDispatch } from "react-redux";
 import { RootState, store } from "../redux/store";
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import "@/global.css";
 import { TamaguiProvider } from "tamagui";
 import tamaguiConfig from "@/tamagui.config";
@@ -10,7 +10,6 @@ import NotificationPopup from "@/components/NotificationPopup";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { restoreAuthState } from "@/redux/authSlice";
 import { useAppStateRestore } from "@/hooks/useAppStateRestore";
-import React from "react";
 
 function AuthHandler() {
   const authState = useSelector((state: RootState) => state.auth);

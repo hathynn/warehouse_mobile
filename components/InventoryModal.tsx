@@ -16,6 +16,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { InventoryItem, InventoryItemStatus } from "@/types/inventoryItem.type";
 import useInventoryService from "@/services/useInventoryService";
+import useItemService from "@/services/useItemService";
 import { ExportRequestStatus } from "@/types/exportRequest.type";
 
 interface InventoryModalProps {
@@ -85,11 +86,30 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
 }) => {
   const [modalPage, setModalPage] = useState<ModalPage>("main");
   const [originalItemId, setOriginalItemId] = useState<string>("");
-  const [detailedInventoryItems, setDetailedInventoryItems] = useState<{[key: string]: InventoryItem}>({});
+  const [detailedInventoryItems, setDetailedInventoryItems] = useState<{ [key: string]: InventoryItem }>({});
   const [detailedItemsLoading, setDetailedItemsLoading] = useState(false);
+  const [itemData, setItemData] = useState<any | null>(null);
 
   // Add inventory service
   const { fetchInventoryItemById } = useInventoryService();
+  const { getItemDetailById } = useItemService();
+
+  // Fetch item data for measurement value display
+  useEffect(() => {
+    const fetchItemData = async () => {
+      if (visible && selectedItemCode) {
+        try {
+          const itemInfo = await getItemDetailById(selectedItemCode);
+          setItemData(itemInfo);
+        } catch (error) {
+          console.error("Error fetching item data:", error);
+          setItemData(null);
+        }
+      }
+    };
+
+    fetchItemData();
+  }, [visible, selectedItemCode, getItemDetailById]);
 
   // Fetch detailed inventory item data when modal opens or items change
   useEffect(() => {
@@ -97,7 +117,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
       if (!visible || !selectedInventoryItems.length || !stockCheck) return;
 
       setDetailedItemsLoading(true);
-      const detailedItems: {[key: string]: InventoryItem} = {};
+      const detailedItems: { [key: string]: InventoryItem } = {};
 
       for (const item of selectedInventoryItems) {
         try {
@@ -202,7 +222,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
             </Text>
             {exportRequest?.type === "INTERNAL" && (
               <Text style={styles.inventoryItemSubtext}>
-                Giá trị cần xuất: {item.measurementValue}{" "}
+                Giá trị xuất: {item.measurementValue}{" "}
                 {itemUnitType || "đơn vị"}
               </Text>
             )}
@@ -213,7 +233,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
             <View style={styles.trackingStatusContainer}>
               <Ionicons name="checkmark-circle" size={20} color="#28a745" />
               <Text style={styles.trackingStatusText}>
-               Đã quét
+                Đã quét
               </Text>
             </View>
           )}
@@ -387,7 +407,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
     }
 
     return (
-      <View style={styles.modalHeader}>
+      <View style={styles.modalHeader}><View style={styles.modalHeaderUpper}>
         {modalPage !== "main" && (
           <TouchableOpacity
             onPress={() => {
@@ -409,9 +429,25 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
           {title}
         </Text>
 
+
+
         <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
           <Ionicons name="close" size={24} color="#666" />
         </TouchableOpacity>
+      </View>
+        {/* Display ItemId measurement value */}
+        {modalPage === "main" && itemData && (
+
+          <View style={styles.warningMeasurementInfo}>
+            <Text style={styles.itemMeasurementTextLeft}>
+              Giá trị đo lường chuẩn: <Text style={styles.itemMeasurementText}>{itemData.measurementValue || 0} {itemData.measurementUnit || ''}</Text>
+            </Text>
+            {/* <Text style={styles.itemMeasurementTextLeft}>
+              Giá trị xuất: {item.measurementValue}{" "}
+                {itemUnitType || "đơn vị"}
+            </Text> */}
+          </View>
+        )}
       </View>
     );
   };
@@ -521,69 +557,69 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
           </>
         );
 
-    case "reason_input":
-  return (
-    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-      <View style={styles.reasonInputContainer}>
-        <View style={styles.selectedItemInfo}>
-          <Text style={styles.selectedItemTitle}>Item được chọn:</Text>
-          <Text style={styles.selectedItemId}>
-            {selectedManualItem?.id}
-          </Text>
-          <Text style={styles.selectedItemSubtext}>
-            Vị trí: {selectedManualItem?.storedLocationName}
-          </Text>
-          <Text style={styles.selectedItemSubtext}>
-            Giá trị: {selectedManualItem?.measurementValue}{" "}
-            {itemUnitType || "đơn vị"}
-          </Text>
-        </View>
+      case "reason_input":
+        return (
+          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+            <View style={styles.reasonInputContainer}>
+              <View style={styles.selectedItemInfo}>
+                <Text style={styles.selectedItemTitle}>Item được chọn:</Text>
+                <Text style={styles.selectedItemId}>
+                  {selectedManualItem?.id}
+                </Text>
+                <Text style={styles.selectedItemSubtext}>
+                  Vị trí: {selectedManualItem?.storedLocationName}
+                </Text>
+                <Text style={styles.selectedItemSubtext}>
+                  Giá trị: {selectedManualItem?.measurementValue}{" "}
+                  {itemUnitType || "đơn vị"}
+                </Text>
+              </View>
 
-        <View style={styles.reasonInputSection}>
-          <Text style={styles.reasonLabel}>Lý do đổi item:</Text>
-          <RNTextInput
-            style={styles.reasonInput}
-            placeholder="Nhập lý do đổi item..."
-            value={changeReason || ""}
-            onChangeText={onChangeReasonChange}
-            multiline
-            numberOfLines={4}
-            textAlignVertical="top"
-            returnKeyType="done"
-            blurOnSubmit={true}
-            onSubmitEditing={() => Keyboard.dismiss()}
-          />
-        </View>
+              <View style={styles.reasonInputSection}>
+                <Text style={styles.reasonLabel}>Lý do đổi item:</Text>
+                <RNTextInput
+                  style={styles.reasonInput}
+                  placeholder="Nhập lý do đổi item..."
+                  value={changeReason || ""}
+                  onChangeText={onChangeReasonChange}
+                  multiline
+                  numberOfLines={4}
+                  textAlignVertical="top"
+                  returnKeyType="done"
+                  blurOnSubmit={true}
+                  onSubmitEditing={() => Keyboard.dismiss()}
+                />
+              </View>
 
-        <View style={styles.reasonButtonContainer}>
-          <TouchableOpacity
-            style={[
-              styles.submitReasonButton,
-              // ✅ Disable khi loading hoặc không có lý do
-              (manualChangeLoading || !(changeReason || "").trim()) && styles.submitReasonButtonDisabled,
-            ]}
-            onPress={onManualChangeSubmit}
-            disabled={!(changeReason || "").trim() || manualChangeLoading} // ✅ Disable logic
-          >
-            {manualChangeLoading ? (
-              <ActivityIndicator size="small" color="white" />
-            ) : (
-              <Text
-                style={[
-                  styles.submitReasonButtonText,
-                  // ✅ Đổi màu text khi disabled
-                  (!(changeReason || "").trim()) && { color: '#999' }
-                ]}
-              >
-                Xác nhận đổi
-              </Text>
-            )}
-          </TouchableOpacity>
-        </View>
-      </View>
-    </TouchableWithoutFeedback>
-  );
- 
+              <View style={styles.reasonButtonContainer}>
+                <TouchableOpacity
+                  style={[
+                    styles.submitReasonButton,
+                    // ✅ Disable khi loading hoặc không có lý do
+                    (manualChangeLoading || !(changeReason || "").trim()) && styles.submitReasonButtonDisabled,
+                  ]}
+                  onPress={onManualChangeSubmit}
+                  disabled={!(changeReason || "").trim() || manualChangeLoading} // ✅ Disable logic
+                >
+                  {manualChangeLoading ? (
+                    <ActivityIndicator size="small" color="white" />
+                  ) : (
+                    <Text
+                      style={[
+                        styles.submitReasonButtonText,
+                        // ✅ Đổi màu text khi disabled
+                        (!(changeReason || "").trim()) && { color: '#999' }
+                      ]}
+                    >
+                      Xác nhận đổi
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          </TouchableWithoutFeedback>
+        );
+
 
       default:
         return null;
@@ -618,13 +654,19 @@ const styles = StyleSheet.create({
     flexDirection: "column",
   },
   modalHeader: {
+
+
+    borderBottomWidth: 1,
+    borderBottomColor: "#f0f0f0",
+  },
+  modalHeaderUpper: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
+
   },
+
   modalTitle: {
     fontSize: 16,
     fontWeight: "600",
@@ -745,10 +787,10 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   submitReasonButtonDisabled: {
-  backgroundColor: "#ccc", // Màu xám khi disabled
-  elevation: 0,
-  shadowOpacity: 0,
-},
+    backgroundColor: "#ccc", // Màu xám khi disabled
+    elevation: 0,
+    shadowOpacity: 0,
+  },
   actionButton: {
     flex: 1,
     backgroundColor: "#1677ff",
@@ -894,6 +936,28 @@ const styles = StyleSheet.create({
     color: "#999",
     marginTop: 12,
     textAlign: "center",
+  },
+  itemMeasurementText: {
+    fontSize: 12,
+    color: "black",
+    fontWeight: "600",
+    marginTop: 4,
+    textAlign: "center",
+  },
+  itemMeasurementTextLeft: {
+    fontSize: 12,
+    color: "black",
+    marginTop: 4,
+    textAlign: "center",
+  },
+  warningMeasurementInfo: {
+    backgroundColor: "#fff3cd",
+    padding: 12,
+    borderRadius: 8,
+    marginHorizontal: 20,
+    marginBottom:5,
+    borderWidth: 1,
+    borderColor: "#ffeaa7",
   },
 });
 
