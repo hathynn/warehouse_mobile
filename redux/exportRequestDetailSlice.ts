@@ -9,11 +9,16 @@ interface ScanMapping {
 interface ExportRequestDetailState {
   details: ExportRequestDetailType[];
   scanMappings: ScanMapping[];
+  pendingModalNavigation: {
+    exportRequestId: string;
+    itemCode: string;
+  } | null;
 }
 
 const initialState: ExportRequestDetailState = {
   details: [],
   scanMappings: [],
+  pendingModalNavigation: null,
 };
 
 const exportRequestDetailSlice = createSlice({
@@ -74,6 +79,20 @@ const exportRequestDetailSlice = createSlice({
         state.scanMappings[mappingIndex].inventoryItemId = newInventoryItemId.trim().toLowerCase();
       }
     },
+
+    setPendingModalNavigation: (
+      state,
+      action: PayloadAction<{
+        exportRequestId: string;
+        itemCode: string;
+      } | null>
+    ) => {
+      state.pendingModalNavigation = action.payload;
+    },
+
+    clearPendingModalNavigation: (state) => {
+      state.pendingModalNavigation = null;
+    },
   },
 });
 
@@ -81,7 +100,9 @@ export const {
   setExportRequestDetail, 
   updateActualQuantity, 
   setScanMappings,
-  updateInventoryItemId 
+  updateInventoryItemId,
+  setPendingModalNavigation,
+  clearPendingModalNavigation
 } = exportRequestDetailSlice.actions;
 
 export default exportRequestDetailSlice.reducer;
