@@ -91,10 +91,28 @@ const useExportRequestDetail = () => {
   }
 };
 
+const fetchExportRequestDetailById = async (
+  exportRequestDetailId: number
+): Promise<ExportRequestDetailType | null> => {
+  try {
+    const response = await callApi(
+      "get",
+      `/export-request-detail/detail/${exportRequestDetailId}` // ✅ Sửa endpoint cho đúng với Swagger
+    );
+    // Nếu API trả về object trực tiếp
+    return response?.content || response || null;
+  } catch (error) {
+    console.error("Lỗi khi lấy export request detail by ID:", error);
+    return null;
+  }
+};
+
+
   return {
     loading,
     exportRequestDetails,
     fetchExportRequestDetails,
+    fetchExportRequestDetailById,
     updateActualQuantity,
     confirmCountedExportRequest,
     resetTracking,

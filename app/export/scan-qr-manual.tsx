@@ -51,7 +51,7 @@ export default function ScanQrManualScreen() {
   const [cameraKey, setCameraKey] = useState(0);
   const isFocused = useIsFocused();
   const dispatch = useDispatch();
-  const { resetTracking, updateActualQuantity } = useExportRequestDetail();
+  const { resetTracking, updateActualQuantity, fetchExportRequestDetailById } = useExportRequestDetail();
   const { exportRequest, fetchExportRequestById } = useExportRequest();
   const { changeInventoryItemForExportDetail, fetchInventoryItemById, fetchInventoryItemsByExportRequestDetailId } = useInventoryService();
   const { getItemDetailById } = useItemService();
@@ -69,6 +69,53 @@ export default function ScanQrManualScreen() {
   const [lastScannedProduct, setLastScannedProduct] = useState<any | null>(
     null
   );
+
+  // Validation function for measurement replacement
+  const validateMeasurementForReplacement = async (
+    oldItemId: string,
+    newItem: any,
+    exportRequestDetailId: number
+  ) => {
+    try {
+      // Get old item data
+      const oldItem = await fetchInventoryItemById(oldItemId);
+      if (!oldItem) {
+        throw new Error("Không tìm thấy thông tin inventory item cũ");
+      }
+
+      // Get all items in the same export request detail
+      const allItemsInDetail = await fetchInventoryItemsByExportRequestDetailId(exportRequestDetailId);
+      
+      // Calculate total measurement value of other items (excluding old item)
+      const otherItemsTotal = allItemsInDetail
+        .filter(item => item.id !== oldItemId)
+        .reduce((sum, item) => sum + (item.measurementValue || 0), 0);
+      
+      // Total after change
+      const totalAfterChange = (newItem.measurementValue || 0) + otherItemsTotal;
+      
+      // Get required value from export request detail
+      const exportDetail = await fetchExportRequestDetailById(exportRequestDetailId);
+      const requiredValue = exportDetail?.measurementValue || 0;
+      
+      return {
+        isValid: totalAfterChange >= requiredValue,
+        totalAfterChange,
+        requiredValue,
+        oldItemValue: oldItem.measurementValue || 0,
+        newItemValue: newItem.measurementValue || 0
+      };
+    } catch (error) {
+      console.error("❌ Error validating measurement replacement:", error);
+      return {
+        isValid: true, // Allow if validation fails to avoid blocking legitimate operations
+        totalAfterChange: 0,
+        requiredValue: 0,
+        oldItemValue: 0,
+        newItemValue: 0
+      };
+    }
+  };
 
   // Enhanced debounce mechanism and processing tracking
   const lastScanTimeRef = useRef<number>(0);
@@ -231,6 +278,34 @@ export default function ScanQrManualScreen() {
       }
 
       console.log(`✅ ItemId validation passed: ${inventoryItemData.itemId} === ${originalItemData.itemId}`);
+
+      // Validate measurement for replacement when new item has lower measurement value (INTERNAL exports only)
+      if (exportRequest?.type === "INTERNAL" && exportDetailIdNum && (inventoryItemData.measurementValue || 0) < (originalItemData.measurementValue || 0)) {
+        console.log(`🔍 INTERNAL export - Validating measurement replacement: new ${inventoryItemData.measurementValue} < old ${originalItemData.measurementValue}`);
+        
+        const validation = await validateMeasurementForReplacement(
+          currentOriginalId,
+          inventoryItemData,
+          exportDetailIdNum
+        );
+        
+        if (!validation.isValid) {
+          console.log(`❌ INTERNAL export - Measurement replacement validation failed: total ${validation.totalAfterChange} < required ${validation.requiredValue}`);
+          
+          // Show error message and force re-scan
+          setErrorMessage("Giá trị đo lường của sản phẩm tồn kho không phù hợp với giá trị xuất của sản phẩm này");
+          setIsProcessing(false);
+
+          // Allow re-scanning after showing message
+          setTimeout(() => {
+            setScanningEnabled(true);
+            setErrorMessage(null);
+          }, 3000);
+
+          return; // Stop processing and force re-scan
+        }
+        console.log(`✅ INTERNAL export - Measurement replacement validation passed: total ${validation.totalAfterChange} >= required ${validation.requiredValue}`);
+      }
 
       // Check for SELLING export type with exceeded measurement value
       if (exportRequest?.type === "SELLING") {
