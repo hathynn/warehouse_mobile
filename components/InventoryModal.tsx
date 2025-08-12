@@ -7,7 +7,6 @@ import {
   FlatList,
   TextInput as RNTextInput,
   ActivityIndicator,
-  Alert,
   TouchableWithoutFeedback,
   Keyboard,
   StyleSheet,
@@ -217,20 +216,20 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
 
   // Function to check measurement warning before manual change submit
   const handleManualChangeSubmit = async () => {
-    // Check if we have both selected manual item and original item data
-    if (selectedManualItem && itemData) {
+    // Only show warnings for INTERNAL export requests with exceeded values
+    if (exportRequest?.type === "INTERNAL" && selectedManualItem && itemData) {
       const selectedMeasurement = selectedManualItem.measurementValue || 0;
       const requiredMeasurement = itemData.measurementValue || 0;
       
-      // Check if measurement values are different (vượt hoặc thiếu)
-      if (selectedMeasurement !== requiredMeasurement) {
-        console.log(`⚠️ Measurement value difference detected: selected ${selectedMeasurement} vs required ${requiredMeasurement}`);
+      // Only warn for exceeded values in INTERNAL exports
+      if (selectedMeasurement > requiredMeasurement) {
+        console.log(`⚠️ INTERNAL export - Measurement value exceeded: selected ${selectedMeasurement} > required ${requiredMeasurement}`);
         setShowMeasurementWarning(true);
-        return; // Show warning and wait for user confirmation
+        return;
       }
     }
     
-    // If no measurement difference or no measurement values, proceed directly
+    // If no measurement issues or not INTERNAL type, proceed directly
     if (onManualChangeSubmit) {
       onManualChangeSubmit();
     }
@@ -842,7 +841,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
           <View style={styles.warningDialog}>
             <Text style={styles.warningTitle}>Cảnh báo giá trị xuất</Text>
             <Text style={styles.warningText}>
-              Giá trị đo lường của inventory item này đã vượt quá hoặc thiếu so với giá trị cần xuất.
+              Giá trị đo lường của inventory item này đã vượt quá so với giá trị cần xuất.
             </Text>
             <View style={styles.warningMeasurementInfo}>
               <Text style={styles.warningMeasurementText}>

@@ -20,6 +20,7 @@ import { Button } from "tamagui";
 import { useIsFocused } from "@react-navigation/native";
 import { Audio } from "expo-av";
 import useExportRequestDetail from "@/services/useExportRequestDetailService";
+import useExportRequest from "@/services/useExportRequestService";
 import useInventoryService from "@/services/useInventoryService";
 import useItemService from "@/services/useItemService";
 
@@ -51,6 +52,7 @@ export default function ScanQrManualScreen() {
   const isFocused = useIsFocused();
   const dispatch = useDispatch();
   const { resetTracking, updateActualQuantity } = useExportRequestDetail();
+  const { exportRequest, fetchExportRequestById } = useExportRequest();
   const { changeInventoryItemForExportDetail, fetchInventoryItemById, fetchInventoryItemsByExportRequestDetailId } = useInventoryService();
   const { getItemDetailById } = useItemService();
   const [scanningEnabled, setScanningEnabled] = useState(true);
@@ -118,6 +120,13 @@ export default function ScanQrManualScreen() {
       setHasPermission(status === "granted");
     })();
   }, []);
+
+  // Fetch export request data when component mounts
+  useEffect(() => {
+    if (id) {
+      fetchExportRequestById(id);
+    }
+  }, [id, fetchExportRequestById]);
 
   // Reset scanning state when screen is focused
   useEffect(() => {
@@ -223,6 +232,29 @@ export default function ScanQrManualScreen() {
 
       console.log(`✅ ItemId validation passed: ${inventoryItemData.itemId} === ${originalItemData.itemId}`);
 
+      // Check for SELLING export type with exceeded measurement value
+      if (exportRequest?.type === "SELLING") {
+        const scannedMeasurementValue = inventoryItemData.measurementValue || 0;
+        const itemInfo = await getItemDetailById(inventoryItemData.itemId);
+        const requiredMeasurementValue = itemInfo?.measurementValue || 0;
+        
+        if (scannedMeasurementValue > requiredMeasurementValue) {
+          console.log(`❌ SELLING export: Measurement value exceeded - scanned: ${scannedMeasurementValue}, required: ${requiredMeasurementValue}`);
+          
+          // Show error message and force re-scan
+          setErrorMessage(`Sản phẩm này có giá trị đo lường không phù hợp với giá trị đo cần xuất. Vui lòng quét QR khác.`);
+          setIsProcessing(false);
+
+          // Allow re-scanning after showing message
+          setTimeout(() => {
+            setScanningEnabled(true);
+            setErrorMessage(null);
+          }, 3000);
+
+          return; // Stop processing and force re-scan
+        }
+      }
+
       if (exportDetailIdNum) {
         try {
           const itemsInDetail = await fetchInventoryItemsByExportRequestDetailId(exportDetailIdNum);
@@ -322,20 +354,20 @@ export default function ScanQrManualScreen() {
       return;
     }
 
-    // Check measurement value difference before proceeding
-    // Compare: scanned inventory item measurementValue vs itemId measurementValue
-    if (newInventoryItemData && itemData) {
+    // Check measurement value for INTERNAL export requests only (for warnings)
+    if (exportRequest?.type === "INTERNAL" && newInventoryItemData && itemData) {
       const scannedInventoryMeasurement = newInventoryItemData.measurementValue || 0;
       const itemIdMeasurement = itemData.measurementValue || 0;
 
-      if (scannedInventoryMeasurement !== itemIdMeasurement) {
-        console.log(`⚠️ Measurement value difference detected: scanned inventory ${scannedInventoryMeasurement} vs itemId ${itemIdMeasurement}`);
+      // Only warn for exceeded values in INTERNAL exports
+      if (scannedInventoryMeasurement > itemIdMeasurement) {
+        console.log(`⚠️ INTERNAL export - Measurement value exceeded: scanned inventory ${scannedInventoryMeasurement} > itemId ${itemIdMeasurement}`);
         // Dismiss keyboard before showing warning dialog
         Keyboard.dismiss();
         setTimeout(() => {
           setShowMeasurementWarning(true);
-        }, 100); // Small delay to ensure keyboard is dismissed
-        return; // Stop here and show confirmation dialog
+        }, 100);
+        return;
       }
     }
 
@@ -630,7 +662,7 @@ export default function ScanQrManualScreen() {
             <View style={styles.warningDialog}>
               <Text style={styles.warningTitle}>Cảnh báo giá trị xuất</Text>
               <Text style={styles.warningText}>
-                Giá trị đo lường của inventory item này đã vượt quá hoặc thiếu so với giá trị cần xuất.
+                Giá trị đo lường của inventory item này đã vượt quá so với giá trị cần xuất.
               </Text>
               <View style={styles.warningMeasurementInfo}>
                 <Text style={styles.warningMeasurementText}>
