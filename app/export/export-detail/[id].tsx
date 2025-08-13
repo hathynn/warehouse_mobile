@@ -50,7 +50,7 @@ const ExportRequestScreen: React.FC = () => {
   const {
     fetchInventoryItemsByExportRequestDetailId,
     autoChangeInventoryItem,
-    fetchInventoryItemById,
+    fetchInventoryItemByItemId,
     changeInventoryItemForExportDetail,
     loading: inventoryLoading,
   } = useInventoryService();
@@ -60,7 +60,6 @@ const ExportRequestScreen: React.FC = () => {
 
   // Paper state
   const [paper, setPaper] = useState<any>(null);
-  const [paperLoading, setPaperLoading] = useState(false);
 
   // Modal states
   const [inventoryModalVisible, setInventoryModalVisible] = useState(false);
@@ -157,7 +156,6 @@ const ExportRequestScreen: React.FC = () => {
       exportRequest?.status === ExportRequestStatus.COMPLETED
     ) {
       console.log("🔍 Fetching paper with ID:", exportRequest.paperId);
-      setPaperLoading(true);
       getPaperById(exportRequest.paperId)
         .then((data: any) => {
           console.log("✅ Paper data received:", data);
@@ -166,8 +164,7 @@ const ExportRequestScreen: React.FC = () => {
         .catch((error) => {
           console.error("❌ Lỗi lấy chứng từ:", error);
           setPaper(null);
-        })
-        .finally(() => setPaperLoading(false));
+        });
     }
   }, [exportRequest?.paperId, exportRequest?.status]);
 
@@ -358,30 +355,61 @@ const ExportRequestScreen: React.FC = () => {
       // Set the original item ID for tracking
       setOriginalItemId(originalInventoryItemId);
 
-      // Fetch all inventory items for this item
-      const itemDetails = await getItemDetailById(selectedItemCode);
-      if (!itemDetails?.inventoryItemIds || itemDetails.inventoryItemIds.length === 0) {
+      // Fetch all inventory items for this itemId using the new API
+      const allInventoryItemsForItemId = await fetchInventoryItemByItemId(selectedItemCode);
+      
+      if (!allInventoryItemsForItemId || allInventoryItemsForItemId.length === 0) {
         Alert.alert("Lỗi", "Không tìm thấy inventory items cho item này");
         return;
       }
 
-      console.log(`📦 Found ${itemDetails.inventoryItemIds.length} inventory item IDs`);
+      console.log(`📦 Found ${allInventoryItemsForItemId.length} inventory items for itemId: ${selectedItemCode}`);
 
-      // Fetch detailed inventory items
-      const inventoryItems = await Promise.all(
-        itemDetails.inventoryItemIds.map(async (inventoryItemId: string) => {
-          try {
-            return await fetchInventoryItemById(inventoryItemId);
-          } catch (error) {
-            console.error(`❌ Error fetching inventory item ${inventoryItemId}:`, error);
-            return null;
-          }
-        })
+      // Filter for AVAILABLE status only
+      let filteredItems = allInventoryItemsForItemId.filter(item => 
+        item.status === 'AVAILABLE'
       );
 
-      const validInventoryItems = inventoryItems.filter(item => item !== null);
-      setAllInventoryItems(validInventoryItems);
+      console.log(`📦 After AVAILABLE filter: ${filteredItems.length} items`);
+
+      // Additional filtering for SELLING export type: only items with matching measurement value
+      if (exportRequest?.type === "SELLING") {
+        const itemDetails = await getItemDetailById(selectedItemCode);
+        const requiredMeasurementValue = itemDetails?.measurementValue;
+        
+        if (requiredMeasurementValue !== undefined) {
+          filteredItems = filteredItems.filter(item => 
+            item.measurementValue === requiredMeasurementValue
+          );
+          console.log(`📦 After SELLING measurement filter (${requiredMeasurementValue}): ${filteredItems.length} items`);
+        }
+      }
+
+      // Convert InventoryItemDetail to InventoryItem format for compatibility
+      const convertedItems = filteredItems.map(item => ({
+        id: item.id,
+        reasonForDisposal: item.reasonForDisposal,
+        measurementValue: item.measurementValue,
+        status: item.status,
+        expiredDate: item.expiredDate,
+        importedDate: item.importedDate,
+        updatedDate: item.updatedDate,
+        parentId: item.parentId ? Number(item.parentId) : null,
+        childrenIds: item.childrenIds.map(id => Number(id)),
+        itemId: item.itemId,
+        itemName: item.itemName,
+        itemCode: item.itemCode,
+        exportRequestDetailId: item.exportRequestDetailId,
+        importOrderDetailId: item.importOrderDetailId || 0,
+        storedLocationId: item.storedLocationId,
+        storedLocationName: item.storedLocationName,
+        isTrackingForExport: item.isTrackingForExport,
+      }));
+
+      setAllInventoryItems(convertedItems);
       setManualSearchText("");
+
+      console.log(`✅ Set ${convertedItems.length} filtered inventory items for manual selection`);
 
     } catch (error) {
       console.error("❌ Error in manual change:", error);
@@ -823,7 +851,7 @@ const ExportRequestScreen: React.FC = () => {
         }}
       >
         <TouchableOpacity
-          onPress={() => router.back()}
+          onPress={() => router.push('/(tabs)/export')}
           style={{ paddingRight: 12, marginTop: 7 }}
         >
           <Ionicons name="arrow-back" size={24} color="white" />
@@ -995,6 +1023,7 @@ const ExportRequestScreen: React.FC = () => {
         searchText={searchText}
         onSearchTextChange={setSearchText}
         exportRequest={exportRequest}
+        exportRequestDetailId={selectedExportRequestDetailId}
         autoChangeLoading={autoChangeLoading}
         onAutoChange={handleAutoChange}
         onManualChangePress={handleManualChangePress}

@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import useApiService from "./useApi";
 import { InventoryItem } from "@/types/inventoryItem.type";
+import { InventoryItemDetail } from "@/types/inventoryItemDetail.type";
 
 const useInventoryService = () => {
   const { callApi, setIsLoading, loading } = useApiService();
@@ -180,6 +181,29 @@ const useInventoryService = () => {
     [callApi]
   );
 
+  const fetchInventoryItemByItemId = useCallback(
+  async (itemId: string): Promise<InventoryItemDetail[]> => {
+    if (!itemId) return [];
+
+    try {
+      const response = await callApi(
+        "get",
+        `/inventory-item/item/${itemId}`,
+        undefined,
+        undefined,
+        `✅ Lấy inventory items theo itemId: ${itemId}`
+      );
+
+      // API should return an array of inventory items for the given itemId
+      return response?.content || response || [];
+    } catch (error) {
+      console.error("❌ Lỗi khi lấy inventory items theo itemId:", error);
+      return [];
+    }
+  },
+  [callApi]
+);
+
   return {
     loading,
     inventoryItems,
@@ -189,6 +213,7 @@ const useInventoryService = () => {
     changeInventoryItemForExportDetail,
     fetchInventoryItemById,
     updateInventoryItem,
+    fetchInventoryItemByItemId
   };
 };
 

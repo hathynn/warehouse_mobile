@@ -1,10 +1,13 @@
 import { updateActual } from "@/redux/productSlice";
 import { RootState } from "@/redux/store";
+import { ImportType } from "@/types/importOrder.type";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Text, View, ScrollView, TouchableOpacity, Modal } from "react-native";
 import { useDispatch, useSelector } from "react-redux";
+import useInventoryService from "@/services/useInventoryService";
+import useItemService from "@/services/useItemService";
 import {
   Button,
   Checkbox,
@@ -25,14 +28,54 @@ const ConfirmManual = () => {
   const [filtered, setFiltered] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [isChecked, setIsChecked] = useState(false);
-  const [selectedProductId, setSelectedProductId] = useState<number | null>(
+  const [selectedProductId, setSelectedProductId] = useState<string | null>(
     null
   );
   const [inputValue, setInputValue] = useState("");
+  const [inventoryUnits, setInventoryUnits] = useState<{[key: string]: string}>({});
 
   const { id } = useLocalSearchParams<{ id: string }>();
   const products = useSelector((state: RootState) => state.product.products);
+  const importType = useSelector((state: RootState) => state.paper.importType);
   const dispatch = useDispatch();
+  
+  // Services
+  const { getItemDetailById } = useItemService();
+  const { fetchInventoryItemById } = useInventoryService();
+  
+  // Check if this is a RETURN import
+  const isReturnImport = importType === ImportType.RETURN;
+
+  // Fetch units for inventory items
+  useEffect(() => {
+    const fetchUnits = async () => {
+      const unitsMap: {[key: string]: string} = {};
+      
+      for (const product of products) {
+        if (product.inventoryItemId) {
+          try {
+            const inventoryItem = await fetchInventoryItemById(product.inventoryItemId);
+            
+            if (inventoryItem && inventoryItem.itemId) {
+              const itemDetails = await getItemDetailById(inventoryItem.itemId);
+              
+              if (itemDetails && itemDetails.measurementUnit) {
+                unitsMap[product.inventoryItemId] = itemDetails.measurementUnit;
+              }
+            }
+          } catch (error) {
+            console.error(`Error fetching inventory/item details for ${product.inventoryItemId}:`, error);
+          }
+        }
+      }
+      
+      setInventoryUnits(unitsMap);
+    };
+
+    if (products.length > 0) {
+      fetchUnits();
+    }
+  }, [products, getItemDetailById, fetchInventoryItemById]);
 
   const filteredProducts = filtered
     ? products.filter((p) =>
@@ -40,16 +83,41 @@ const ConfirmManual = () => {
       )
     : products;
 
-  const handleUpdateQuantity = (productId: number) => {
+  // Get unit for a product
+  const getUnit = (product: any): string => {
+    if (product.inventoryItemId && inventoryUnits[product.inventoryItemId]) {
+      return inventoryUnits[product.inventoryItemId];
+    }
+    return '';
+  };
+
+  const handleUpdateQuantity = (productId: string) => {
     setSelectedProductId(productId);
     setInputValue("");
     setModalVisible(true);
   };
 
   const confirmUpdate = () => {
-    const quantity = parseInt(inputValue);
-    if (!isNaN(quantity) && selectedProductId !== null) {
-      dispatch(updateActual({ id: selectedProductId, actual: quantity }));
+    const value = parseFloat(inputValue);
+    if (!isNaN(value) && selectedProductId !== null) {
+      if (isReturnImport) {
+        // For RETURN imports, update measurement value
+        const updatePayload: any = {
+          id: selectedProductId,
+          actualMeasurementValue: value
+        };
+        
+        // If measurement value > 0, automatically increase actual quantity by 1
+        if (value > 0) {
+          const currentProduct = products.find(p => p.id === selectedProductId);
+          updatePayload.actual = (currentProduct?.actual || 0) + 1;
+        }
+        
+        dispatch(updateActual(updatePayload));
+      } else {
+        // For normal imports, update quantity as before
+        dispatch(updateActual({ id: selectedProductId, actual: Math.floor(value) }));
+      }
     }
     setModalVisible(false);
   };
@@ -85,7 +153,7 @@ const ConfirmManual = () => {
             marginTop: 7,
           }}
         >
-          Nhập số lượng thủ công đơn nhập #{id}
+          {isReturnImport ? `Nhập giá trị đo lường thủ công đơn nhập #{id}` : `Nhập số lượng thủ công đơn nhập #{id}`}
         </Text>
       </View>
 
@@ -151,7 +219,7 @@ const ConfirmManual = () => {
           fontSize={15}
           marginTop={20}
         >
-          Nhập số lượng thủ công
+          {isReturnImport ? 'Nhập giá trị đo lường thủ công' : 'Nhập số lượng thủ công'}
         </Label>
         {filteredProducts.length > 0 ? (
           <Accordion>
@@ -166,29 +234,67 @@ const ConfirmManual = () => {
                   </View>
                 }
               >
-                <View
-                  style={{
-                    flexDirection: "row",
-                    justifyContent: "space-between",
-                    marginBottom: 10,
-                  }}
-                >
-                  <Text>Số lượng yêu cầu</Text>
-                  <Text>{product.expect}</Text>
-                </View>
-                <View
-                  style={{
-                    flexDirection: "row",
-                    justifyContent: "space-between",
-                    marginBottom: 10,
-                  }}
-                >
-                  <Text>Số lượng thực tế</Text>
-                  <Text>{product.actual}</Text>
-                </View>
-                <Button onPress={() => handleUpdateQuantity(product.id)}>
-                  Cập nhật số lượng
-                </Button>
+                {isReturnImport ? (
+                  // Display measurement values for RETURN imports
+                  <>
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        justifyContent: "space-between",
+                        marginBottom: 10,
+                      }}
+                    >
+                      <Text>Giá trị đo lường mong đợi</Text>
+                      <Text>
+                        {product.expectMeasurementValue || 0}
+                        {getUnit(product) && ` ${getUnit(product)}`}
+                      </Text>
+                    </View>
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        justifyContent: "space-between",
+                        marginBottom: 10,
+                      }}
+                    >
+                      <Text>Giá trị đo lường kiểm đếm</Text>
+                      <Text>
+                        {product.actualMeasurementValue || 0}
+                        {getUnit(product) && ` ${getUnit(product)}`}
+                      </Text>
+                    </View>
+                    <Button onPress={() => handleUpdateQuantity(product.id)}>
+                      Cập nhật giá trị đo lường
+                    </Button>
+                  </>
+                ) : (
+                  // Display quantity for normal imports
+                  <>
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        justifyContent: "space-between",
+                        marginBottom: 10,
+                      }}
+                    >
+                      <Text>Số lượng yêu cầu</Text>
+                      <Text>{product.expect}</Text>
+                    </View>
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        justifyContent: "space-between",
+                        marginBottom: 10,
+                      }}
+                    >
+                      <Text>Số lượng thực tế</Text>
+                      <Text>{product.actual}</Text>
+                    </View>
+                    <Button onPress={() => handleUpdateQuantity(product.id)}>
+                      Cập nhật số lượng
+                    </Button>
+                  </>
+                )}
               </AccordionItem>
             ))}
           </Accordion>
@@ -213,7 +319,7 @@ const ConfirmManual = () => {
           </Checkbox>
 
           <Label onPress={() => setIsChecked(!isChecked)} fontSize="$4">
-            Tôi xác nhận đã nhập đúng số lượng sản phẩm
+            {isReturnImport ? 'Tôi xác nhận đã nhập đúng giá trị đo lường sản phẩm' : 'Tôi xác nhận đã nhập đúng số lượng sản phẩm'}
           </Label>
         </XStack>
 
@@ -245,13 +351,13 @@ const ConfirmManual = () => {
         <View className="flex-1 justify-center items-center bg-black/10 px-6">
           <View className="bg-white p-6 rounded-xl w-full">
             <Text className="text-lg font-semibold mb-2">
-              Nhập số lượng mới
+              {isReturnImport ? 'Nhập giá trị đo lường mới' : 'Nhập số lượng mới'}
             </Text>
             <Input
               value={inputValue}
               onChangeText={setInputValue}
-              keyboardType="numeric"
-              placeholder="Nhập số lượng"
+              keyboardType={isReturnImport ? "decimal-pad" : "numeric"}
+              placeholder={isReturnImport ? "Nhập giá trị đo lường" : "Nhập số lượng"}
               className="border border-gray-300 p-3 rounded-md mb-4"
             />
             <View className="flex-row justify-end gap-2 mt-3">
