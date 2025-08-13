@@ -228,7 +228,7 @@ export default function SuccessPage() {
 
                     {isInventoryItemScan && (
                       <View style={styles.row}>
-                        <Text style={styles.label}>Inventory Item ID</Text>
+                        <Text style={styles.label}>Mã hàng</Text>
                         <Text style={styles.inventoryValue}>{product.inventoryItemId}</Text>
                       </View>
                     )}
