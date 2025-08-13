@@ -184,6 +184,13 @@ export default function SuccessPage() {
           inventoryItemId: product.inventoryItemId
         }));
       }
+    } else if (!isInventoryItemScan) {
+      // Update actual quantity for item scan (ORDER type) before going back
+      const toAdd = parseInt(quantity) || 0;
+      if (toAdd > 0) {
+        const newActual = (product?.actual || 0) + toAdd;
+        dispatch(updateProductActual({ productId, actual: newActual }));
+      }
     }
     router.push(`/import/scan-qr?id=${importOrderId}`);
   };
@@ -352,6 +359,9 @@ export default function SuccessPage() {
                           // Chỉ số nguyên cho quantity
                           const numericText = text.replace(/[^0-9]/g, "");
                           setQuantity(numericText);
+                          
+                          // Note: Redux update không cần thiết ở đây vì actual sẽ được tính trong handleSubmit
+                          // Input này chỉ là số lượng thêm vào, không thay đổi actual ngay lập tức
                         }
                       }}
                       keyboardType={isInventoryItemScan ? "decimal-pad" : "numeric"}
