@@ -1,7 +1,7 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 
 interface Product {
-  id: string; // itemId
+  id: string;
   name: string;
   expect: number;
   actual: number;
@@ -13,6 +13,7 @@ interface Product {
   actualMeasurementValue?: number | 0;
   measurementUnit?: string;
 }
+
 
 interface ProductState {
   products: Product[];
@@ -36,15 +37,19 @@ const productSlice = createSlice({
       const { productId, actual } = action.payload;
       const product = state.products.find((p) => p.id === productId);
       if (product) {
-        product.actual = actual;
+        product.actual = actual; // Cập nhật số lượng mới
       }
     },
-    updateProduct: (state, action: PayloadAction<{ id: string; actual: number }>) => {
+    updateProduct: (state, action: PayloadAction<{ id: string; actual: number }>) => { // Sửa lại id: number
       const product = state.products.find(p => p.id === action.payload.id);
       if (product) {
         product.actual = action.payload.actual;
       }
     },
+
+    // updateActual: (state, action: PayloadAction<{ id: string; actual: number }>) => {
+    //   const product = state.products.find((p) => p.id === action.payload.id);
+
     // Thêm reducer để update bằng inventoryItemId (với measurementValue)
    updateProductByInventoryId: (state, action: PayloadAction<{ inventoryItemId: string; measurementValue: number }>) => {
   const product = state.products.find(p => 
@@ -74,6 +79,7 @@ const productSlice = createSlice({
         console.log(`🔍 Searching by productId: ${action.payload.id}`);
       }
       
+
       if (product) {
         console.log(`✅ Found product: ${product.name}, inventoryItemId: ${product.inventoryItemId}`);
         if (action.payload.actual !== undefined) {
@@ -91,12 +97,5 @@ const productSlice = createSlice({
   },
 });
 
-export const { 
-  setProducts, 
-  addProduct, 
-  updateProductActual, 
-  updateProduct, 
-  updateProductByInventoryId, // Export reducer mới
-  updateActual 
-} = productSlice.actions;
+export const { setProducts, addProduct, updateProductActual, updateProduct, updateActual } = productSlice.actions;
 export default productSlice.reducer;

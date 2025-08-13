@@ -375,10 +375,12 @@ const ImportOrderScreen: React.FC = () => {
                   expect: item.expectQuantity,
                   actual: item.actualQuantity || 0,
                   importOrderId: importOrder.importOrderId,
+
                   inventoryItemId: item.inventoryItemId || null,
                   importOrderDetailId: item.importOrderDetailId,
                     measurementValue: item.actualMeasurementValue || 0, // Thêm measurementValue
       expectMeasurementValue: item.expectMeasurementValue || 0, 
+
                 }));
 
                 dispatch(setProducts(products));
