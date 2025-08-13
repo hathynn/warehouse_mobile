@@ -227,7 +227,7 @@ export default function ScanQrManualScreen() {
       console.log(
         `🚫 Debounce: Too soon since last scan (${currentTime - lastScanTimeRef.current
         }ms)`
-      );
+      );2
       return;
     }
 

@@ -42,6 +42,7 @@ const Confirm = () => {
   const [filtered, setFiltered] = useState(false);
   const [isChecked, setIsChecked] = useState(false);
   const [inventoryUnits, setInventoryUnits] = useState<{[key: string]: string}>({});
+  const [inventoryData, setInventoryData] = useState<{[key: string]: any}>({});
 
   const { id } = useLocalSearchParams<{ id: string }>();
   const products = useSelector((state: RootState) => state.product.products);
@@ -50,21 +51,27 @@ const Confirm = () => {
   const { getItemDetailById } = useItemService();
   const { fetchInventoryItemById } = useInventoryService();
 
-  // Fetch units for inventory items
+  // Fetch units and inventory data for inventory items
   useEffect(() => {
-    const fetchUnits = async () => {
+    const fetchUnitsAndData = async () => {
       const unitsMap: {[key: string]: string} = {};
+      const inventoryMap: {[key: string]: any} = {};
       
       for (const product of products) {
         if (product.inventoryItemId) {
           try {
             const inventoryItem = await fetchInventoryItemById(product.inventoryItemId);
             
-            if (inventoryItem && inventoryItem.itemId) {
-              const itemDetails = await getItemDetailById(inventoryItem.itemId);
+            if (inventoryItem) {
+              // Store full inventory data including measurementValue
+              inventoryMap[product.inventoryItemId] = inventoryItem;
               
-              if (itemDetails && itemDetails.measurementUnit) {
-                unitsMap[product.inventoryItemId] = itemDetails.measurementUnit;
+              if (inventoryItem.itemId) {
+                const itemDetails = await getItemDetailById(inventoryItem.itemId);
+                
+                if (itemDetails && itemDetails.measurementUnit) {
+                  unitsMap[product.inventoryItemId] = itemDetails.measurementUnit;
+                }
               }
             }
           } catch (error) {
@@ -74,10 +81,11 @@ const Confirm = () => {
       }
       
       setInventoryUnits(unitsMap);
+      setInventoryData(inventoryMap);
     };
 
     if (products.length > 0) {
-      fetchUnits();
+      fetchUnitsAndData();
     }
   }, [products, getItemDetailById, fetchInventoryItemById]);
 
@@ -93,6 +101,14 @@ const Confirm = () => {
       return inventoryUnits[product.inventoryItemId];
     }
     return '';
+  };
+
+  // Get measurementValue from inventory data
+  const getMeasurementValue = (product: any): number => {
+    if (product.inventoryItemId && inventoryData[product.inventoryItemId]) {
+      return inventoryData[product.inventoryItemId].measurementValue || 0;
+    }
+    return 0;
   };
 
   const dispatch = useDispatch();
@@ -115,6 +131,14 @@ const Confirm = () => {
       const selectedProduct = filteredProducts.find(p => p.id === selectedProductId);
       
       if (selectedProduct?.inventoryItemId) {
+        // Validate measurement value for inventory items
+        const maxMeasurementValue = getMeasurementValue(selectedProduct);
+        
+        if (maxMeasurementValue > 0 && value > maxMeasurementValue) {
+          alert(`Giá trị đo lường không được vượt quá ${maxMeasurementValue}${getUnit(selectedProduct) ? ` ${getUnit(selectedProduct)}` : ''}`);
+          return;
+        }
+        
         // Cập nhật giá trị đo lường cho inventory item
         dispatch(updateActual({ 
           id: selectedProductId, 
@@ -283,7 +307,20 @@ const Confirm = () => {
                         marginBottom: 10,
                       }}
                     >
-                      <Text>Giá trị đo lường thực tế</Text>
+                      <Text>Giá trị đo lường tối đa</Text>
+                      <Text style={{ color: '#e63946', fontWeight: 'bold' }}>
+                        {getMeasurementValue(product)}
+                        {getUnit(product) && ` ${getUnit(product)}`}
+                      </Text>
+                    </View>
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        justifyContent: "space-between",
+                        marginBottom: 10,
+                      }}
+                    >
+                      <Text>Giá trị đo lường thực tế kiểm đếm</Text>
                       <Text>
                         {product.actualMeasurementValue || 0}
                         {getUnit(product) && ` ${getUnit(product)}`}
@@ -374,10 +411,23 @@ const Confirm = () => {
                 "Nhập số lượng mới"
               }
             </Text>
+            {selectedProductId && filteredProducts.find(p => p.id === selectedProductId)?.inventoryItemId && (
+              <View className="mb-3 p-3 bg-red-50 rounded-md">
+                <Text className="text-sm text-red-600">
+                  ⚠️ Giá trị đo lường không được vượt quá{' '}
+                  <Text className="font-bold">
+                    {getMeasurementValue(filteredProducts.find(p => p.id === selectedProductId))}
+                    {getUnit(filteredProducts.find(p => p.id === selectedProductId)) && 
+                      ` ${getUnit(filteredProducts.find(p => p.id === selectedProductId))}`
+                    }
+                  </Text>
+                </Text>
+              </View>
+            )}
             <Input
               value={inputValue}
               onChangeText={setInputValue}
-              keyboardType="numeric"
+              keyboardType={filteredProducts.find(p => p.id === selectedProductId)?.inventoryItemId ? "decimal-pad" : "numeric"}
               placeholder={
                 filteredProducts.find(p => p.id === selectedProductId)?.inventoryItemId ? 
                 "Nhập giá trị đo lường" : 
@@ -393,7 +443,7 @@ const Confirm = () => {
                 Hủy
               </Button>
               <Button
-                backgroundColor="#1677ff"
+                style={{ backgroundColor: "#1677ff" }}
                 color="white"
                 fontWeight={500}
                 onPress={confirmUpdate}
