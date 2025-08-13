@@ -18,6 +18,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { useDispatch, useSelector } from "react-redux";
 import { updateProductActual, updateActual } from "@/redux/productSlice";
 import { RootState } from "@/redux/store";
+import useInventoryService from "@/services/useInventoryService";
+import { Alert } from "react-native";
 
 export default function SuccessPage() {
   const { id, scanMethod, inventoryItemId } = useLocalSearchParams<{ 
@@ -54,9 +56,12 @@ export default function SuccessPage() {
 
   const [quantity, setQuantity] = useState("0");
   const [measurementValue, setMeasurementValue] = useState("0");
+  const [inventoryData, setInventoryData] = useState<any>(null);
 
   const [fadeAnim] = useState(new Animated.Value(0));
   const [translateY] = useState(new Animated.Value(20));
+
+  const { fetchInventoryItemById } = useInventoryService();
 
   useEffect(() => {
     Animated.parallel([
@@ -73,10 +78,53 @@ export default function SuccessPage() {
     ]).start();
   }, []);
 
+  // Fetch inventory data for validation
+  useEffect(() => {
+    const fetchInventoryData = async () => {
+      if (product?.inventoryItemId && isInventoryItemScan) {
+        try {
+          const inventory = await fetchInventoryItemById(product.inventoryItemId);
+          setInventoryData(inventory);
+          console.log("📦 Fetched inventory data:", inventory);
+        } catch (error) {
+          console.error("Error fetching inventory data:", error);
+        }
+      }
+    };
+
+    fetchInventoryData();
+  }, [product?.inventoryItemId, isInventoryItemScan]);
+
+  // Helper function to get max measurement value
+  const getMaxMeasurementValue = (): number => {
+    return inventoryData?.measurementValue || 0;
+  };
+
+  // Validation function
+  const validateMeasurementValue = (value: number): boolean => {
+    if (!isInventoryItemScan || !inventoryData) return true;
+    
+    const maxValue = getMaxMeasurementValue();
+    if (maxValue > 0 && value > maxValue) {
+      Alert.alert(
+        "Giá trị vượt quá giới hạn",
+        `Giá trị đo lường không được vượt quá ${maxValue}${product?.measurementUnit ? ` ${product.measurementUnit}` : ''}`
+      );
+      return false;
+    }
+    return true;
+  };
+
   const handleSubmit = () => {
     // Update measurement value immediately for inventory item scans
     if (isInventoryItemScan && product?.inventoryItemId) {
       const newMeasurementValue = parseFloat(measurementValue) || 0;
+      
+      // Validate measurement value before submitting
+      if (!validateMeasurementValue(newMeasurementValue)) {
+        return; // Stop if validation fails
+      }
+      
       dispatch(updateActual({ 
         id: productId, 
         actualMeasurementValue: newMeasurementValue,
@@ -127,11 +175,15 @@ export default function SuccessPage() {
     // Update measurement value immediately for inventory item scans before going back
     if (isInventoryItemScan && product?.inventoryItemId) {
       const newMeasurementValue = parseFloat(measurementValue) || 0;
-      dispatch(updateActual({ 
-        id: productId, 
-        actualMeasurementValue: newMeasurementValue,
-        inventoryItemId: product.inventoryItemId
-      }));
+      
+      // Validate measurement value before going back
+      if (validateMeasurementValue(newMeasurementValue)) {
+        dispatch(updateActual({ 
+          id: productId, 
+          actualMeasurementValue: newMeasurementValue,
+          inventoryItemId: product.inventoryItemId
+        }));
+      }
     }
     router.push(`/import/scan-qr?id=${importOrderId}`);
   };
@@ -208,6 +260,14 @@ export default function SuccessPage() {
                         </View>
 
                         <View style={styles.row}>
+                          <Text style={styles.label}>Giá trị đo tối đa</Text>
+                          <Text style={[styles.value, { color: '#e63946', fontWeight: 'bold' }]}>
+                            {getMaxMeasurementValue()}
+                            {product.measurementUnit && ` ${product.measurementUnit}`}
+                          </Text>
+                        </View>
+
+                        <View style={styles.row}>
                           <Text style={styles.label}>Giá trị đo hiện tại</Text>
                           <Text style={styles.valueBold}>
                             {parseFloat(measurementValue) || product?.actualMeasurementValue || 0}
@@ -225,6 +285,13 @@ export default function SuccessPage() {
                   <Text style={styles.inputLabel}>
                     {isInventoryItemScan ? "Giá trị đo lường:" : "Số lượng:"}
                   </Text>
+                  {isInventoryItemScan && inventoryData && getMaxMeasurementValue() > 0 && (
+                    <View style={styles.warningContainer}>
+                      <Text style={styles.warningText}>
+                        ⚠️ Không được vượt quá {getMaxMeasurementValue()}{product?.measurementUnit ? ` ${product.measurementUnit}` : ''}
+                      </Text>
+                    </View>
+                  )}
                   <View style={styles.quantityInput}>
                     <TouchableOpacity
                       style={styles.quantityButton}
@@ -232,16 +299,18 @@ export default function SuccessPage() {
                         if (isInventoryItemScan) {
                           const current = parseFloat(measurementValue) || 0;
                           if (current >= 1) {
-                            const newValue = (current - 1).toString();
-                            setMeasurementValue(newValue);
-                            
-                            // Update Redux immediately
-                            if (product?.inventoryItemId) {
-                              dispatch(updateActual({ 
-                                id: productId, 
-                                actualMeasurementValue: current - 1,
-                                inventoryItemId: product.inventoryItemId
-                              }));
+                            const newValue = current - 1;
+                            if (validateMeasurementValue(newValue)) {
+                              setMeasurementValue(newValue.toString());
+                              
+                              // Update Redux immediately
+                              if (product?.inventoryItemId) {
+                                dispatch(updateActual({ 
+                                  id: productId, 
+                                  actualMeasurementValue: newValue,
+                                  inventoryItemId: product.inventoryItemId
+                                }));
+                              }
                             }
                           }
                         } else {
@@ -264,15 +333,20 @@ export default function SuccessPage() {
                           const numericText = text.replace(/[^0-9.]/g, "");
                           setMeasurementValue(numericText);
                           
-                          // Update Redux immediately when measurement value changes
+                          // Update Redux immediately when measurement value changes (with validation)
                           if (product?.inventoryItemId && numericText) {
                             const newMeasurementValue = parseFloat(numericText) || 0;
                             console.log(`📝 Updating measurement value for productId: ${productId}, inventoryItemId: ${product.inventoryItemId}, newValue: ${newMeasurementValue}`);
-                            dispatch(updateActual({ 
-                              id: productId, 
-                              actualMeasurementValue: newMeasurementValue,
-                              inventoryItemId: product.inventoryItemId // Pass inventoryItemId for precise targeting
-                            }));
+                            
+                            // Only update Redux if validation passes, but don't show alert for real-time typing
+                            const maxValue = getMaxMeasurementValue();
+                            if (maxValue <= 0 || newMeasurementValue <= maxValue) {
+                              dispatch(updateActual({ 
+                                id: productId, 
+                                actualMeasurementValue: newMeasurementValue,
+                                inventoryItemId: product.inventoryItemId
+                              }));
+                            }
                           }
                         } else {
                           // Chỉ số nguyên cho quantity
@@ -290,16 +364,18 @@ export default function SuccessPage() {
                       onPress={() => {
                         if (isInventoryItemScan) {
                           const current = parseFloat(measurementValue) || 0;
-                          const newValue = (current + 1).toString();
-                          setMeasurementValue(newValue);
-                          
-                          // Update Redux immediately
-                          if (product?.inventoryItemId) {
-                            dispatch(updateActual({ 
-                              id: productId, 
-                              actualMeasurementValue: current + 1,
-                              inventoryItemId: product.inventoryItemId
-                            }));
+                          const newValue = current + 1;
+                          if (validateMeasurementValue(newValue)) {
+                            setMeasurementValue(newValue.toString());
+                            
+                            // Update Redux immediately
+                            if (product?.inventoryItemId) {
+                              dispatch(updateActual({ 
+                                id: productId, 
+                                actualMeasurementValue: newValue,
+                                inventoryItemId: product.inventoryItemId
+                              }));
+                            }
                           }
                         } else {
                           const current = parseInt(quantity) || 0;
@@ -441,6 +517,19 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#555",
     marginBottom: 10,
+  },
+  warningContainer: {
+    backgroundColor: '#fef2f2',
+    padding: 8,
+    borderRadius: 6,
+    marginBottom: 10,
+    borderLeftWidth: 3,
+    borderLeftColor: '#e63946',
+  },
+  warningText: {
+    fontSize: 12,
+    color: '#dc2626',
+    fontWeight: '500',
   },
   quantityInput: {
     flexDirection: "row",

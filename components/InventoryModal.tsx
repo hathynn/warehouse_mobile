@@ -453,38 +453,40 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                   } else if (!isTracking) {
                     // isTracking false = "Quét QR" button
                     return (
-                      <TouchableOpacity
-                        style={[
-                          styles.actionButton,
-                          styles.stockCheckScanButton,
-                        ]}
-                        onPress={() => {
-                          if (onQRScanPress) {
-                            onQRScanPress('normal');
-                          }
-                        }}
-                      >
-                        <Ionicons name="qr-code-outline" size={16} color="white" />
-                        <Text style={styles.actionButtonText}>Quét QR</Text>
-                      </TouchableOpacity>
+                      // <TouchableOpacity
+                      //   style={[
+                      //     styles.actionButton,
+                      //     styles.stockCheckScanButton,
+                      //   ]}
+                      //   onPress={() => {
+                      //     if (onQRScanPress) {
+                      //       onQRScanPress('normal');
+                      //     }
+                      //   }}
+                      // >
+                      //   <Ionicons name="qr-code-outline" size={16} color="white" />
+                      //   <Text style={styles.actionButtonText}>Quét QR</Text>
+                      // </TouchableOpacity>
+                      null
                     );
                   } else {
                     // Default fallback - show QR scan button
                     return (
-                      <TouchableOpacity
-                        style={[
-                          styles.actionButton,
-                          styles.stockCheckScanButton,
-                        ]}
-                        onPress={() => {
-                          if (onQRScanPress) {
-                            onQRScanPress('normal');
-                          }
-                        }}
-                      >
-                        <Ionicons name="qr-code-outline" size={16} color="white" />
-                        <Text style={styles.actionButtonText}>Quét QR</Text>
-                      </TouchableOpacity>
+                      // <TouchableOpacity
+                      //   style={[
+                      //     styles.actionButton,
+                      //     styles.stockCheckScanButton,
+                      //   ]}
+                      //   onPress={() => {
+                      //     if (onQRScanPress) {
+                      //       onQRScanPress('normal');
+                      //     }
+                      //   }}
+                      // >
+                      //   <Ionicons name="qr-code-outline" size={16} color="white" />
+                      //   <Text style={styles.actionButtonText}>Quét QR</Text>
+                      // </TouchableOpacity>
+                      null
                     );
                   }
                 })()
@@ -498,7 +500,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
 
                   return (
                     <>
-                      {!item.isTrackingForExport && (
+                      {/* !item.isTrackingForExport && (
                         <TouchableOpacity
                           style={styles.actionButton}
                           onPress={() => {
@@ -516,7 +518,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                           <Ionicons name="qr-code-outline" size={16} color="white" />
                           <Text style={styles.actionButtonText}>Quét QR</Text>
                         </TouchableOpacity>
-                      )}
+                      ) */}
 
                       <TouchableOpacity
                         style={[
@@ -655,6 +657,23 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
               )}
             </View>
 
+            <View style={styles.scanButtonContainer}>
+              <TouchableOpacity
+                style={styles.globalScanButton}
+                onPress={() => {
+                  if (onQRScanPress) {
+                    onQRScanPress('normal');
+                  } else if (exportRequest?.exportRequestId) {
+                    handleClose();
+                    router.push(`/export/scan-qr?id=${exportRequest.exportRequestId}`);
+                  }
+                }}
+              >
+                <Ionicons name="qr-code-outline" size={20} color="white" />
+                <Text style={styles.globalScanButtonText}>Quét QR</Text>
+              </TouchableOpacity>
+            </View>
+
             {inventoryLoading || detailedItemsLoading ? (
               <View style={styles.loadingContainer}>
                 <ActivityIndicator size="large" color="#1677ff" />
@@ -713,7 +732,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                       {/* Hide buttons if export request status is COUNTED */}
                       {exportRequest?.status !== ExportRequestStatus.COUNTED && (
                         <>
-                          {!item.isTrackingForExport && (
+                          {/* !item.isTrackingForExport && (
                             <TouchableOpacity
                               style={styles.actionButton}
                               onPress={() => {
@@ -730,7 +749,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                               <Ionicons name="qr-code-outline" size={16} color="white" />
                               <Text style={styles.actionButtonText}>Quét QR</Text>
                             </TouchableOpacity>
-                          )}
+                          ) */}
 
                           <TouchableOpacity
                             style={[
@@ -1369,6 +1388,21 @@ const styles = StyleSheet.create({
     backgroundColor: "#1677ff",
   },
   warningConfirmButtonText: {
+    color: "white",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  globalScanButton: {
+    backgroundColor: "#1677ff",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  globalScanButtonText: {
     color: "white",
     fontSize: 14,
     fontWeight: "600",

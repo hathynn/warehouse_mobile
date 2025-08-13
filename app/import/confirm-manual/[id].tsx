@@ -33,6 +33,7 @@ const ConfirmManual = () => {
   );
   const [inputValue, setInputValue] = useState("");
   const [inventoryUnits, setInventoryUnits] = useState<{[key: string]: string}>({});
+  const [inventoryData, setInventoryData] = useState<{[key: string]: any}>({});
 
   const { id } = useLocalSearchParams<{ id: string }>();
   const products = useSelector((state: RootState) => state.product.products);
@@ -46,21 +47,27 @@ const ConfirmManual = () => {
   // Check if this is a RETURN import
   const isReturnImport = importType === ImportType.RETURN;
 
-  // Fetch units for inventory items
+  // Fetch units and inventory data for inventory items
   useEffect(() => {
-    const fetchUnits = async () => {
+    const fetchUnitsAndData = async () => {
       const unitsMap: {[key: string]: string} = {};
+      const inventoryMap: {[key: string]: any} = {};
       
       for (const product of products) {
         if (product.inventoryItemId) {
           try {
             const inventoryItem = await fetchInventoryItemById(product.inventoryItemId);
             
-            if (inventoryItem && inventoryItem.itemId) {
-              const itemDetails = await getItemDetailById(inventoryItem.itemId);
+            if (inventoryItem) {
+              // Store full inventory data including measurementValue
+              inventoryMap[product.inventoryItemId] = inventoryItem;
               
-              if (itemDetails && itemDetails.measurementUnit) {
-                unitsMap[product.inventoryItemId] = itemDetails.measurementUnit;
+              if (inventoryItem.itemId) {
+                const itemDetails = await getItemDetailById(inventoryItem.itemId);
+                
+                if (itemDetails && itemDetails.measurementUnit) {
+                  unitsMap[product.inventoryItemId] = itemDetails.measurementUnit;
+                }
               }
             }
           } catch (error) {
@@ -70,10 +77,11 @@ const ConfirmManual = () => {
       }
       
       setInventoryUnits(unitsMap);
+      setInventoryData(inventoryMap);
     };
 
     if (products.length > 0) {
-      fetchUnits();
+      fetchUnitsAndData();
     }
   }, [products, getItemDetailById, fetchInventoryItemById]);
 
@@ -91,6 +99,14 @@ const ConfirmManual = () => {
     return '';
   };
 
+  // Get measurementValue from inventory data
+  const getMeasurementValue = (product: any): number => {
+    if (product.inventoryItemId && inventoryData[product.inventoryItemId]) {
+      return inventoryData[product.inventoryItemId].measurementValue || 0;
+    }
+    return 0;
+  };
+
   const handleUpdateQuantity = (productId: string) => {
     setSelectedProductId(productId);
     setInputValue("");
@@ -101,6 +117,17 @@ const ConfirmManual = () => {
     const value = parseFloat(inputValue);
     if (!isNaN(value) && selectedProductId !== null) {
       if (isReturnImport) {
+        // Validate measurement value for RETURN imports
+        const currentProduct = products.find(p => p.id === selectedProductId);
+        if (currentProduct) {
+          const maxMeasurementValue = getMeasurementValue(currentProduct);
+          
+          if (maxMeasurementValue > 0 && value > maxMeasurementValue) {
+            alert(`Giá trị đo lường không được vượt quá ${maxMeasurementValue}${getUnit(currentProduct) ? ` ${getUnit(currentProduct)}` : ''}`);
+            return;
+          }
+        }
+        
         // For RETURN imports, update measurement value
         const updatePayload: any = {
           id: selectedProductId,
@@ -257,7 +284,20 @@ const ConfirmManual = () => {
                         marginBottom: 10,
                       }}
                     >
-                      <Text>Giá trị đo lường kiểm đếm</Text>
+                      <Text>Giá trị đo lường tối đa</Text>
+                      <Text style={{ color: '#e63946', fontWeight: 'bold' }}>
+                        {getMeasurementValue(product)}
+                        {getUnit(product) && ` ${getUnit(product)}`}
+                      </Text>
+                    </View>
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        justifyContent: "space-between",
+                        marginBottom: 10,
+                      }}
+                    >
+                      <Text>Giá trị đo lường thực tế kiểm đếm</Text>
                       <Text>
                         {product.actualMeasurementValue || 0}
                         {getUnit(product) && ` ${getUnit(product)}`}
@@ -353,6 +393,19 @@ const ConfirmManual = () => {
             <Text className="text-lg font-semibold mb-2">
               {isReturnImport ? 'Nhập giá trị đo lường mới' : 'Nhập số lượng mới'}
             </Text>
+            {isReturnImport && selectedProductId && (
+              <View className="mb-3 p-3 bg-red-50 rounded-md">
+                <Text className="text-sm text-red-600">
+                  ⚠️ Giá trị đo lường không được vượt quá{' '}
+                  <Text className="font-bold">
+                    {getMeasurementValue(products.find(p => p.id === selectedProductId))}
+                    {getUnit(products.find(p => p.id === selectedProductId)) && 
+                      ` ${getUnit(products.find(p => p.id === selectedProductId))}`
+                    }
+                  </Text>
+                </Text>
+              </View>
+            )}
             <Input
               value={inputValue}
               onChangeText={setInputValue}
@@ -363,7 +416,7 @@ const ConfirmManual = () => {
             <View className="flex-row justify-end gap-2 mt-3">
               <Button onPress={() => setModalVisible(false)}>Hủy</Button>
               <Button
-                backgroundColor="#1677ff"
+                style={{ backgroundColor: "#1677ff" }}
                 color="white"
                 onPress={confirmUpdate}
               >
