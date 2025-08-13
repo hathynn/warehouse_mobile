@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useContext, useEffect, useState, useRef } from "react";
 import {
   ScrollView,
   View,
@@ -31,6 +31,7 @@ import StyledButton from "@/components/ui/StyledButton";
 import StatusBadge from "@/components/StatusBadge";
 import { InventoryItem, InventoryItemStatus } from "@/types/inventoryItem.type";
 import InventoryModal from "@/components/InventoryModal"; // Import modal component
+import { PusherContext } from "@/contexts/pusher/PusherContext";
 
 interface RouteParams {
   id: string;
@@ -46,6 +47,9 @@ const ExportRequestScreen: React.FC = () => {
   const route = useRoute();
   const { id, openModal, itemCode } = route.params as RouteParams;
   const dispatch = useDispatch();
+  
+  // Pusher context for real-time updates
+  const { latestNotification } = useContext(PusherContext);
 
   const {
     fetchInventoryItemsByExportRequestDetailId,
@@ -72,9 +76,11 @@ const ExportRequestScreen: React.FC = () => {
   // Auto-change loading state
   const [autoChangeLoading, setAutoChangeLoading] = useState<string | null>(null);
 
-  // Global loading state for data refresh operations
-  const [isDataRefreshing, setIsDataRefreshing] = useState(false);
+  // Global loading state for data refresh operations (removed - now handled by Pusher)
   const [modalReopeningLoading, setModalReopeningLoading] = useState(false);
+  
+  // Main table loading state
+  const [mainTableLoading, setMainTableLoading] = useState(false);
 
   // Manual change states
   const [allInventoryItems, setAllInventoryItems] = useState<InventoryItem[]>([]);
@@ -83,10 +89,13 @@ const ExportRequestScreen: React.FC = () => {
   const [changeReason, setChangeReason] = useState("");
   const [manualChangeLoading, setManualChangeLoading] = useState(false);
   const [originalItemId, setOriginalItemId] = useState<string>("");
+  const [manualDataLoading, setManualDataLoading] = useState(false); // Loading khi fetch data để chọn
+  // const [modalKey, setModalKey] = useState(0); // Removed - not needed
   const modalReopenProcessed = useRef(false);
   const lastReopenTimestamp = useRef<number>(0);
   const timeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
   const autoChangeInProgress = useRef(false);
+  const pusherEventReceived = useRef(false); // Track if Pusher event was received
 
   const getExportTypeLabel = (type: string | undefined) => {
     switch (type) {
@@ -227,6 +236,143 @@ const ExportRequestScreen: React.FC = () => {
     handleGlobalModalReopen();
   }, [savedExportRequestDetails]); // Add dependency to trigger when data is available
 
+  // Pusher real-time updates listener
+  useEffect(() => {
+    if (!latestNotification) return;
+
+    const { type, data } = latestNotification;
+    console.log('📡 Received Pusher notification:', { type, data, currentExportId: id });
+    
+    // Check all possible event types that could be related to export request
+    const possibleEventTypes = [
+      // Export request events
+      'export-request-created',
+      'export-request-updated', 
+      'export-request-status-changed',
+      'export-request-assigned',
+      'export-request-cancelled',
+      'export-request-completed',
+      
+      // Export request detail events
+      'export-request-detail-updated',
+      'export-request-detail-quantity-changed',
+      'export-request-detail-completed',
+      
+      // Inventory item events
+      'inventory-item-changed',
+      'inventory-item-assigned',
+      'inventory-item-scanned',
+      'inventory-item-auto-changed',
+      'inventory-item-manual-changed',
+      
+      // Legacy import order events (might still be relevant)
+      'import-order-created',
+      'import-order-assigned', 
+      'import-order-counted',
+      'import-order-confirmed',
+      'import-order-cancelled',
+      'import-order-extended',
+      'import-order-completed'
+    ];
+    
+    if (possibleEventTypes.includes(type)) {
+      console.log(`🎯 Processing ${type} event for export ID ${id}:`, data);
+      
+      // Try different ways to match the export request ID
+      const eventObjectId = data?.objectId;
+      const eventId = data?.id;
+      const currentId = parseInt(id);
+      
+      console.log(`🔍 ID matching check:`, { 
+        eventObjectId, 
+        eventId, 
+        currentId, 
+        objectIdMatch: eventObjectId === currentId,
+        idMatch: eventId === currentId
+      });
+      
+      // Match by objectId or id (more flexible matching)
+      if (eventObjectId === currentId || eventId === currentId) {
+        console.log('✅ Event matches current export request - processing...');
+        
+        // Mark that Pusher event was received
+        pusherEventReceived.current = true;
+        
+        // Stop main table loading if it was started
+        setMainTableLoading(false);
+        
+        // Handle different event types with specific logic
+        switch (type) {
+          case 'export-request-status-changed':
+          case 'export-request-updated':
+          case 'export-request-completed':
+            console.log('🔄 Refreshing export request data...');
+            fetchExportRequestById(id).catch((error) => {
+              console.error('❌ Error refreshing export request:', error);
+            });
+            break;
+            
+          case 'inventory-item-changed':
+          case 'inventory-item-auto-changed':
+          case 'inventory-item-manual-changed':
+          case 'inventory-item-scanned':
+          case 'export-request-detail-updated':
+          case 'export-request-detail-quantity-changed':
+            console.log('🔄 Refreshing export request details and inventory...');
+            
+            // Refresh export request details
+            fetchExportRequestDetails(id, 1, 100).then((newData) => {
+              const refreshedDetails = newData.map((item) => ({
+                ...item,
+                actualQuantity: item.actualQuantity ?? 0,
+                inventoryItemIds: item.inventoryItemIds ?? [],
+              }));
+              
+              dispatch(setExportRequestDetail(refreshedDetails));
+              
+              const mappings = refreshedDetails.flatMap((detail) =>
+                (detail.inventoryItemIds ?? []).map((inventoryItemId: string) => ({
+                  inventoryItemId: inventoryItemId.trim().toLowerCase(),
+                  exportRequestDetailId: detail.id,
+                }))
+              );
+              dispatch(setScanMappings(mappings));
+              
+              console.log('✅ Export request details refresh completed');
+            }).catch((error) => {
+              console.error('❌ Error refreshing export request details:', error);
+            });
+            
+            // Refresh modal inventory items if modal is currently open
+            if (inventoryModalVisible && selectedExportRequestDetailId) {
+              console.log('🔄 Refreshing modal inventory items...');
+              fetchInventoryItemsByExportRequestDetailId(selectedExportRequestDetailId)
+                .then((refreshedItems) => {
+                  setSelectedInventoryItems(refreshedItems);
+                  console.log('✅ Modal inventory items refreshed, count:', refreshedItems.length);
+                })
+                .catch((error) => {
+                  console.error('❌ Error refreshing modal inventory items:', error);
+                });
+            }
+            break;
+            
+          default:
+            console.log('🔄 Generic refresh for event type:', type);
+            // Generic refresh for other event types
+            fetchExportRequestById(id).catch((error) => {
+              console.error('❌ Error refreshing export request:', error);
+            });
+            break;
+        }
+        
+      } else {
+        console.log('⏭️ Event not for this export request, ignoring');
+      }
+    }
+    
+  }, [latestNotification, id, inventoryModalVisible, selectedExportRequestDetailId, fetchExportRequestDetails, fetchExportRequestById, fetchInventoryItemsByExportRequestDetailId, dispatch]);
+
   // Separate function to handle modal reopening
   const handleGlobalModalReopen = async () => {
     console.log(`🔍 Modal reopen check:`, {
@@ -314,14 +460,14 @@ const ExportRequestScreen: React.FC = () => {
 
   // Loading overlay component
   const renderLoadingOverlay = () => {
-    if (!isDataRefreshing && !modalReopeningLoading) return null;
+    if (!modalReopeningLoading) return null;
 
     return (
       <View style={styles.loadingOverlay}>
         <View style={styles.loadingOverlayContent}>
           <ActivityIndicator size="large" color="#1677ff" />
           <Text style={styles.loadingOverlayText}>
-            {modalReopeningLoading ? "Đang mở modal..." : "Đang cập nhật dữ liệu..."}
+            {modalReopeningLoading ? "..." : "Đang cập nhật dữ liệu..."}
           </Text>
         </View>
       </View>
@@ -354,6 +500,9 @@ const ExportRequestScreen: React.FC = () => {
 
       // Set the original item ID for tracking
       setOriginalItemId(originalInventoryItemId);
+
+      // Start loading
+      setManualDataLoading(true);
 
       // Fetch all inventory items for this itemId using the new API
       const allInventoryItemsForItemId = await fetchInventoryItemByItemId(selectedItemCode);
@@ -414,6 +563,9 @@ const ExportRequestScreen: React.FC = () => {
     } catch (error) {
       console.error("❌ Error in manual change:", error);
       Alert.alert("Lỗi", "Không thể tải danh sách inventory items");
+    } finally {
+      // Stop loading
+      setManualDataLoading(false);
     }
   };
 
@@ -479,20 +631,24 @@ const ExportRequestScreen: React.FC = () => {
       });
       dispatch(setScanMappings(updatedScanMappings));
 
-      // Reset UI state
+      // Success - Reset to modal main screen and refresh data
+      console.log('✅ Manual change successful - resetting to modal main screen');
+      
+      // Reset manual change UI states (this will make modal return to main screen)
       setManualChangeLoading(false);
       setSelectedManualItem(null);
       setChangeReason("");
       setOriginalItemId("");
       setManualSearchText("");
-      setAllInventoryItems([]);
-
-      Alert.alert("Thành công", "Đã đổi item thành công!", [{ text: "OK" }]);
-
-      // Refresh dữ liệu + modal
-      setIsDataRefreshing(true);
-      timeoutRef.current = setTimeout(async () => {
+      setAllInventoryItems([]); // Clear to return to main view
+      
+      // Start main table loading for visual feedback
+      setMainTableLoading(true);
+      
+      // Refresh data with timeout to ensure UI updates first
+      setTimeout(async () => {
         try {
+          // 1. Refresh main table data
           const refreshedData = await fetchExportRequestDetails(id, 1, 100);
           const refreshedDetails = refreshedData.map(item => ({
             ...item,
@@ -500,19 +656,29 @@ const ExportRequestScreen: React.FC = () => {
             inventoryItemIds: item.inventoryItemIds ?? [],
           }));
           dispatch(setExportRequestDetail(refreshedDetails));
-
+          
+          // Update scan mappings
+          const mappings = refreshedDetails.flatMap((detail) =>
+            (detail.inventoryItemIds ?? []).map((inventoryItemId: string) => ({
+              inventoryItemId: inventoryItemId.trim().toLowerCase(),
+              exportRequestDetailId: detail.id,
+            }))
+          );
+          dispatch(setScanMappings(mappings));
+          
+          // 2. Refresh modal inventory items (modal should be on main screen now)
           if (selectedExportRequestDetailId) {
-            const inventoryItems = await fetchInventoryItemsByExportRequestDetailId(
-              selectedExportRequestDetailId
-            );
-            setSelectedInventoryItems(inventoryItems);
+            const refreshedItems = await fetchInventoryItemsByExportRequestDetailId(selectedExportRequestDetailId);
+            setSelectedInventoryItems(refreshedItems);
+            console.log('✅ Manual change - Data refreshed, modal on main screen');
           }
+          
         } catch (error) {
-          console.error("❌ Error refreshing data:", error);
+          console.error('❌ Manual change - Error refreshing data:', error);
         } finally {
-          setIsDataRefreshing(false);
+          setMainTableLoading(false);
         }
-      }, 500) as unknown as NodeJS.Timeout;
+      }, 100); // Small delay to ensure state updates
 
     } catch (error) {
       console.error("❌ Error in manual change:", error);
@@ -586,10 +752,31 @@ const ExportRequestScreen: React.FC = () => {
                   dispatch(setScanMappings(updatedScanMappings));
                 }
 
-                // Refresh dữ liệu + modal
-                setIsDataRefreshing(true);
-                timeoutRef.current = setTimeout(async () => {
+                // Show success immediately and start loading
+                Alert.alert("Thành công", "Đã đổi mã thành công! Dữ liệu đang được cập nhật...", [
+                  { text: "OK" }
+                ]);
+
+                // Start main table loading
+                setMainTableLoading(true);
+
+                // Reset Pusher event flag for this operation
+                pusherEventReceived.current = false;
+
+                // Fallback: If no Pusher event received within 1 second, refresh manually
+                console.log('⏰ Setting fallback refresh timeout...');
+                setTimeout(async () => {
+                  // Check if Pusher event was already received
+                  if (pusherEventReceived.current) {
+                    console.log('⏰ Pusher event already handled, skipping fallback');
+                    return;
+                  }
+                  
+                  console.log('⏰ Fallback refresh triggered - no Pusher event received');
+                  
                   try {
+                    // 1. Refresh main table data (export request details)
+                    console.log('⏰ Refreshing main table data...');
                     const refreshedData = await fetchExportRequestDetails(id, 1, 100);
                     const refreshedDetails = refreshedData.map(item => ({
                       ...item,
@@ -597,18 +784,32 @@ const ExportRequestScreen: React.FC = () => {
                       inventoryItemIds: item.inventoryItemIds ?? [],
                     }));
                     dispatch(setExportRequestDetail(refreshedDetails));
-
+                    
+                    // Update scan mappings
+                    const mappings = refreshedDetails.flatMap((detail) =>
+                      (detail.inventoryItemIds ?? []).map((inventoryItemId: string) => ({
+                        inventoryItemId: inventoryItemId.trim().toLowerCase(),
+                        exportRequestDetailId: detail.id,
+                      }))
+                    );
+                    dispatch(setScanMappings(mappings));
+                    
+                    console.log('⏰ Main table refresh completed');
+                    
+                    // 2. Refresh modal inventory items (keep modal open)
                     if (inventoryModalVisible && selectedExportRequestDetailId) {
-                      const refreshedInventoryItems =
-                        await fetchInventoryItemsByExportRequestDetailId(selectedExportRequestDetailId);
-                      setSelectedInventoryItems(refreshedInventoryItems);
+                      const fallbackItems = await fetchInventoryItemsByExportRequestDetailId(selectedExportRequestDetailId);
+                      setSelectedInventoryItems(fallbackItems);
+                      console.log('⏰ Modal refresh completed, count:', fallbackItems.length);
                     }
+                    
                   } catch (error) {
-                    console.error("❌ Error refreshing data after auto change:", error);
+                    console.error('⏰ Fallback refresh failed:', error);
                   } finally {
-                    setIsDataRefreshing(false);
+                    // Stop main table loading
+                    setMainTableLoading(false);
                   }
-                }, 500) as unknown as NodeJS.Timeout;
+                }, 1000);
 
               } catch (error) {
                 console.error("❌ Error auto-changing:", error);
@@ -938,10 +1139,22 @@ const ExportRequestScreen: React.FC = () => {
               )}
           </View>
 
+          {/* Loading overlay for main table */}
+          {mainTableLoading && (
+            <View style={styles.tableLoadingOverlay}>
+              <ActivityIndicator size="large" color="#1677ff" />
+              <Text style={styles.tableLoadingText}>Đang cập nhật dữ liệu...</Text>
+            </View>
+          )}
+
           <ScrollView
-            style={styles.scrollableTableContent}
+            style={[
+              styles.scrollableTableContent,
+              mainTableLoading && { opacity: 0.5 }
+            ]}
             showsVerticalScrollIndicator={true}
             nestedScrollEnabled={true}
+            scrollEnabled={!mainTableLoading}
           >
             {savedExportRequestDetails.map((detail: any, index: number) => {
               const isDisabled = detail.quantity === detail.actualQuantity;
@@ -1257,6 +1470,23 @@ const styles = StyleSheet.create({
     color: "#ccc",
     marginTop: 6,
     textAlign: "center",
+  },
+  tableLoadingOverlay: {
+    position: "absolute",
+    top: 50, // Below header
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(255, 255, 255, 0.9)",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 10,
+  },
+  tableLoadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: "#1677ff",
+    fontWeight: "600",
   },
 });
 

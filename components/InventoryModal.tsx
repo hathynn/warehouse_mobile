@@ -585,10 +585,10 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
         title = `Danh sách sản phẩm tồn kho (Mã hàng #${selectedItemCode})`;
         break;
       case "manual_select":
-        title = `Chọn inventory item (Mã hàng #${selectedItemCode})`;
+        title = `Chọn hàng tồn kho (Mã hàng #${selectedItemCode})`;
         break;
       case "reason_input":
-        title = "Nhập lý do đổi item";
+        title = "Nhập lý do đổi sản phẩm";
         break;
     }
 
@@ -829,13 +829,13 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                 }}
               >
                 <Ionicons name="qr-code-outline" size={20} color="white" />
-                <Text style={styles.manualScanButtonText}>Quét QR để chọn item</Text>
+                <Text style={styles.manualScanButtonText}>Quét QR để chọn sản phẩm</Text>
               </TouchableOpacity>
             </View>
 
             <View style={styles.itemCountContainer}>
               <Text style={styles.sectionTitle}>
-                Tất cả inventory items ({filteredAllInventoryItems.length}/
+                Hàng tồn kho khả dụng ({filteredAllInventoryItems.length}/
                 {allInventoryItems?.length || 0} sản phẩm)
               </Text>
             </View>
