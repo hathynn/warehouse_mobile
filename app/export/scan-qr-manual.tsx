@@ -274,10 +274,17 @@ export default function ScanQrManualScreen() {
       }
 
       if (inventoryItemData.itemId !== originalItemData.itemId) {
-        throw new Error("Chỉ cho phép đổi inventory item id với cùng 1 loại sản phẩm");
+        throw new Error("Chỉ cho phép đổi hàng tồn kho cùng 1 loại sản phẩm");
       }
 
       console.log(`✅ ItemId validation passed: ${inventoryItemData.itemId} === ${originalItemData.itemId}`);
+
+      // Validate inventory item status - không cho đổi nếu UNAVAILABLE hoặc NEED_LIQUID
+      if (inventoryItemData.status === 'UNAVAILABLE' || inventoryItemData.status === 'NEED_LIQUID') {
+        throw new Error("Sản phẩm đang chờ xuất hoặc thanh lý");
+      }
+
+      console.log(`✅ Status validation passed: ${inventoryItemData.status} is allowed`);
 
       // Validate measurement for replacement when new item has lower measurement value (INTERNAL exports only)
       if (exportRequest?.type === "INTERNAL" && exportDetailIdNum && (inventoryItemData.measurementValue || 0) < (originalItemData.measurementValue || 0)) {
@@ -673,7 +680,7 @@ export default function ScanQrManualScreen() {
               keyboardShouldPersistTaps="handled"
             >
               <View style={styles.reasonInputBox}>
-                <Text style={styles.reasonTitle}>Nhập lý do thay đổi item:</Text>
+                <Text style={styles.reasonTitle}>Nhập lý do thay đổi sản phẩm:</Text>
 
                 {/* Display measurement values */}
                 {newInventoryItemData && itemData && (
@@ -683,7 +690,7 @@ export default function ScanQrManualScreen() {
                       Giá trị cần xuất: {itemData.measurementValue || 0} {itemData.measurementUnit || ''}
                     </Text>
                     <Text style={styles.measurementText}>
-                      Giá trị item vừa quét: {newInventoryItemData.measurementValue || 0} {itemData.measurementUnit || ''}
+                      Giá trị sản phẩm vừa quét: {newInventoryItemData.measurementValue || 0} {itemData.measurementUnit || ''}
                     </Text>
                   </View>
                 )}
