@@ -1028,7 +1028,8 @@ const renderActionButton = () => {
             {stockCheckDetails.map(
               (detail: StockCheckDetailType, index: number) => {
                 const isCompleted =
-                  detail.status === StockCheckDetailStatus.COMPLETED;
+                  detail.status === StockCheckDetailStatus.COMPLETED || 
+                  detail.quantity === detail.actualQuantity;
                 const isLastItem = index === stockCheckDetails.length - 1;
                 const difference = detail.actualQuantity - detail.quantity;
 
@@ -1066,7 +1067,9 @@ const renderActionButton = () => {
                             }}
                           >
                             {isCompleted ? (
-                              <Text style={styles.scanText}>Hoàn tất</Text>
+                              <Text style={styles.scanText}>
+                                {detail.status === StockCheckDetailStatus.COMPLETED ? "Hoàn tất" : "Đã đủ"}
+                              </Text>
                             ) : (
                               <Ionicons
                                 name="qr-code-outline"
