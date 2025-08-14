@@ -37,6 +37,7 @@ const ImportOrderScreen: React.FC = () => {
     useImportOrderDetailService();
   const { updateImportOrderToStored } = useImportOrder();
   const [importOrderDetails, setImportOrderDetails] = useState<any[]>([]);
+  const [loadingDetails, setLoadingDetails] = useState(true);
   const { resetPaperById } = usePaperService();
 
   const { fetchInventoryItemsByImportOrderDetailId } = useInventoryService();
@@ -64,90 +65,62 @@ const ImportOrderScreen: React.FC = () => {
     };
   };
 
-  const loadData = async () => {
-    if (!id) return;
-    const orderId = id;
+  const getImportTypeLabel = (type: string | undefined) => {
+    switch (type) {
+      case ImportType.ORDER:
+        return "Nhập theo yêu cầu";
+      case ImportType.RETURN:
+        return "Nhập trả";
 
-    // 1. Lấy thông tin đơn nhập
-    const order = await fetchImportOrderById(orderId);
-
-    if (!order || !order.importOrderDetails) return;
-    // 2. Lấy thông tin chi tiết và inventory theo từng ID
-    const enrichedDetails = await Promise.all(
-      order.importOrderDetails.map(async (detail: any) => {
-        const detailData = await fetchImportOrderDetailById(
-          detail.importOrderDetailId
-        );
-        if (!detailData) return null;
-
-        const inventoryItems = await fetchInventoryItemsByImportOrderDetailId(
-          detail.importOrderDetailId
-        );
-
-        // Get item details to fetch measurement unit for return imports
-        let measurementUnit = undefined;
-        if (order.importType === ImportType.RETURN) {
-          const itemDetails = await getItemDetailById(detailData.itemId);
-          measurementUnit = itemDetails?.measurementUnit;
-        }
-
-        return {
-          id: detailData.importOrderDetailId.toString(),
-          productName: detailData.itemName,
-          sku: `Mã sản phẩm ${detailData.itemId}`,
-          itemId: detailData.itemId,
-          inventoryItemId: detailData.inventoryItemId,
-          expectedQuantity: detailData.expectQuantity,
-          countedQuantity: detailData.actualQuantity,
-          expectedMeasurementValue: detailData.expectMeasurementValue,
-          actualMeasurementValue: detailData.actualMeasurementValue,
-          measurementUnit: measurementUnit,
-          status: order.status,
-          products: inventoryItems.map((inv: any) => ({
-            id: inv.id,
-            serialNumber: inv.itemCode || `Chưa có code`,
-            location: inv.storedLocationName
-              ? parseStoredLocation(inv.storedLocationName)
-              : {
-                  zone: "Không rõ vị trí",
-                  floor: "Không rõ vị trí",
-                  row: "Không rõ vị trí",
-                  line: "Không rõ vị trí",
-                },
-          })),
-        };
-      })
-    );
-
-    // 3. Bỏ null nếu có dòng lỗi
-    setImportOrderDetails(enrichedDetails.filter(Boolean));
-  };
-
-  useEffect(() => {
-    loadData();
-  }, [id]);
-
-  // Handler cho việc hoàn thành quy trình nhập kho
-  const handleStorageComplete = async () => {
-    try {
-      await updateImportOrderToStored(importOrder.importOrderId);
-      await fetchImportOrderById(importOrder.importOrderId);
-
-      // Gọi lại loadData để refresh table ngay lập tức
-      await loadData();
-
-      // Có thể thêm thông báo thành công ở đây
-    } catch (error) {
-      console.error("Cập nhật trạng thái thất bại:", error);
-      // Có thể thêm thông báo lỗi ở đây
+      default:
+        return "Không xác định";
     }
   };
 
-  useEffect(() => {
-    const loadData = async () => {
-      if (!id) return;
-      const orderId = id;
+  const formatTime = (timeString: string | null | undefined): string => {
+    if (!timeString) return "Chưa xác định";
 
+    try {
+      // If it's already in HH:MM:SS format, return as is
+      if (timeString.match(/^\d{2}:\d{2}:\d{2}$/)) {
+        return timeString;
+      }
+
+      // If it's a date string, extract time part
+      const date = new Date(timeString);
+      if (!isNaN(date.getTime())) {
+        return date.toLocaleTimeString("vi-VN", {
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+          hour12: false
+        });
+      }
+
+      // If it's just time without date, try to parse
+      const timeParts = timeString.split(":");
+      if (timeParts.length >= 2) {
+        const hours = timeParts[0].padStart(2, "0");
+        const minutes = timeParts[1].padStart(2, "0");
+        const secondsPart = timeParts[2] ? timeParts[2].split(".")[0].padStart(2, "0") : "00";
+
+        return `${hours}:${minutes}:${secondsPart}`;
+
+      }
+
+
+      return timeString;
+    } catch {
+      return timeString || "Chưa xác định";
+    }
+  };
+
+  const loadData = async () => {
+    if (!id) return;
+    setLoadingDetails(true);
+    const orderId = id;
+
+    try {
       // 1. Lấy thông tin đơn nhập
       const order = await fetchImportOrderById(orderId);
 
@@ -184,16 +157,16 @@ const ImportOrderScreen: React.FC = () => {
             measurementUnit: measurementUnit,
             status: order.status,
             products: inventoryItems.map((inv: any) => ({
-              id: inv.id, // Sửa lại để trùng với interface
+              id: inv.id,
               serialNumber: inv.itemCode || `Chưa có code`,
               location: inv.storedLocationName
                 ? parseStoredLocation(inv.storedLocationName)
                 : {
-                    zone: "Không rõ vị trí",
-                    floor: "Không rõ vị trí",
-                    row: "Không rõ vị trí",
-                    line: "Không rõ vị trí",
-                  },
+                  zone: "Không rõ vị trí",
+                  floor: "Không rõ vị trí",
+                  row: "Không rõ vị trí",
+                  line: "Không rõ vị trí",
+                },
             })),
           };
         })
@@ -201,9 +174,98 @@ const ImportOrderScreen: React.FC = () => {
 
       // 3. Bỏ null nếu có dòng lỗi
       setImportOrderDetails(enrichedDetails.filter(Boolean));
+    } finally {
+      setLoadingDetails(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, [id]);
+
+  // Handler cho việc hoàn thành quy trình nhập kho
+  const handleStorageComplete = async () => {
+    try {
+      setLoadingDetails(true);
+      await updateImportOrderToStored(importOrder.importOrderId);
+      await fetchImportOrderById(importOrder.importOrderId);
+
+      // Gọi lại loadData để refresh table ngay lập tức
+      await loadData();
+
+      // Có thể thêm thông báo thành công ở đây
+    } catch (error) {
+      console.error("Cập nhật trạng thái thất bại:", error);
+      // Có thể thêm thông báo lỗi ở đây
+    }
+  };
+
+  useEffect(() => {
+    const loadDataDuplicate = async () => {
+      if (!id) return;
+      setLoadingDetails(true);
+      const orderId = id;
+
+      try {
+        // 1. Lấy thông tin đơn nhập
+        const order = await fetchImportOrderById(orderId);
+
+        if (!order || !order.importOrderDetails) return;
+        // 2. Lấy thông tin chi tiết và inventory theo từng ID
+        const enrichedDetails = await Promise.all(
+          order.importOrderDetails.map(async (detail: any) => {
+            const detailData = await fetchImportOrderDetailById(
+              detail.importOrderDetailId
+            );
+            if (!detailData) return null;
+
+            const inventoryItems = await fetchInventoryItemsByImportOrderDetailId(
+              detail.importOrderDetailId
+            );
+
+            // Get item details to fetch measurement unit for return imports
+            let measurementUnit = undefined;
+            if (order.importType === ImportType.RETURN) {
+              const itemDetails = await getItemDetailById(detailData.itemId);
+              measurementUnit = itemDetails?.measurementUnit;
+            }
+
+            return {
+              id: detailData.importOrderDetailId.toString(),
+              productName: detailData.itemName,
+              sku: `Mã sản phẩm ${detailData.itemId}`,
+              itemId: detailData.itemId,
+              inventoryItemId: detailData.inventoryItemId,
+              expectedQuantity: detailData.expectQuantity,
+              countedQuantity: detailData.actualQuantity,
+              expectedMeasurementValue: detailData.expectMeasurementValue,
+              actualMeasurementValue: detailData.actualMeasurementValue,
+              measurementUnit: measurementUnit,
+              status: order.status,
+              products: inventoryItems.map((inv: any) => ({
+                id: inv.id, // Sửa lại để trùng với interface
+                serialNumber: inv.itemCode || `Chưa có code`,
+                location: inv.storedLocationName
+                  ? parseStoredLocation(inv.storedLocationName)
+                  : {
+                    zone: "Không rõ vị trí",
+                    floor: "Không rõ vị trí",
+                    row: "Không rõ vị trí",
+                    line: "Không rõ vị trí",
+                  },
+              })),
+            };
+          })
+        );
+
+        // 3. Bỏ null nếu có dòng lỗi
+        setImportOrderDetails(enrichedDetails.filter(Boolean));
+      } finally {
+        setLoadingDetails(false);
+      }
     };
 
-    loadData();
+    loadDataDuplicate();
   }, [id]);
 
   if (loadingOrder) {
@@ -241,7 +303,8 @@ const ImportOrderScreen: React.FC = () => {
             fontWeight: "bold",
             marginTop: 7,
             flex: 1,
-            textAlign: "center",
+            textAlign: "right",
+
           }}
         >
           {id}
@@ -260,9 +323,17 @@ const ImportOrderScreen: React.FC = () => {
             </View>
           </View>
 
+
           <View style={styles.row}>
             <Text style={styles.label}>Mã phiếu nhập</Text>
             <Text style={styles.value}>{importOrder?.importRequestId}</Text>
+          </View>
+
+          <View style={styles.row}>
+            <Text style={styles.label}>Loại nhập</Text>
+            <Text style={styles.value}>
+              {getImportTypeLabel(importOrder?.importType)}
+            </Text>
           </View>
 
           <View style={styles.row}>
@@ -270,18 +341,43 @@ const ImportOrderScreen: React.FC = () => {
             <Text style={styles.value}>
               {importOrder?.dateReceived
                 ? new Date(importOrder.dateReceived).toLocaleString("vi-VN", {
-                    day: "2-digit",
-                    month: "2-digit",
-                    year: "numeric",
-                  })
+                  day: "2-digit",
+                  month: "2-digit",
+                  year: "numeric",
+                })
                 : "--"}
             </Text>
           </View>
 
+
           <View style={styles.row}>
             <Text style={styles.label}>Giờ dự nhập</Text>
-            <Text style={styles.value}>{importOrder?.timeReceived}</Text>
+            <Text style={styles.value}>{formatTime(importOrder?.timeReceived)}</Text>
           </View>
+
+          {importOrder?.status === ImportOrderStatus.COMPLETED || importOrder?.status === ImportOrderStatus.READY_TO_STORE || importOrder?.status === ImportOrderStatus.STORED && (
+            <>
+              <View style={styles.row}>
+                <Text style={styles.label}>Ngày nhập thực tế</Text>
+                <Text style={styles.value}>
+                  {importOrder?.actualDateReceived
+                    ? new Date(importOrder?.actualDateReceived).toLocaleString("vi-VN", {
+                      day: "2-digit",
+                      month: "2-digit",
+                      year: "numeric",
+                    })
+                    : "--"}
+                </Text>
+              </View>
+
+              <View style={styles.row}>
+                <Text style={styles.label}>Giờ kiểm đếm</Text>
+                <Text style={styles.value}>
+                  {formatTime(importOrder?.actualTimeReceived)}
+                </Text>
+              </View>
+            </>
+          )}
 
           <View style={styles.row}>
             <Text style={styles.label}>Tình trạng</Text>
@@ -295,7 +391,7 @@ const ImportOrderScreen: React.FC = () => {
 
         {/* Các button action dựa theo status */}
         {importOrder?.status === ImportOrderStatus.IN_PROGRESS ||
-        importOrder?.status === ImportOrderStatus.NOT_STARTED ? (
+          importOrder?.status === ImportOrderStatus.NOT_STARTED ? (
           <TouchableOpacity
             style={styles.tamaButton}
             activeOpacity={0.8}
@@ -313,14 +409,14 @@ const ImportOrderScreen: React.FC = () => {
                   importOrderId: importOrder.importOrderId,
                   inventoryItemId: item.inventoryItemId || null,
                   importOrderDetailId: item.importOrderDetailId,
-                    measurementValue: item.actualMeasurementValue || 0, // Thêm measurementValue
-      expectMeasurementValue: item.expectMeasurementValue || 0, 
+                  measurementValue: item.actualMeasurementValue || 0, // Thêm measurementValue
+                  expectMeasurementValue: item.expectMeasurementValue || 0,
                 }));
 
                 dispatch(setProducts(products));
                 console.log("Product: ", products)
                 dispatch(
-                  setPaperData({ 
+                  setPaperData({
                     importOrderId: importOrder.importOrderId,
                     importType: importOrder.importType,
                     exportRequestId: null // Clear export request để tránh nhầm lẫn workflow
@@ -378,14 +474,14 @@ const ImportOrderScreen: React.FC = () => {
 
                   inventoryItemId: item.inventoryItemId || null,
                   importOrderDetailId: item.importOrderDetailId,
-                    measurementValue: item.actualMeasurementValue || 0, // Thêm measurementValue
-      expectMeasurementValue: item.expectMeasurementValue || 0, 
+                  measurementValue: item.actualMeasurementValue || 0, // Thêm measurementValue
+                  expectMeasurementValue: item.expectMeasurementValue || 0,
 
                 }));
 
                 dispatch(setProducts(products));
                 dispatch(
-                  setPaperData({ 
+                  setPaperData({
                     importOrderId: importOrder.importOrderId,
                     importType: importOrder.importType,
                     exportRequestId: null // Clear export request để tránh nhầm lẫn workflow
@@ -407,6 +503,7 @@ const ImportOrderScreen: React.FC = () => {
           importOrderDetails={importOrderDetails}
           onStorageComplete={handleStorageComplete}
           importType={importOrder?.importType}
+          isLoading={loadingDetails}
         />
       </ScrollView>
     </View>

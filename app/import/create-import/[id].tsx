@@ -85,7 +85,7 @@ export default function KiemDemScreen() {
             <Ionicons name="arrow-back" size={24} color="white" />
           </TouchableOpacity>
           <Text className="text-white font-bold text-lg">
-            Kiểm đếm đơn nhập số <Text className="text-blue-200">#{id}</Text>
+            Kiểm đếm đơn nhập số <Text className="text-blue-200">{id}</Text>
           </Text>
         </View>
 

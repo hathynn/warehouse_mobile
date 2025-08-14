@@ -180,7 +180,7 @@ const ConfirmManual = () => {
             marginTop: 7,
           }}
         >
-          {isReturnImport ? `Nhập giá trị đo lường thủ công đơn nhập #{id}` : `Nhập số lượng thủ công đơn nhập #{id}`}
+          {isReturnImport ? `Nhập giá trị đo lường thủ công đơn nhập ${id}` : `Nhập số lượng thủ công đơn nhập ${id}`}
         </Text>
       </View>
 
@@ -410,7 +410,18 @@ const ConfirmManual = () => {
               value={inputValue}
               onChangeText={setInputValue}
               keyboardType={isReturnImport ? "decimal-pad" : "numeric"}
-              placeholder={isReturnImport ? "Nhập giá trị đo lường" : "Nhập số lượng"}
+              placeholder={(() => {
+                const selectedProduct = filteredProducts.find(p => p.id === selectedProductId);
+                if (selectedProduct?.inventoryItemId) {
+                  const actualValue = selectedProduct.actualMeasurementValue || 0;
+                  return actualValue !== 0 ? 
+                    `${actualValue}${getUnit(selectedProduct) ? ` ${getUnit(selectedProduct)}` : ''}` : 
+                    "Nhập giá trị đo lường";
+                } else {
+                  const actualValue = selectedProduct?.actual || 0;
+                  return actualValue !== 0 ? String(actualValue) : "Nhập số lượng";
+                }
+              })()}
               className="border border-gray-300 p-3 rounded-md mb-4"
             />
             <View className="flex-row justify-end gap-2 mt-3">

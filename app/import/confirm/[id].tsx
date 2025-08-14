@@ -187,7 +187,7 @@ const Confirm = () => {
             marginTop: 7,
           }}
         >
-          Xác nhận số lượng đơn nhập #{id}
+          Xác nhận số lượng đơn nhập {id}
         </Text>
       </View>
       <ScrollView
