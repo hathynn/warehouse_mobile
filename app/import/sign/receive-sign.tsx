@@ -159,35 +159,23 @@ const SignReceiveScreen = () => {
 
   const handleConfirm = async () => {
     // Prevent double execution
-    if (isLoading) {
-      console.log("⏳ Already processing, ignoring duplicate call");
-      return;
-    }
+    if (isLoading) return;
     
     if (!paperData.signProviderUrl || !paperData.signReceiverUrl) {
-      console.log("❌ Chưa có đủ chữ ký, vui lòng ký trước khi xác nhận.");
+      alert("Chưa có đủ chữ ký, vui lòng ký trước khi xác nhận.");
       return;
     }
 
     if (!importOrderId) {
-      console.log("❌ Thiếu importOrderId.");
+      alert("Thiếu thông tin đơn nhập.");
       return;
     }
 
     setIsLoading(true);
 
     try {
-      // Debug: Log importOrder để kiểm tra importType
-      console.log("🔍 DEBUG importOrder:", {
-        importOrder: importOrder,
-        importType: importOrder?.importType,
-        isReturn: importOrder?.importType === "RETURN",
-        shouldSkipQuantityUpdate: importOrder?.importType === "RETURN"
-      });
-      
-      // Bước 1: Cập nhật actualQuantity cho tất cả products trước (chỉ khi không phải RETURN)
+      // Step 1: Update actualQuantity for ORDER type only
       if (importOrder?.importType !== "RETURN") {
-        console.log("🔄 Updating actualQuantity for all products (non-RETURN type)");
         const updatePayload = products.map((p) => ({
           itemId: p.id,
           actualQuantity: p.actual ?? 0,
@@ -199,92 +187,41 @@ const SignReceiveScreen = () => {
         );
 
         if (!updateResponse) {
-          console.log("❌ Không thể cập nhật actualQuantity.");
           alert("Lỗi: Không thể cập nhật số lượng sản phẩm. Vui lòng thử lại.");
           return;
         }
-        
-        console.log("✅ Cập nhật số lượng thành công");
-      } else {
-        console.log("ℹ️ Skip actualQuantity update for RETURN type");
       }
 
-      // Bước 2: Kiểm tra và cập nhật measurement values cho inventory items (nếu có)
+      // Step 2: Update measurements for RETURN type inventory items only
       const inventoryProducts = products.filter(p => 
-        p.inventoryItemId && p.actualMeasurementValue !== undefined && p.actualMeasurementValue > 0
+        p.inventoryItemId && 
+        p.actualMeasurementValue !== undefined && 
+        importOrder?.importType === "RETURN"
       );
 
-      // Chỉ gọi API update measurement khi có inventory items
       if (inventoryProducts.length > 0) {
-        console.log("🔄 Updating measurements for inventory items:", inventoryProducts.length);
-        
-        // SEQUENTIAL processing để tránh race condition
         const measurementResults = [];
         
-        for (let i = 0; i < inventoryProducts.length; i++) {
-          const product = inventoryProducts[i];
-          
+        for (const product of inventoryProducts) {
           if (!product.inventoryItemId || !product.importOrderDetailId) {
-            console.warn("Missing data for product:", product);
             measurementResults.push({ success: false, productId: product.id });
             continue;
           }
 
           try {
-            console.log(`📊 Processing measurement ${i + 1}/${inventoryProducts.length} for product ${product.id}`);
-            
-            // Fetch inventory item to get the correct itemId
+            // Get correct itemId from inventory item
             const inventoryItem = await fetchInventoryItemById(product.inventoryItemId);
-            const correctItemId = inventoryItem?.item?.id || product.id; // Fallback to product.id if fetch fails
+            const correctItemId = inventoryItem?.item?.id || product.id;
             
-            console.log(`🔍 ItemId correction - Product.id: ${product.id}, Inventory.item.id: ${inventoryItem?.item?.id}, Using: ${correctItemId}`);
-            
-            // Debug inventory item structure if item.id is undefined
-            if (!inventoryItem?.item?.id && inventoryItem) {
-              console.log(`🔍 InventoryItem structure:`, Object.keys(inventoryItem));
-              console.log(`🔍 InventoryItem.item:`, inventoryItem.item);
-            }
-            
-            // Payload with correct itemId from inventory item
-            // Format to match successful Swagger request exactly
+            const measurementValue = Number(product.actualMeasurementValue || 0);
             const requestData = {
               itemId: correctItemId,
-              actualQuantity: importOrder?.importType === "RETURN" ? (product.actual ?? 0) : null,
-              actualMeasurement: Number(product.actualMeasurementValue || 0),
+              actualQuantity: measurementValue > 0 ? 1 : 0, // RETURN logic: measurement > 0 → actual = 1
+              actualMeasurement: measurementValue,
               inventoryItemId: product.inventoryItemId,
             };
             
-            console.log(`🔍 DEBUG actualQuantity logic:`, {
-              importType: importOrder?.importType,
-              isReturn: importOrder?.importType === "RETURN",
-              productActual: product.actual,
-              resultingActualQuantity: requestData.actualQuantity
-            });
-            
-            console.log(`📡 Calling updateImportOrderDetailMeasurement (simplified):`, {
-              importOrderDetailId: product.importOrderDetailId,
-              requestData,
-              product: {
-                id: product.id,
-                name: product.name,
-                inventoryItemId: product.inventoryItemId,
-                actualMeasurementValue: product.actualMeasurementValue,
-                importOrderDetailId: product.importOrderDetailId
-              }
-            });
-            
-            // Debug: Verify importOrderDetailId and data types
             const importOrderDetailIdNum = Number(product.importOrderDetailId);
-            console.log(`🔍 ImportOrderDetailId validation:`, {
-              original: product.importOrderDetailId,
-              type: typeof product.importOrderDetailId,
-              converted: importOrderDetailIdNum,
-              isNaN: isNaN(importOrderDetailIdNum),
-              isValid: !isNaN(importOrderDetailIdNum) && importOrderDetailIdNum > 0
-            });
-            
-            console.log(`🔍 DEBUGGING - ImportOrderDetailId: ${importOrderDetailIdNum}, ItemId being sent: ${correctItemId}, InventoryItemId: ${product.inventoryItemId}`);
-            
             if (isNaN(importOrderDetailIdNum) || importOrderDetailIdNum <= 0) {
               throw new Error(`Invalid importOrderDetailId: ${product.importOrderDetailId}`);
             }
@@ -294,40 +231,19 @@ const SignReceiveScreen = () => {
               requestData
             );
             
-            console.log(`✅ API response for product ${product.id}:`, result);
             measurementResults.push({ success: !!result, productId: product.id });
             
-            // Thêm delay nhỏ giữa các calls để tránh race condition
-            if (i < inventoryProducts.length - 1) {
-              await new Promise(resolve => setTimeout(resolve, 200)); // 200ms delay
-            }
-            
           } catch (error) {
-            console.error(`❌ Error updating measurement for product ${product.id}:`, error);
-            console.error(`❌ Error details:`, {
-              message: error?.message,
-              response: error?.response?.data,
-              status: error?.response?.status,
-              stack: error?.stack
-            });
+            console.error(`Error updating measurement for product ${product.id}:`, error);
             measurementResults.push({ success: false, productId: product.id });
           }
         }
-        const successfulMeasurements = measurementResults.filter(r => r.success).length;
+        
         const failedMeasurements = measurementResults.filter(r => !r.success);
-        
-        console.log(`📊 Measurement update results: ${successfulMeasurements}/${inventoryProducts.length} successful`);
-        
-        // Nếu có inventory items, tất cả phải update thành công mới được tiếp tục
         if (failedMeasurements.length > 0) {
-          // console.error("❌ Không thể cập nhật measurement cho tất cả inventory items:", failedMeasurements);
           alert(`Lỗi: Không thể cập nhật measurement cho ${failedMeasurements.length} inventory items. Vui lòng thử lại.`);
           return;
         }
-        
-        console.log("✅ Tất cả inventory item measurements đã được cập nhật thành công");
-      } else {
-        console.log("ℹ️ Không có inventory items nào cần cập nhật measurement");
       }
 
       // Bước 3: Tạo paper

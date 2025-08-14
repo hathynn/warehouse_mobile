@@ -242,17 +242,22 @@ export default function ScanQrScreen() {
       await playBeep();
       console.log("✅ Product found, updating Redux...");
 
-      // Cập nhật Redux theo phương thức quét
+      // Cập nhật Redux theo phương thức quét và import type
       if (scanMethod === "inventoryItemId") {
-        // Với inventoryItemId: cập nhật actual quantity (không phải measurementValue)
-        dispatch(
-          updateProduct({
-            id: foundProduct.id,
-            actual: foundProduct.actual + 1,
-          })
-        );
+        // Với inventoryItemId: chỉ tăng actual cho ORDER type, RETURN type không tăng
+        if (importType !== "RETURN") {
+          console.log("📦 Inventory item scan - ORDER type: updating actual quantity");
+          dispatch(
+            updateProduct({
+              id: foundProduct.id,
+              actual: foundProduct.actual + 1,
+            })
+          );
+        } else {
+          console.log("📦 Inventory item scan - RETURN type: no actual quantity update");
+        }
       } else {
-        // Với itemId: cập nhật actual quantity
+        // Với itemId: cập nhật actual quantity như cũ (cho cả ORDER và RETURN)
         dispatch(
           updateProduct({
             id: foundProduct.id,
@@ -263,7 +268,9 @@ export default function ScanQrScreen() {
 
       setLastScannedProduct({
         ...foundProduct,
-        actual: foundProduct.actual + 1, // Cả hai trường hợp đều tăng actual
+        actual: (scanMethod === "inventoryItemId" && importType === "RETURN") 
+          ? foundProduct.actual  // RETURN + inventory item: không tăng actual
+          : foundProduct.actual + 1, // Tất cả trường hợp khác: tăng actual
         measurementValue: foundProduct.measurementValue, // Giữ nguyên measurementValue
         scannedBy: scanMethod,
       });

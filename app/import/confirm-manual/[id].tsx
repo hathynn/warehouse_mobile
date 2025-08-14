@@ -128,14 +128,15 @@ const ConfirmManual = () => {
           }
         }
         
-        // For RETURN imports, update measurement value
+        // For RETURN imports, update measurement value only
+        // For ORDER imports, also update actual quantity
         const updatePayload: any = {
           id: selectedProductId,
           actualMeasurementValue: value
         };
         
-        // If measurement value > 0, automatically increase actual quantity by 1
-        if (value > 0) {
+        // If ORDER import and measurement value > 0, automatically increase actual quantity by 1
+        if (!isReturnImport && value > 0) {
           const currentProduct = products.find(p => p.id === selectedProductId);
           updatePayload.actual = (currentProduct?.actual || 0) + 1;
         }
