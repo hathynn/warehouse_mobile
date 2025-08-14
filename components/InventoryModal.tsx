@@ -45,6 +45,7 @@ interface InventoryModalProps {
   changeReason?: string;
   onChangeReasonChange?: (text: string) => void;
   manualChangeLoading?: boolean;
+  manualDataLoading?: boolean;
   onManualItemSelect?: (item: InventoryItem, originalInventoryItemId: string) => void;
   onManualChangeSubmit?: () => void;
 
@@ -94,6 +95,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
   changeReason,
   onChangeReasonChange,
   manualChangeLoading,
+  manualDataLoading,
   onManualItemSelect,
   onManualChangeSubmit,
   // Stock check specific props
@@ -109,6 +111,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
   const [detailedItemsLoading, setDetailedItemsLoading] = useState(false);
   const [showMeasurementWarning, setShowMeasurementWarning] = useState(false);
   const [itemData, setItemData] = useState<any | null>(null);
+  const [exportRequestDetailData, setExportRequestDetailData] = useState<any | null>(null);
 
   // Validation function for measurement replacement
   const validateMeasurementForReplacement = async (
@@ -178,6 +181,23 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
 
     fetchItemData();
   }, [visible, selectedItemCode, getItemDetailById]);
+
+  // Fetch export request detail data for measurement value display
+  useEffect(() => {
+    const fetchExportRequestDetailData = async () => {
+      if (visible && exportRequestDetailId) {
+        try {
+          const exportDetailInfo = await fetchExportRequestDetailById(exportRequestDetailId);
+          setExportRequestDetailData(exportDetailInfo);
+        } catch (error) {
+          console.error("Error fetching export request detail data:", error);
+          setExportRequestDetailData(null);
+        }
+      }
+    };
+
+    fetchExportRequestDetailData();
+  }, [visible, exportRequestDetailId, fetchExportRequestDetailById]);
 
   // Fetch detailed inventory item data when modal opens or items change
   useEffect(() => {
@@ -251,12 +271,24 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
     return directMatch || partsMatch || fuzzyMatch;
   };
 
+  // Search function for manual selection - only by measurementValue
+  const measurementSearch = (item: InventoryItem, searchText: string): boolean => {
+    if (!searchText) return true;
+
+    const searchLower = searchText.toLowerCase().trim();
+    if (!searchLower) return true;
+
+    // Only search by measurementValue
+    const measurementValueStr = item.measurementValue?.toString() || '';
+    return measurementValueStr.toLowerCase().includes(searchLower);
+  };
+
   const filteredInventoryItems = selectedInventoryItems.filter((item) =>
     enhancedSearch(item, searchText)
   );
 
   const filteredAllInventoryItems = (allInventoryItems || []).filter((item) =>
-    enhancedSearch(item, manualSearchText || "")
+    measurementSearch(item, manualSearchText || "")
   );
 
   const handleManualChangePress = (originalInventoryItemId: string) => {
@@ -661,10 +693,11 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
             <Text style={styles.itemMeasurementTextLeft}>
               Giá trị đo lường chuẩn: <Text style={styles.itemMeasurementText}>{itemData.measurementValue || 0} {itemData.measurementUnit || ''}</Text>
             </Text>
-            {/* <Text style={styles.itemMeasurementTextLeft}>
-              Giá trị xuất: {item.measurementValue}{" "}
-                {itemUnitType || "đơn vị"}
-            </Text> */}
+            {exportRequestDetailData && (
+              <Text style={styles.itemMeasurementTextLeft}>
+                Giá trị xuất yêu cầu: <Text style={styles.itemMeasurementText}>{exportRequestDetailData.measurementValue || 0} {itemData.measurementUnit || itemUnitType || ''}</Text>
+              </Text>
+            )}
           </View>
         )}
       </View>
@@ -689,22 +722,24 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
               )}
             </View>
 
-            <View style={styles.scanButtonContainer}>
-              <TouchableOpacity
-                style={styles.globalScanButton}
-                onPress={() => {
-                  if (onQRScanPress) {
-                    onQRScanPress('normal');
-                  } else if (exportRequest?.exportRequestId) {
-                    handleClose();
-                    router.push(`/export/scan-qr?id=${exportRequest.exportRequestId}`);
-                  }
-                }}
-              >
-                <Ionicons name="qr-code-outline" size={20} color="white" />
-                <Text style={styles.globalScanButtonText}>Quét QR</Text>
-              </TouchableOpacity>
-            </View>
+            {exportRequest?.status === ExportRequestStatus.IN_PROGRESS && (
+              <View style={styles.scanButtonContainer}>
+                <TouchableOpacity
+                  style={styles.globalScanButton}
+                  onPress={() => {
+                    if (onQRScanPress) {
+                      onQRScanPress('normal');
+                    } else if (exportRequest?.exportRequestId) {
+                      handleClose();
+                      router.push(`/export/scan-qr?id=${exportRequest.exportRequestId}`);
+                    }
+                  }}
+                >
+                  <Ionicons name="qr-code-outline" size={20} color="white" />
+                  <Text style={styles.globalScanButtonText}>Quét QR</Text>
+                </TouchableOpacity>
+              </View>
+            )}
 
             {inventoryLoading || detailedItemsLoading ? (
               <View style={styles.loadingContainer}>
@@ -844,35 +879,51 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
               />
               <RNTextInput
                 style={styles.searchInput}
-                placeholder="Tìm kiếm theo mã, vị trí, giá trị... (VD: CHI-TH-001)"
+                placeholder="Tìm kiếm theo giá trị đo lường... (VD: 10, 25.5)"
+                placeholderTextColor="#999"
                 value={manualSearchText || ""}
                 onChangeText={onManualSearchTextChange}
               />
             </View>
 
             {/* QR Scan Button for Manual Change */}
-            <View style={styles.scanButtonContainer}>
-              <TouchableOpacity
-                style={styles.manualScanButton}
-                onPress={() => {
-                  if (onQRScanPress) {
-                    onQRScanPress('manual_change', originalItemId);
-                  }
-                }}
-              >
-                <Ionicons name="qr-code-outline" size={20} color="white" />
-                <Text style={styles.manualScanButtonText}>Quét QR để chọn sản phẩm</Text>
-              </TouchableOpacity>
-            </View>
+            {exportRequest?.status === ExportRequestStatus.IN_PROGRESS && (
+              <View style={styles.scanButtonContainer}>
+                <TouchableOpacity
+                  style={styles.manualScanButton}
+                  onPress={() => {
+                    if (onQRScanPress) {
+                      onQRScanPress('manual_change', originalItemId);
+                    }
+                  }}
+                >
+                  <Ionicons name="qr-code-outline" size={20} color="white" />
+                  <Text style={styles.manualScanButtonText}>Quét QR để chọn sản phẩm</Text>
+                </TouchableOpacity>
+              </View>
+            )}
 
             <View style={styles.itemCountContainer}>
               <Text style={styles.sectionTitle}>
                 Hàng tồn kho khả dụng ({filteredAllInventoryItems.length}/
                 {allInventoryItems?.length || 0} sản phẩm)
               </Text>
+              {manualDataLoading && (
+                <ActivityIndicator
+                  size="small"
+                  color="#1677ff"
+                  style={styles.loadingIndicator}
+                />
+              )}
             </View>
 
-            <FlatList
+            {manualDataLoading ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color="#1677ff" />
+                <Text style={styles.loadingText}>Đang tải danh sách sản phẩm...</Text>
+              </View>
+            ) : (
+              <FlatList
               data={filteredAllInventoryItems}
               renderItem={renderManualInventoryItem}
               keyExtractor={(item) => item.id}
@@ -889,6 +940,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                 </View>
               }
             />
+            )}
           </>
         );
 
@@ -1066,6 +1118,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     color: "#333",
+    fontWeight: "500",
   },
   itemCountContainer: {
     flexDirection: "row",
