@@ -288,6 +288,21 @@ export default function ScanQrScreen() {
         lastProcessedQRRef.current = inventoryItemId;
       } else if (message.toLowerCase().includes("not stable")) {
         displayMessage = "Sản phẩm không hợp lệ.";
+      } else if (message.toLowerCase().includes("no matching inventory item found")) {
+        displayMessage = "Không tìm thấy sản phẩm với giá trị phù hợp";
+        // Call updateActualQuantity with the reset tracking inventoryItemId
+        try {
+          console.log("🔄 Calling updateActualQuantity for no matching inventory item with inventoryItemId:", inventoryItemId);
+          // Try to find mapping again to get exportRequestDetailId
+          const mapping = scanMappings.find(
+            (m) => m.inventoryItemId.toUpperCase() === inventoryItemId.toUpperCase()
+          );
+          if (mapping) {
+            await updateActualQuantity(mapping.exportRequestDetailId, inventoryItemId);
+          }
+        } catch (updateError) {
+          console.error("❌ Error calling updateActualQuantity for no matching item:", updateError);
+        }
       } else {
         displayMessage = `${message}`;
       }

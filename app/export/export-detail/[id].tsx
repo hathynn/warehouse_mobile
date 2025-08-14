@@ -123,7 +123,7 @@ const ExportRequestScreen: React.FC = () => {
     updateExportRequestStatus,
   } = useExportRequest();
 
-  const { loading: loadingDetails, fetchExportRequestDetails, resetTracking } = useExportRequestDetail();
+  const { loading: loadingDetails, fetchExportRequestDetails, resetTracking, updateActualQuantity } = useExportRequestDetail();
 
   const scanMappings = useSelector(
     (state: RootState) => state.exportRequestDetail.scanMappings
@@ -717,7 +717,11 @@ const ExportRequestScreen: React.FC = () => {
                 // Lấy item hiện tại để biết đang tracking hay không
                 const currentItem = selectedInventoryItems.find(item => item.id === inventoryItemId);
 
-                // ✅ 1) RESET TRACKING TRƯỚC
+                // ✅ 1) THỰC HIỆN AUTO-CHANGE TRƯỚC
+                const result = await autoChangeInventoryItem(inventoryItemId);
+                console.log("✅ Auto change thành công:", result);
+
+                // ✅ 2) NẾU AUTO-CHANGE THÀNH CÔNG, MỚI RESET TRACKING
                 if (currentItem?.isTrackingForExport && selectedExportRequestDetailId) {
                   try {
                     const resetPromise = resetTracking(
@@ -728,17 +732,12 @@ const ExportRequestScreen: React.FC = () => {
                       setTimeout(() => reject(new Error("Reset tracking timeout")), 10000)
                     );
                     await Promise.race([resetPromise, timeoutPromise]);
-                    console.log("✅ Reset tracking thành công trước khi auto-change");
+                    console.log("✅ Reset tracking thành công sau khi auto-change");
                   } catch (e) {
-                    console.error("❌ Reset tracking thất bại/timeout (auto):", e);
-                    Alert.alert("Lỗi", "Không thể huỷ tracking mã cũ. Vui lòng thử lại!");
-                    return; // ⛔ DỪNG — không tiếp tục đổi
+                    console.error("❌ Reset tracking thất bại/timeout sau auto-change:", e);
+                    Alert.alert("Cảnh báo", "Auto-change thành công nhưng không thể huỷ tracking mã cũ. Vui lòng kiểm tra lại!");
                   }
                 }
-
-                // ✅ 2) THỰC HIỆN AUTO-CHANGE SAU KHI RESET THÀNH CÔNG
-                const result = await autoChangeInventoryItem(inventoryItemId);
-                console.log("✅ Auto change thành công:", result);
 
                 // Cập nhật scanMappings nếu có id mới
                 if (result?.content?.id) {
@@ -814,8 +813,21 @@ const ExportRequestScreen: React.FC = () => {
               } catch (error) {
                 console.error("❌ Error auto-changing:", error);
                 let errorMessage = "Không thể đổi mã inventory item. Vui lòng thử lại!";
-                if (error?.response?.data?.message) {
-                  errorMessage = `Lỗi: ${error.response.data.message}`;
+                const responseMessage = error?.response?.data?.message || error?.message || "";
+                
+                if (responseMessage.toLowerCase().includes("no matching inventory item found")) {
+                  errorMessage = "Không tìm thấy sản phẩm với giá trị phù hợp";
+                  // Call updateActualQuantity with the reset tracking inventoryItemId
+                  try {
+                    console.log("🔄 Calling updateActualQuantity for no matching inventory item with inventoryItemId:", inventoryItemId);
+                    if (selectedExportRequestDetailId) {
+                      await updateActualQuantity(selectedExportRequestDetailId.toString(), inventoryItemId);
+                    }
+                  } catch (updateError) {
+                    console.error("❌ Error calling updateActualQuantity for no matching item:", updateError);
+                  }
+                } else if (responseMessage) {
+                  errorMessage = `Lỗi: ${responseMessage}`;
                 }
                 Alert.alert("Lỗi", errorMessage);
               } finally {
@@ -1065,13 +1077,13 @@ const ExportRequestScreen: React.FC = () => {
             marginTop: 7,
           }}
         >
-          Thông tin phiếu xuất #{id}
+          Thông tin phiếu xuất {id}
         </Text>
       </View>
 
       <ScrollView style={styles.container}>
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Thông tin chi tiết yêu cầu</Text>
+          <Text style={styles.cardTitle}>Thông tin chi tiết phiếu xuất</Text>
 
           <View style={styles.row}>
             <Text style={styles.label}>Mã phiếu</Text>
@@ -1247,6 +1259,7 @@ const ExportRequestScreen: React.FC = () => {
         changeReason={changeReason}
         onChangeReasonChange={setChangeReason}
         manualChangeLoading={manualChangeLoading}
+        manualDataLoading={manualDataLoading}
         onManualItemSelect={handleManualItemSelect}
         onManualChangeSubmit={handleManualChangeSubmit}
         onQRScanPress={handleQRScanPress}
