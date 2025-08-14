@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Modal,
   ScrollView,
+  ActivityIndicator,
 } from "react-native";
 
 import { Ionicons } from "@expo/vector-icons";
@@ -40,6 +41,7 @@ interface ImportOrderDetailsTableProps {
   importOrderDetails: ImportOrderDetailItem[];
   onStorageComplete?: () => void; // Callback khi hoàn thành quy trình nhập kho
   importType?: ImportType | null;
+  isLoading?: boolean; // Loading state
 }
 
 interface LocationFilter {
@@ -52,6 +54,7 @@ const ImportOrderDetailsTable: React.FC<ImportOrderDetailsTableProps> = ({
   importOrderDetails,
   onStorageComplete,
   importType,
+  isLoading = false,
 }) => {
   const [locationFilter, setLocationFilter] = useState<LocationFilter>({
     zone: null,
@@ -689,21 +692,28 @@ const ImportOrderDetailsTable: React.FC<ImportOrderDetailsTableProps> = ({
         </View>
       )}
 
-      <FlatList
-        data={filteredAndSortedData}
-        renderItem={renderDetailItem}
-        keyExtractor={(item) => item.id.toString()}
-        scrollEnabled={false}
-        ItemSeparatorComponent={() => <View style={styles.detailSeparator} />}
-        contentContainerStyle={styles.detailsList}
-        ListEmptyComponent={() => (
-          <View style={styles.emptyContainer}>
-            <Ionicons name="location-outline" size={48} color="#ccc" />
-            <Text style={styles.emptyText}>Không tìm thấy sản phẩm nào</Text>
-            <Text style={styles.emptySubText}>Thử điều chỉnh bộ lọc</Text>
-          </View>
-        )}
-      />
+      {isLoading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#1677ff" />
+          <Text style={styles.loadingText}>Đang tải dữ liệu...</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={filteredAndSortedData}
+          renderItem={renderDetailItem}
+          keyExtractor={(item) => item.id.toString()}
+          scrollEnabled={false}
+          ItemSeparatorComponent={() => <View style={styles.detailSeparator} />}
+          contentContainerStyle={styles.detailsList}
+          ListEmptyComponent={() => (
+            <View style={styles.emptyContainer}>
+              <Ionicons name="location-outline" size={48} color="#ccc" />
+              <Text style={styles.emptyText}>Không tìm thấy sản phẩm nào</Text>
+              <Text style={styles.emptySubText}>Thử điều chỉnh bộ lọc</Text>
+            </View>
+          )}
+        />
+      )}
 
       {/* Button hoàn thành nhập kho */}
       {isReadyToStore && (
@@ -930,6 +940,17 @@ const styles = StyleSheet.create({
   applyButtonText: {
     color: "white",
     fontWeight: "500",
+  },
+
+  // Loading state
+  loadingContainer: {
+    alignItems: "center",
+    paddingVertical: 40,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: "#666",
+    marginTop: 12,
   },
 
   // Empty state

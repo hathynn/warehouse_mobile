@@ -75,7 +75,7 @@ export default function ReceiptDetail() {
             </TouchableOpacity>
             {filteredOrders.length > 0 && (
               <Text className="text-white font-bold text-lg">
-                Phiếu nhập số <Text className="text-blue-200">#{id}</Text>
+                Phiếu nhập số <Text className="text-blue-200">{id}</Text>
               </Text>
             )}
           </View>

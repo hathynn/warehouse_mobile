@@ -275,7 +275,7 @@ export default function SuccessPage() {
                         </View>
 
                         <View style={styles.row}>
-                          <Text style={styles.label}>Giá trị đo hiện tại</Text>
+                          <Text style={styles.label}>Giá trị đo thực tế</Text>
                           <Text style={styles.valueBold}>
                             {parseFloat(measurementValue) || product?.actualMeasurementValue || 0}
                             {product.measurementUnit && ` ${product.measurementUnit}`}

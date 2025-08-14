@@ -187,7 +187,7 @@ const Confirm = () => {
             marginTop: 7,
           }}
         >
-          Xác nhận số lượng đơn nhập #{id}
+          Xác nhận số lượng đơn nhập {id}
         </Text>
       </View>
       <ScrollView
@@ -267,7 +267,7 @@ const Confirm = () => {
                   <View style={{ flexDirection: "row", alignItems: "center" }}>
                     <Text style={{ fontWeight: "600" }}>
                       {product.inventoryItemId ? 
-                        `Inventory: ${product.inventoryItemId}` : 
+                        `Mã hàng: ${product.inventoryItemId}` : 
                         `Sản phẩm: ${product.name}`
                       }
                     </Text>

@@ -47,7 +47,7 @@ const ExportRequestScreen: React.FC = () => {
   const route = useRoute();
   const { id, openModal, itemCode } = route.params as RouteParams;
   const dispatch = useDispatch();
-  
+
   // Pusher context for real-time updates
   const { latestNotification } = useContext(PusherContext);
 
@@ -78,7 +78,7 @@ const ExportRequestScreen: React.FC = () => {
 
   // Global loading state for data refresh operations (removed - now handled by Pusher)
   const [modalReopeningLoading, setModalReopeningLoading] = useState(false);
-  
+
   // Main table loading state
   const [mainTableLoading, setMainTableLoading] = useState(false);
 
@@ -242,65 +242,65 @@ const ExportRequestScreen: React.FC = () => {
 
     const { type, data } = latestNotification;
     console.log('📡 Received Pusher notification:', { type, data, currentExportId: id });
-    
+
     // Check all possible event types that could be related to export request
     const possibleEventTypes = [
       // Export request events
       'export-request-created',
-      'export-request-updated', 
+      'export-request-updated',
       'export-request-status-changed',
       'export-request-assigned',
       'export-request-cancelled',
       'export-request-completed',
-      
+
       // Export request detail events
       'export-request-detail-updated',
       'export-request-detail-quantity-changed',
       'export-request-detail-completed',
-      
+
       // Inventory item events
       'inventory-item-changed',
       'inventory-item-assigned',
       'inventory-item-scanned',
       'inventory-item-auto-changed',
       'inventory-item-manual-changed',
-      
+
       // Legacy import order events (might still be relevant)
       'import-order-created',
-      'import-order-assigned', 
+      'import-order-assigned',
       'import-order-counted',
       'import-order-confirmed',
       'import-order-cancelled',
       'import-order-extended',
       'import-order-completed'
     ];
-    
+
     if (possibleEventTypes.includes(type)) {
       console.log(`🎯 Processing ${type} event for export ID ${id}:`, data);
-      
+
       // Try different ways to match the export request ID
       const eventObjectId = data?.objectId;
       const eventId = data?.id;
       const currentId = parseInt(id);
-      
-      console.log(`🔍 ID matching check:`, { 
-        eventObjectId, 
-        eventId, 
-        currentId, 
+
+      console.log(`🔍 ID matching check:`, {
+        eventObjectId,
+        eventId,
+        currentId,
         objectIdMatch: eventObjectId === currentId,
         idMatch: eventId === currentId
       });
-      
+
       // Match by objectId or id (more flexible matching)
       if (eventObjectId === currentId || eventId === currentId) {
         console.log('✅ Event matches current export request - processing...');
-        
+
         // Mark that Pusher event was received
         pusherEventReceived.current = true;
-        
+
         // Stop main table loading if it was started
         setMainTableLoading(false);
-        
+
         // Handle different event types with specific logic
         switch (type) {
           case 'export-request-status-changed':
@@ -311,7 +311,7 @@ const ExportRequestScreen: React.FC = () => {
               console.error('❌ Error refreshing export request:', error);
             });
             break;
-            
+
           case 'inventory-item-changed':
           case 'inventory-item-auto-changed':
           case 'inventory-item-manual-changed':
@@ -319,7 +319,7 @@ const ExportRequestScreen: React.FC = () => {
           case 'export-request-detail-updated':
           case 'export-request-detail-quantity-changed':
             console.log('🔄 Refreshing export request details and inventory...');
-            
+
             // Refresh export request details
             fetchExportRequestDetails(id, 1, 100).then((newData) => {
               const refreshedDetails = newData.map((item) => ({
@@ -327,9 +327,9 @@ const ExportRequestScreen: React.FC = () => {
                 actualQuantity: item.actualQuantity ?? 0,
                 inventoryItemIds: item.inventoryItemIds ?? [],
               }));
-              
+
               dispatch(setExportRequestDetail(refreshedDetails));
-              
+
               const mappings = refreshedDetails.flatMap((detail) =>
                 (detail.inventoryItemIds ?? []).map((inventoryItemId: string) => ({
                   inventoryItemId: inventoryItemId.trim().toLowerCase(),
@@ -337,12 +337,12 @@ const ExportRequestScreen: React.FC = () => {
                 }))
               );
               dispatch(setScanMappings(mappings));
-              
+
               console.log('✅ Export request details refresh completed');
             }).catch((error) => {
               console.error('❌ Error refreshing export request details:', error);
             });
-            
+
             // Refresh modal inventory items if modal is currently open
             if (inventoryModalVisible && selectedExportRequestDetailId) {
               console.log('🔄 Refreshing modal inventory items...');
@@ -356,7 +356,7 @@ const ExportRequestScreen: React.FC = () => {
                 });
             }
             break;
-            
+
           default:
             console.log('🔄 Generic refresh for event type:', type);
             // Generic refresh for other event types
@@ -365,12 +365,12 @@ const ExportRequestScreen: React.FC = () => {
             });
             break;
         }
-        
+
       } else {
         console.log('⏭️ Event not for this export request, ignoring');
       }
     }
-    
+
   }, [latestNotification, id, inventoryModalVisible, selectedExportRequestDetailId, fetchExportRequestDetails, fetchExportRequestById, fetchInventoryItemsByExportRequestDetailId, dispatch]);
 
   // Separate function to handle modal reopening
@@ -506,7 +506,7 @@ const ExportRequestScreen: React.FC = () => {
 
       // Fetch all inventory items for this itemId using the new API
       const allInventoryItemsForItemId = await fetchInventoryItemByItemId(selectedItemCode);
-      
+
       if (!allInventoryItemsForItemId || allInventoryItemsForItemId.length === 0) {
         Alert.alert("Lỗi", "Không tìm thấy inventory items cho item này");
         return;
@@ -515,7 +515,7 @@ const ExportRequestScreen: React.FC = () => {
       console.log(`📦 Found ${allInventoryItemsForItemId.length} inventory items for itemId: ${selectedItemCode}`);
 
       // Filter for AVAILABLE status only
-      let filteredItems = allInventoryItemsForItemId.filter(item => 
+      let filteredItems = allInventoryItemsForItemId.filter(item =>
         item.status === 'AVAILABLE'
       );
 
@@ -525,9 +525,9 @@ const ExportRequestScreen: React.FC = () => {
       if (exportRequest?.type === "SELLING") {
         const itemDetails = await getItemDetailById(selectedItemCode);
         const requiredMeasurementValue = itemDetails?.measurementValue;
-        
+
         if (requiredMeasurementValue !== undefined) {
-          filteredItems = filteredItems.filter(item => 
+          filteredItems = filteredItems.filter(item =>
             item.measurementValue === requiredMeasurementValue
           );
           console.log(`📦 After SELLING measurement filter (${requiredMeasurementValue}): ${filteredItems.length} items`);
@@ -633,7 +633,7 @@ const ExportRequestScreen: React.FC = () => {
 
       // Success - Reset to modal main screen and refresh data
       console.log('✅ Manual change successful - resetting to modal main screen');
-      
+
       // Reset manual change UI states (this will make modal return to main screen)
       setManualChangeLoading(false);
       setSelectedManualItem(null);
@@ -641,10 +641,10 @@ const ExportRequestScreen: React.FC = () => {
       setOriginalItemId("");
       setManualSearchText("");
       setAllInventoryItems([]); // Clear to return to main view
-      
+
       // Start main table loading for visual feedback
       setMainTableLoading(true);
-      
+
       // Refresh data with timeout to ensure UI updates first
       setTimeout(async () => {
         try {
@@ -656,7 +656,7 @@ const ExportRequestScreen: React.FC = () => {
             inventoryItemIds: item.inventoryItemIds ?? [],
           }));
           dispatch(setExportRequestDetail(refreshedDetails));
-          
+
           // Update scan mappings
           const mappings = refreshedDetails.flatMap((detail) =>
             (detail.inventoryItemIds ?? []).map((inventoryItemId: string) => ({
@@ -665,14 +665,14 @@ const ExportRequestScreen: React.FC = () => {
             }))
           );
           dispatch(setScanMappings(mappings));
-          
+
           // 2. Refresh modal inventory items (modal should be on main screen now)
           if (selectedExportRequestDetailId) {
             const refreshedItems = await fetchInventoryItemsByExportRequestDetailId(selectedExportRequestDetailId);
             setSelectedInventoryItems(refreshedItems);
             console.log('✅ Manual change - Data refreshed, modal on main screen');
           }
-          
+
         } catch (error) {
           console.error('❌ Manual change - Error refreshing data:', error);
         } finally {
@@ -770,9 +770,9 @@ const ExportRequestScreen: React.FC = () => {
                     console.log('⏰ Pusher event already handled, skipping fallback');
                     return;
                   }
-                  
+
                   console.log('⏰ Fallback refresh triggered - no Pusher event received');
-                  
+
                   try {
                     // 1. Refresh main table data (export request details)
                     console.log('⏰ Refreshing main table data...');
@@ -783,7 +783,7 @@ const ExportRequestScreen: React.FC = () => {
                       inventoryItemIds: item.inventoryItemIds ?? [],
                     }));
                     dispatch(setExportRequestDetail(refreshedDetails));
-                    
+
                     // Update scan mappings
                     const mappings = refreshedDetails.flatMap((detail) =>
                       (detail.inventoryItemIds ?? []).map((inventoryItemId: string) => ({
@@ -792,16 +792,16 @@ const ExportRequestScreen: React.FC = () => {
                       }))
                     );
                     dispatch(setScanMappings(mappings));
-                    
+
                     console.log('⏰ Main table refresh completed');
-                    
+
                     // 2. Refresh modal inventory items (keep modal open)
                     if (inventoryModalVisible && selectedExportRequestDetailId) {
                       const fallbackItems = await fetchInventoryItemsByExportRequestDetailId(selectedExportRequestDetailId);
                       setSelectedInventoryItems(fallbackItems);
                       console.log('⏰ Modal refresh completed, count:', fallbackItems.length);
                     }
-                    
+
                   } catch (error) {
                     console.error('⏰ Fallback refresh failed:', error);
                   } finally {
@@ -814,7 +814,7 @@ const ExportRequestScreen: React.FC = () => {
                 console.error("❌ Error auto-changing:", error);
                 let errorMessage = "Không thể đổi mã inventory item. Vui lòng thử lại!";
                 const responseMessage = error?.response?.data?.message || error?.message || "";
-                
+
                 if (responseMessage.toLowerCase().includes("no matching inventory item found")) {
                   errorMessage = "Không tìm thấy sản phẩm với giá trị phù hợp";
                   // Call updateActualQuantity with the reset tracking inventoryItemId
@@ -1095,6 +1095,13 @@ const ExportRequestScreen: React.FC = () => {
           </View>
 
           <View style={styles.row}>
+            <Text style={styles.label}>Loại xuất</Text>
+            <Text style={styles.value}>
+              {getExportTypeLabel(exportRequest?.type)}
+            </Text>
+          </View>
+
+          <View style={styles.row}>
             <Text style={styles.label}>Ngày tạo đơn</Text>
             <Text style={styles.value}>
               {exportRequest?.exportDate
@@ -1120,12 +1127,54 @@ const ExportRequestScreen: React.FC = () => {
             </Text>
           </View>
 
-          <View style={styles.row}>
-            <Text style={styles.label}>Loại xuất</Text>
-            <Text style={styles.value}>
-              {getExportTypeLabel(exportRequest?.type)}
-            </Text>
-          </View>
+
+
+
+
+
+
+          {exportRequest?.status != ExportRequestStatus.IN_PROGRESS && (
+            <>
+              <View style={styles.row}>
+                <Text style={styles.label}>Ngày kiểm đếm</Text>
+                <Text style={styles.value}>
+                  {exportRequest?.countingDate
+                    ? new Date(exportRequest?.countingDate).toLocaleString("vi-VN", {
+                      day: "2-digit",
+                      month: "2-digit",
+                      year: "numeric",
+                    })
+                    : "--"}
+                </Text>
+              </View>
+
+              <View style={styles.row}>
+                <Text style={styles.label}>Giờ kiểm đếm</Text>
+                <Text style={styles.value}>
+                  {exportRequest?.countingTime || "Chưa xác định"}
+                </Text>
+              </View>
+            </>
+          )}
+
+          {exportRequest?.status === ExportRequestStatus.WAITING_EXPORT && (
+            <>
+              <View style={styles.row}>
+                <Text style={styles.label}>Người nhận hàng</Text>
+                <Text style={styles.value}>
+                  {exportRequest?.receiverName || "Chưa xác định"}
+                </Text>
+              </View>
+
+              <View style={styles.row}>
+                <Text style={styles.label}>SĐT người nhận hàng</Text>
+                <Text style={styles.value}>
+                  {exportRequest?.receiverPhone || "Chưa xác định"}
+                </Text>
+              </View>
+            </>
+          )}
+
 
           <View style={styles.row}>
             <Text style={styles.label}>Tình trạng yêu cầu</Text>

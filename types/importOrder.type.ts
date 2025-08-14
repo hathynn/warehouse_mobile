@@ -13,6 +13,9 @@ export interface ImportOrderType {
   paperIds: number | null;
   assignedWareHouseKeeperId: number;
   importType: ImportType | null;
+  actualDateReceived: string | null;
+  actualTimeReceived: string | null;
+
 }
 
 export enum ImportType {
