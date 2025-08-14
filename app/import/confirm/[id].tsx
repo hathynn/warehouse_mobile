@@ -267,7 +267,7 @@ const Confirm = () => {
                   <View style={{ flexDirection: "row", alignItems: "center" }}>
                     <Text style={{ fontWeight: "600" }}>
                       {product.inventoryItemId ? 
-                        `Inventory: ${product.inventoryItemId}` : 
+                        `Mã hàng: ${product.inventoryItemId}` : 
                         `Sản phẩm: ${product.name}`
                       }
                     </Text>
