@@ -55,6 +55,9 @@ interface InventoryModalProps {
 
   // QR scan navigation callback
   onQRScanPress?: (mode?: 'normal' | 'manual_change', originalItemId?: string) => void;
+  
+  // Stock check specific callback for marking item as unavailable
+  onMarkAsUnavailable?: (inventoryItemId: string) => void;
 }
 
 type ModalPage = "main" | "manual_select" | "reason_input";
@@ -98,6 +101,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
   checkedInventoryItemIds,
   onResetTracking,
   onQRScanPress,
+  onMarkAsUnavailable,
 }) => {
   const [modalPage, setModalPage] = useState<ModalPage>("main");
   const [originalItemId, setOriginalItemId] = useState<string>("");
@@ -434,6 +438,34 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                       >
                         <Ionicons name="refresh-outline" size={16} color="white" />
                         <Text style={styles.actionButtonText}>Thanh lý</Text>
+                      </TouchableOpacity>
+                    );
+                  } else if (status === InventoryItemStatus.AVAILABLE && !isTracking) {
+                    // Status AVAILABLE + isTracking false = "Không tìm thấy sản phẩm" button
+                    return (
+                      <TouchableOpacity
+                        style={[
+                          styles.actionButton,
+                          styles.unavailableButton,
+                        ]}
+                        onPress={() => onMarkAsUnavailable?.(item.id)}
+                      >
+                        <Ionicons name="close-circle-outline" size={16} color="white" />
+                        <Text style={styles.actionButtonText}>Không tìm thấy sản phẩm</Text>
+                      </TouchableOpacity>
+                    );
+                  } else if (status === InventoryItemStatus.UNAVAILABLE) {
+                    // Status UNAVAILABLE = "Không tìm thấy sản phẩm" button (disabled)
+                    return (
+                      <TouchableOpacity
+                        style={[
+                          styles.actionButton,
+                          styles.disabledButton,
+                        ]}
+                        disabled={true}
+                      >
+                        <Ionicons name="close-circle-outline" size={16} color="white" />
+                        <Text style={styles.actionButtonText}>Không tìm thấy sản phẩm</Text>
                       </TouchableOpacity>
                     );
                   } else if (status === InventoryItemStatus.NEED_LIQUID) {
@@ -1153,6 +1185,9 @@ const styles = StyleSheet.create({
   },
   resetTrackingButton: {
     backgroundColor: "#ff6b35",
+  },
+  unavailableButton: {
+    backgroundColor: "#dc3545",
   },
   disabledButton: {
     backgroundColor: "#6c757d",

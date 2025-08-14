@@ -92,7 +92,7 @@ const StatusBadge = ({ status }: { status: ExportRequestStatus }) => {
         };
       case ExportRequestStatus.CONFIRMED:
         return {
-          label: "Đã xuất kho",
+          label: "Đã xác nhận",
           color: "#fff",
           bgColor: "#B0DB9C",
         };
@@ -186,7 +186,7 @@ function ExportListComponent() {
       },
       {
         key: "COUNT_CONFIRMED",
-        title: "Đã xác nhận",
+        title: "Đã xác nhận kiểm đếm",
         status: ExportRequestStatus.COUNT_CONFIRMED,
         count: validRequests.filter(
           (request: ExportRequestType) =>
@@ -195,7 +195,7 @@ function ExportListComponent() {
       },
       {
         key: "CONFIRMED",
-        title: "Đã xuất kho",
+        title: "Đã xác nhận phiếu nhập",
         status: ExportRequestStatus.CONFIRMED,
         count: validRequests.filter(
           (request: ExportRequestType) =>

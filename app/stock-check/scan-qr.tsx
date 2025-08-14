@@ -6,6 +6,7 @@ import { Button } from "tamagui";
 import { useIsFocused } from "@react-navigation/native";
 import { Audio } from "expo-av";
 import useStockCheckDetail from "@/services/useStockCheckDetailService";
+import useInventoryService from "@/services/useInventoryService";
 
 // const { width } = Dimensions.get("window");
 
@@ -26,6 +27,7 @@ export default function StockCheckScanQrScreen() {
   const [cameraKey, setCameraKey] = useState(0);
   const isFocused = useIsFocused();
   const { trackInventoryItem } = useStockCheckDetail();
+  const { fetchInventoryItemById, updateInventoryItem } = useInventoryService();
   const [scanningEnabled, setScanningEnabled] = useState(true);
 
   const [lastScannedProduct, setLastScannedProduct] = useState<any | null>(
@@ -181,13 +183,32 @@ export default function StockCheckScanQrScreen() {
         inventoryItemId: rawInventoryItemId.toUpperCase(),
       });
 
+      // First, check the inventory item status
+      console.log("📦 Checking inventory item status...");
+      const inventoryItem = await fetchInventoryItemById(rawInventoryItemId.toUpperCase());
+      
+      if (inventoryItem && inventoryItem.status === "UNAVAILABLE") {
+        console.log("🔄 Found UNAVAILABLE item, updating to AVAILABLE...");
+        
+        // Update inventory item status from UNAVAILABLE to AVAILABLE
+        await updateInventoryItem({
+          ...inventoryItem,
+          status: "AVAILABLE",
+        });
+        
+        console.log("✅ Updated inventory item status to AVAILABLE");
+      }
+
       // Find the matching stock check detail for this inventory item
       // This allows scanning any item in the request, not just the specific detail
+      console.log("🚀 Calling trackInventoryItem...");
       const success = await trackInventoryItem({
         stockCheckDetailId: parseInt(stockCheckDetailId),
         inventoryItemId: rawInventoryItemId.toUpperCase(),
       });
 
+      console.log("📄 trackInventoryItem response:", JSON.stringify(success, null, 2));
+      
       if (!success) throw new Error("Lỗi cập nhật tracking");
 
       // Success - add to scannedIds and show success message
@@ -222,7 +243,9 @@ export default function StockCheckScanQrScreen() {
         err?.response?.data?.message || err?.message || "Lỗi không xác định";
       let displayMessage = "QR không hợp lệ.";
 
-      if (message.includes("không tìm thấy")) {
+      if (message.includes("Inventory item ID not found in stock check request detail")) {
+        displayMessage = "Sản phẩm không nằm trong danh sách kiểm kho";
+      } else if (message.includes("không tìm thấy")) {
         displayMessage = "Không tìm thấy sản phẩm tương ứng với mã QR.";
       } else if (message.includes("đã được")) {
         displayMessage = "Sản phẩm này đã được kiểm kho.";

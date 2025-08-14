@@ -675,7 +675,7 @@ const StockCheckDetailScreen: React.FC = () => {
 
     Alert.alert(
       "Xác nhận thanh lý",
-      `Bạn có chắc chắn muốn thanh lý item: ${inventoryItemId}?`,
+      `Bạn có chắc chắn muốn thanh lý sản phẩm: ${inventoryItemId}?`,
       [
         {
           text: "Hủy",
@@ -689,7 +689,7 @@ const StockCheckDetailScreen: React.FC = () => {
               // First get the current inventory item
               const currentItem = await fetchInventoryItemById(inventoryItemId);
               if (!currentItem) {
-                Alert.alert("Lỗi", "Không tìm thấy inventory item");
+                Alert.alert("Lỗi", "Không tìm thấy sản phẩm");
                 return;
               }
 
@@ -718,6 +718,48 @@ const StockCheckDetailScreen: React.FC = () => {
             } catch (error) {
               console.error("❌ Error resetting tracking:", error);
               Alert.alert("Lỗi", "Không thể thanh lý item. Vui lòng thử lại!");
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  // Handle mark as unavailable (Không tìm thấy sản phẩm button)
+  const handleMarkAsUnavailable = async (inventoryItemId: string) => {
+    Alert.alert(
+      "Xác nhận không tìm thấy",
+      `Bạn có chắc chắn không tìm thấy sản phẩm: ${inventoryItemId}?`,
+      [
+        {
+          text: "Hủy",
+          style: "cancel",
+        },
+        {
+          text: "Xác nhận",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              // Get the current inventory item
+              const currentItem = await fetchInventoryItemById(inventoryItemId);
+              if (!currentItem) {
+                Alert.alert("Lỗi", "Không tìm thấy sản phẩm");
+                return;
+              }
+
+              // Update inventory item status to UNAVAILABLE
+              await updateInventoryItem({
+                ...currentItem,
+                status: "UNAVAILABLE",
+              });
+
+              Alert.alert("Thành công", "Đã đánh dấu sản phẩm không tìm thấy!");
+
+              // Refresh data
+              await refreshInventoryItems();
+            } catch (error) {
+              console.error("❌ Error marking as unavailable:", error);
+              Alert.alert("Lỗi", "Không thể cập nhật trạng thái sản phẩm. Vui lòng thử lại!");
             }
           },
         },
@@ -968,7 +1010,7 @@ const renderActionButton = () => {
         <View style={styles.tableContainer}>
           <View style={[styles.tableRow, styles.tableHeader]}>
             <Text style={[styles.cellCode]}>Mã hàng</Text>
-            <Text style={[styles.cellAlignRight]}>Hệ thống</Text>
+            <Text style={[styles.cellAlignRight]}>Cần kiểm đếm</Text>
             <Text style={[styles.cellAlignRight]}>Kiểm đếm</Text>
             {[
               StockCheckStatus.NOT_STARTED,
@@ -1062,6 +1104,7 @@ const renderActionButton = () => {
         checkedInventoryItemIds={checkedInventoryItemIds} // Pass checked inventory item IDs
         onQRScanPress={handleQRScanPress} // QR scan navigation for stock check
         onResetTracking={handleResetTracking} // Reset tracking (Thanh lý) function
+        onMarkAsUnavailable={handleMarkAsUnavailable} // Mark as unavailable function
         // Remove export-specific props that aren't needed for stock check
       />
     </View>
