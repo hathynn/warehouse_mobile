@@ -43,6 +43,8 @@ const useStockCheckDetail = () => {
         throw new Error("Thiếu stockCheckDetailId hoặc inventoryItemId");
       }
 
+      console.log("🚀 [API] PUT /stock-check-detail/tracking - Request:", JSON.stringify(payload, null, 2));
+      
       setIsLoading(true);
       try {
         const response = await callApi(
@@ -50,8 +52,12 @@ const useStockCheckDetail = () => {
           `/stock-check-detail/tracking`,
           payload
         );
+        
+        console.log("✅ [API] PUT /stock-check-detail/tracking - Response:", JSON.stringify(response, null, 2));
+        
         const updated = (response?.content ?? response) as StockCheckDetailType | undefined;
         if (updated?.id) {
+          console.log("🔄 [API] Updating stockCheckDetails with:", JSON.stringify(updated, null, 2));
           setStockCheckDetails((prev) =>
             prev.map((d) => (d.id === updated.id ? updated : d))
           );
@@ -59,7 +65,8 @@ const useStockCheckDetail = () => {
 
         return response;
       } catch (error) {
-        console.error("Lỗi khi tracking stock check detail:", error);
+        console.error("❌ [API] PUT /stock-check-detail/tracking - Error:", error);
+        console.error("❌ [API] Error details:", JSON.stringify(error, null, 2));
         throw error;
       } finally {
         setIsLoading(false);

@@ -1,5 +1,6 @@
 export enum InventoryItemStatus {
   AVAILABLE = "AVAILABLE",
+  UNAVAILABLE = "UNAVAILABLE",
   NEED_LIQUID = "NEED_LIQUID",
 }
 

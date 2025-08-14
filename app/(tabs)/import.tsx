@@ -73,6 +73,14 @@ export default function ReceiptDetail() {
           (order: any) => order.status === ImportOrderStatus.COUNTED
         ).length,
       },
+      {
+        key: "COUNT_AGAIN_REQUESTED",
+        title: "Cần kiểm đếm lại",
+        status: ImportOrderStatus.COUNT_AGAIN_REQUESTED,
+        count: validOrders.filter(
+          (order: any) => order.status === ImportOrderStatus.COUNT_AGAIN_REQUESTED
+        ).length,
+      },
       // {
       //   key: "CONFIRMED",
       //   title: "Đã xác nhận",
@@ -91,26 +99,19 @@ export default function ReceiptDetail() {
       },
       {
         key: "READY_TO_STORE",
-        title: "Chờ nhập kho",
+        title: "Sẵn sàng nhập kho",
         status: ImportOrderStatus.READY_TO_STORE,
         count: validOrders.filter(
-          (order: any) => order.status === ImportOrderStatus.COMPLETED
+          (order: any) => order.status === ImportOrderStatus.READY_TO_STORE
         ).length,
       },
-      {
-        key: "COUNT_AGAIN_REQUESTED",
-        title: "Cần kiểm đếm lại",
-        status: ImportOrderStatus.COUNT_AGAIN_REQUESTED,
-        count: validOrders.filter(
-          (order: any) => order.status === ImportOrderStatus.COUNT_AGAIN_REQUESTED
-        ).length,
-      },
+
       {
         key: "STORED",
         title: "Đã nhập kho",
         status: ImportOrderStatus.STORED,
         count: validOrders.filter(
-          (order: any) => order.status === ImportOrderStatus.COMPLETED
+          (order: any) => order.status === ImportOrderStatus.STORED
         ).length,
       },
     ];
@@ -162,30 +163,30 @@ export default function ReceiptDetail() {
     return filtered;
   };
 
-  const handleImportCount = async (order: any) => {
-    try {
-      const response = await fetchImportOrderDetails(order.importOrderId);
+  // const handleImportCount = async (order: any) => {
+  //   try {
+  //     const response = await fetchImportOrderDetails(order.importOrderId);
 
-      const products = response?.map((item: any) => ({
-        id: item.itemId,
-        name: item.itemName,
-        expect: item.expectQuantity,
-        actual: item.actualQuantity || 0,
-        importOrderId: order.importOrderId,
-      }));
+  //     const products = response?.map((item: any) => ({
+  //       id: item.itemId,
+  //       name: item.itemName,
+  //       expect: item.expectQuantity,
+  //       actual: item.actualQuantity || 0,
+  //       importOrderId: order.importOrderId,
+  //     }));
 
-      dispatch(setProducts(products));
-      dispatch(
-        setPaperData({
-          importOrderId: order.importOrderId,
-        })
-      );
+  //     dispatch(setProducts(products));
+  //     dispatch(
+  //       setPaperData({
+  //         importOrderId: order.importOrderId,
+  //       })
+  //     );
 
-      router.push("/import/scan-qr");
-    } catch (error) {
-      console.error("Lỗi khi tạo chứng từ:", error);
-    }
-  };
+  //     router.push("/import/scan-qr");
+  //   } catch (error) {
+  //     console.error("Lỗi khi tạo chứng từ:", error);
+  //   }
+  // };
 
   // Render tab item
   const renderTabItem = (tab: StatusTab) => {
@@ -235,7 +236,7 @@ export default function ReceiptDetail() {
           <Ionicons name="cube-outline" size={20} color="#1677ff" />
           <Text style={styles.orderId}>{order.importOrderId}</Text>
         </View>
-        <StatusBadge status={order.status} flow="import"/>
+        <StatusBadge status={order.status} flow="import" />
       </View>
 
       {/* Nội dung đơn nhập */}
@@ -257,7 +258,7 @@ export default function ReceiptDetail() {
       </View>
 
       {/* Footer đơn nhập */}
-     
+
     </TouchableOpacity>
   );
 
@@ -316,8 +317,8 @@ export default function ReceiptDetail() {
             {searchQuery
               ? "Không tìm thấy đơn nhập phù hợp"
               : `Không có đơn nhập ${statusTabs
-                  .find((t) => t.key === activeTab)
-                  ?.title.toLowerCase()}`}
+                .find((t) => t.key === activeTab)
+                ?.title.toLowerCase()}`}
           </Text>
         </View>
       ) : (

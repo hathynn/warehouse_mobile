@@ -68,7 +68,7 @@ export default function StockCheckList() {
         title: "Chờ xác nhận",
         status: StockCheckStatus.COUNTED,
         count: validStockChecks.filter(
-          (stockCheck: any) => stockCheck.status === StockCheckStatus.IN_PROGRESS
+          (stockCheck: any) => stockCheck.status === StockCheckStatus.COUNTED
         ).length,
       },
       {
@@ -76,7 +76,7 @@ export default function StockCheckList() {
         title: "Đã xác nhận",
         status: StockCheckStatus.COUNT_CONFIRMED,
         count: validStockChecks.filter(
-          (stockCheck: any) => stockCheck.status === StockCheckStatus.IN_PROGRESS
+          (stockCheck: any) => stockCheck.status === StockCheckStatus.COUNT_CONFIRMED
         ).length,
       },
       {
