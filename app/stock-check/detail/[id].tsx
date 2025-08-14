@@ -1010,8 +1010,8 @@ const renderActionButton = () => {
         <View style={styles.tableContainer}>
           <View style={[styles.tableRow, styles.tableHeader]}>
             <Text style={[styles.cellCode]}>Mã hàng</Text>
-            <Text style={[styles.cellAlignRight]}>Cần kiểm đếm</Text>
-            <Text style={[styles.cellAlignRight]}>Kiểm đếm</Text>
+            <Text style={[styles.cellAlignRight]}>Tổng ban đầu</Text>
+            <Text style={[styles.cellAlignRight]}>Tổng đã kiểm</Text>
             {[
               StockCheckStatus.NOT_STARTED,
               StockCheckStatus.IN_PROGRESS,

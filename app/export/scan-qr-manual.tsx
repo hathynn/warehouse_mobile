@@ -314,17 +314,17 @@ export default function ScanQrManualScreen() {
         console.log(`✅ INTERNAL export - Measurement replacement validation passed: total ${validation.totalAfterChange} >= required ${validation.requiredValue}`);
       }
 
-      // Check for SELLING export type with exceeded measurement value
+      // Check for SELLING export type with mismatched measurement value (both exceeded and insufficient)
       if (exportRequest?.type === "SELLING") {
         const scannedMeasurementValue = inventoryItemData.measurementValue || 0;
         const itemInfo = await getItemDetailById(inventoryItemData.itemId);
         const requiredMeasurementValue = itemInfo?.measurementValue || 0;
         
-        if (scannedMeasurementValue > requiredMeasurementValue) {
-          console.log(`❌ SELLING export: Measurement value exceeded - scanned: ${scannedMeasurementValue}, required: ${requiredMeasurementValue}`);
+        if (scannedMeasurementValue !== requiredMeasurementValue) {
+          console.log(`❌ SELLING export: Measurement value mismatch - scanned: ${scannedMeasurementValue}, required: ${requiredMeasurementValue}`);
           
           // Show error message and force re-scan
-          setErrorMessage(`Sản phẩm này có giá trị đo lường không phù hợp với giá trị đo cần xuất. Vui lòng quét QR khác.`);
+          setErrorMessage(`Giá trị đo lường không phù hợp với giá trị cần xuất. Vui lòng quét QR khác.`);
           setIsProcessing(false);
 
           // Allow re-scanning after showing message
@@ -744,7 +744,7 @@ export default function ScanQrManualScreen() {
             <View style={styles.warningDialog}>
               <Text style={styles.warningTitle}>Cảnh báo giá trị xuất</Text>
               <Text style={styles.warningText}>
-                Giá trị đo lường của inventory item này đã vượt quá so với giá trị cần xuất.
+                Giá trị đo lường của sản phẩm này đã vượt quá so với giá trị cần xuất.
               </Text>
               <View style={styles.warningMeasurementInfo}>
                 <Text style={styles.warningMeasurementText}>
