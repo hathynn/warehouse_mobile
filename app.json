@@ -2,7 +2,7 @@
   "expo": {
     "name": "WarehouseManagement_Mobile",
     "slug": "WarehouseManagement_Mobile",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "myapp",
@@ -51,7 +51,7 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "21408706-48f2-4299-b042-2c916d5c5509"
+        "projectId": "4a6468d3-4098-438f-8917-9739332f6af5"
       }
     }
   }
