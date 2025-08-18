@@ -87,7 +87,7 @@ export default function SuccessPage() {
           setInventoryData(inventory);
           console.log("📦 Fetched inventory data:", inventory);
         } catch (error) {
-          console.error("Error fetching inventory data:", error);
+          console.log("Error fetching inventory data:", error);
         }
       }
     };

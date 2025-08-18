@@ -93,14 +93,14 @@ export default function StockCheckList() {
   const fetchStockCheckList = useCallback(async () => {
     try {
       if (!userId) {
-        console.error("User ID not found");
+        console.log("User ID not found");
         return;
       }
       const stockChecks = await fetchStockChecksByStaff(Number(userId));
       console.log("Stock checks data:", stockChecks); // Debug để kiểm tra data
       setAllStockChecks(stockChecks);
     } catch (err) {
-      console.error("Lỗi khi lấy danh sách kiểm kho:", err);
+      console.log("Lỗi khi lấy danh sách kiểm kho:", err);
     }
   }, [fetchStockChecksByStaff, userId]);
 
@@ -154,7 +154,7 @@ export default function StockCheckList() {
       // router.push("/stock-check/scan-qr");
       console.log("Handle stock check for:", stockCheck.id);
     } catch (error) {
-      console.error("Lỗi khi tạo phiếu kiểm kho:", error);
+      console.log("Lỗi khi tạo phiếu kiểm kho:", error);
     }
   };
 

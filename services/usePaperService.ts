@@ -118,16 +118,16 @@ const usePaperService = () => {
       console.log("📥 API Response data:", response.data);
       
       if (!response.data) {
-        console.error("❌ API returned empty response data");
-        console.error("❌ Full response object:", response);
+        console.log("❌ API returned empty response data");
+        console.log("❌ Full response object:", response);
       }
 
       return response.data;
     } catch (error: any) {
-      console.error("❌ Lỗi tạo paper - Full error:", error);
-      console.error("❌ Error response:", error.response?.data);
-      console.error("❌ Error status:", error.response?.status);
-      console.error("❌ Error message:", error.message);
+      console.log("❌ Lỗi tạo paper - Full error:", error);
+      console.log("❌ Error response:", error.response?.data);
+      console.log("❌ Error status:", error.response?.status);
+      console.log("❌ Error message:", error.message);
       return null;
     }
   }, []);
@@ -137,7 +137,7 @@ const usePaperService = () => {
       const response = await api.get(`/paper/${id}`);
       return response.data?.content;
     } catch (error: any) {
-      console.error(
+      console.log(
         "❌ Lỗi lấy chứng từ:",
         error.response?.data || error.message
       );
@@ -150,7 +150,7 @@ const usePaperService = () => {
       const response = await api.put(`/paper/reset/${paperId}`, {});
       return response.data;
     } catch (error: any) {
-      console.error(
+      console.log(
         "❌ Lỗi reset paper:",
         error.response?.data || error.message
       );

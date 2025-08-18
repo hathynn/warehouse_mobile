@@ -30,7 +30,7 @@ const useAccountService = () => {
 
         return response;
       } catch (e: any) {
-        // console.error("Lỗi khi đăng nhập:", e);
+        // console.log("Lỗi khi đăng nhập:", e);
         setError("Đăng nhập thất bại, vui lòng thử lại.");
         return null;
       } finally {
@@ -56,7 +56,7 @@ const useAccountService = () => {
         const response = await callApi("get", `/account/by-email?email=${encodedEmail}`);
         return response as AccountResponse;
       } catch (e: any) {
-        console.error("Lỗi khi lấy thông tin tài khoản:", e);
+        console.log("Lỗi khi lấy thông tin tài khoản:", e);
         setError("Không thể lấy thông tin tài khoản.");
         return null;
       } finally {

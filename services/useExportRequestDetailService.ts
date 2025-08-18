@@ -24,7 +24,7 @@ const useExportRequestDetail = () => {
       );
       return response.content || [];
     } catch (error) {
-      console.error("❌ Lỗi khi lấy chi tiết đơn xuất:", error);
+      console.log("❌ Lỗi khi lấy chi tiết đơn xuất:", error);
       return [];
     }
   };
@@ -44,7 +44,7 @@ const useExportRequestDetail = () => {
       console.log("✅ API response:", response);
       return true;
     } catch (error: any) {
-      console.error(
+      console.log(
         "❌ Lỗi khi cập nhật actualQuantity:",
         error?.response?.data || error
       );
@@ -62,7 +62,7 @@ const useExportRequestDetail = () => {
       );
       return true;
     } catch (error) {
-      console.error("❌ Lỗi khi xác nhận kiểm đếm:", error);
+      console.log("❌ Lỗi khi xác nhận kiểm đếm:", error);
       return false;
     }
   };
@@ -83,7 +83,7 @@ const useExportRequestDetail = () => {
     );
     return true;
   } catch (error: any) {
-    console.error(
+    console.log(
       "❌ Lỗi khi reset tracking:",
       error?.response?.data || error
     );
@@ -102,7 +102,7 @@ const fetchExportRequestDetailById = async (
     // Nếu API trả về object trực tiếp
     return response?.content || response || null;
   } catch (error) {
-    console.error("Lỗi khi lấy export request detail by ID:", error);
+    console.log("Lỗi khi lấy export request detail by ID:", error);
     return null;
   }
 };

@@ -127,7 +127,7 @@ const StockCheckDetailScreen: React.FC = () => {
   //         setPaper(data);
   //       })
   //       .catch((error) => {
-  //         console.error("❌ Lỗi lấy chứng từ:", error);
+  //         console.log("❌ Lỗi lấy chứng từ:", error);
   //         setPaper(null);
   //       })
   //       .finally(() => setPaperLoading(false));
@@ -221,7 +221,7 @@ const StockCheckDetailScreen: React.FC = () => {
                       );
                       return item;
                     } catch (error) {
-                      console.error(
+                      console.log(
                         `❌ Error fetching inventory item ${inventoryItemId}:`,
                         error
                       );
@@ -256,7 +256,7 @@ const StockCheckDetailScreen: React.FC = () => {
 
             // console.log(`✅ Modal should be open now!`);
           } catch (error) {
-            console.error("❌ Error loading modal data:", error);
+            console.log("❌ Error loading modal data:", error);
             setSelectedInventoryItems([]);
             setItemUnitType("đơn vị");
             modalReopenProcessed.current = false; // Reset on error
@@ -353,7 +353,7 @@ const StockCheckDetailScreen: React.FC = () => {
                       );
                       return item;
                     } catch (error) {
-                      console.error(
+                      console.log(
                         `❌ Error fetching inventory item ${inventoryItemId}:`,
                         error
                       );
@@ -388,7 +388,7 @@ const StockCheckDetailScreen: React.FC = () => {
 
             console.log(`✅ Modal should be open now!`);
           } catch (error) {
-            console.error("❌ Error loading modal data:", error);
+            console.log("❌ Error loading modal data:", error);
             setSelectedInventoryItems([]);
             setItemUnitType("đơn vị");
             modalReopenProcessed.current = false; // Reset on error
@@ -450,7 +450,7 @@ const StockCheckDetailScreen: React.FC = () => {
         fetchStockCheckById(id).then(setStockCheck);
       }
     } catch (error) {
-      console.error("Lỗi khi bắt đầu kiểm đếm:", error);
+      console.log("Lỗi khi bắt đầu kiểm đếm:", error);
       Alert.alert("Lỗi", "Không thể bắt đầu kiểm đếm. Vui lòng thử lại!");
     }
   };
@@ -484,7 +484,7 @@ const StockCheckDetailScreen: React.FC = () => {
         );
       }
     } catch (error) {
-      console.error("❌ Lỗi khi hoàn tất kiểm kho:", error);
+      console.log("❌ Lỗi khi hoàn tất kiểm kho:", error);
       Alert.alert("Lỗi", "Không thể hoàn tất kiểm kho. Vui lòng thử lại!");
     }
   };
@@ -516,7 +516,7 @@ const StockCheckDetailScreen: React.FC = () => {
             const inventoryItem = await fetchInventoryItemById(inventoryItemId);
             return inventoryItem;
           } catch (error) {
-            console.error(
+            console.log(
               `❌ Error fetching inventory item ${inventoryItemId}:`,
               error
             );
@@ -531,7 +531,7 @@ const StockCheckDetailScreen: React.FC = () => {
       setSelectedInventoryItems(validInventoryItems);
       console.log(`✅ Refreshed ${validInventoryItems.length} inventory items`);
     } catch (error) {
-      console.error("❌ Error refreshing inventory items:", error);
+      console.log("❌ Error refreshing inventory items:", error);
     }
   };
 
@@ -573,7 +573,7 @@ const StockCheckDetailScreen: React.FC = () => {
                   "Đã track inventory item thành công!"
                 );
               } catch (error) {
-                console.error("❌ Error tracking:", error);
+                console.log("❌ Error tracking:", error);
                 Alert.alert(
                   "Lỗi",
                   "Không thể track inventory item. Vui lòng thử lại!"
@@ -586,7 +586,7 @@ const StockCheckDetailScreen: React.FC = () => {
         ]
       );
     } catch (error) {
-      console.error("❌ Error in handleTrackInventoryItem:", error);
+      console.log("❌ Error in handleTrackInventoryItem:", error);
       setTrackLoading(null);
     }
   };
@@ -594,7 +594,7 @@ const StockCheckDetailScreen: React.FC = () => {
   // Handle row press to fetch inventory items and item details
   const handleRowPress = async (detail: any) => {
     if (!detail.id) {
-      console.error("❌ Stock check detail ID not found");
+      console.log("❌ Stock check detail ID not found");
       return;
     }
 
@@ -617,7 +617,7 @@ const StockCheckDetailScreen: React.FC = () => {
               try {
                 return await fetchInventoryItemById(inventoryItemId);
               } catch (error) {
-                console.error(
+                console.log(
                   `❌ Error fetching inventory item ${inventoryItemId}:`,
                   error
                 );
@@ -642,7 +642,7 @@ const StockCheckDetailScreen: React.FC = () => {
 
       console.log(`✅ Loaded ${validInventoryItems.length} inventory items`);
     } catch (error) {
-      console.error("❌ Error fetching data:", error);
+      console.log("❌ Error fetching data:", error);
       setSelectedInventoryItems([]);
       setItemUnitType("đơn vị");
     } finally {
@@ -716,7 +716,7 @@ const StockCheckDetailScreen: React.FC = () => {
                 prev.filter((id) => id !== inventoryItemId)
               );
             } catch (error) {
-              console.error("❌ Error resetting tracking:", error);
+              console.log("❌ Error resetting tracking:", error);
               Alert.alert("Lỗi", "Không thể thanh lý item. Vui lòng thử lại!");
             }
           },
@@ -758,7 +758,7 @@ const StockCheckDetailScreen: React.FC = () => {
               // Refresh data
               await refreshInventoryItems();
             } catch (error) {
-              console.error("❌ Error marking as unavailable:", error);
+              console.log("❌ Error marking as unavailable:", error);
               Alert.alert("Lỗi", "Không thể cập nhật trạng thái sản phẩm. Vui lòng thử lại!");
             }
           },
@@ -886,7 +886,7 @@ const renderActionButton = () => {
 
   if (__DEV__) {
     console.warn = () => {};
-    console.error = () => {};
+    console.log = () => {};
   }
 
   return (

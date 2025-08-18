@@ -63,7 +63,7 @@ const useApi = () => {
           return response.data;
         }
       } catch (error: any) {
-        console.error("← [API ERROR]", error.response?.status, error.message);
+        console.log("← [API ERROR]", error.response?.status, error.message);
         throw error;
       } finally {
         setIsLoading(false);

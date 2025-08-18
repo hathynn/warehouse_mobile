@@ -24,7 +24,7 @@ const useImportOrder = () => {
         setImportOrders(response.content);
         return response.content;
       } catch (error) {
-        console.error("Lỗi khi lấy danh sách import order:", error);
+        console.log("Lỗi khi lấy danh sách import order:", error);
         return [];
       } finally {
         setIsLoading(false);
@@ -44,7 +44,7 @@ const useImportOrder = () => {
         setImportOrder(response.content);
         return response.content;
       } catch (error) {
-        console.error("Lỗi khi lấy chi tiết import order:", error);
+        console.log("Lỗi khi lấy chi tiết import order:", error);
         return null;
       } finally {
         setIsLoading(false);
@@ -65,7 +65,7 @@ const useImportOrder = () => {
         );
         return response;
       } catch (error) {
-        console.error("Lỗi khi cập nhật trạng thái đơn nhập:", error);
+        console.log("Lỗi khi cập nhật trạng thái đơn nhập:", error);
         throw error;
       } finally {
         setIsLoading(false);

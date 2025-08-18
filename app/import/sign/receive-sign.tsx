@@ -95,7 +95,7 @@ const SignReceiveScreen = () => {
           }));
         }
       } catch (error) {
-        console.error("ImportReceiveSign: Error fetching user data:", error);
+        console.log("ImportReceiveSign: Error fetching user data:", error);
       }
     };
     fetchUser();
@@ -234,7 +234,7 @@ const SignReceiveScreen = () => {
             measurementResults.push({ success: !!result, productId: product.id });
             
           } catch (error) {
-            console.error(`Error updating measurement for product ${product.id}:`, error);
+            console.log(`Error updating measurement for product ${product.id}:`, error);
             measurementResults.push({ success: false, productId: product.id });
           }
         }
@@ -261,7 +261,7 @@ const SignReceiveScreen = () => {
         alert("Lỗi: Không thể tạo phiếu. Vui lòng thử lại.");
       }
     } catch (error) {
-      console.error("❌ Lỗi khi xác nhận:", error);
+      console.log("❌ Lỗi khi xác nhận:", error);
       alert("Có lỗi xảy ra khi xác nhận. Vui lòng thử lại.");
     } finally {
       setIsLoading(false);

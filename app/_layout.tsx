@@ -48,7 +48,7 @@ function AuthHandler() {
         //   console.log("🔄 Not logged in, redirecting to login page");
         // }
       } catch (error) {
-        console.error("❌ Error restoring auth state:", error);
+        console.log("❌ Error restoring auth state:", error);
         // Clear any corrupted tokens
         await AsyncStorage.removeItem("access_token");
         await AsyncStorage.removeItem("refresh_token");

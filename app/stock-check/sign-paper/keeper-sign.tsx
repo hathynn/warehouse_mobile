@@ -69,7 +69,7 @@ const KeeperSignScreen = () => {
             );
           }
         } catch (error) {
-          console.error("❌ Error fetching keeper account info:", error);
+          console.log("❌ Error fetching keeper account info:", error);
         }
       }
     };

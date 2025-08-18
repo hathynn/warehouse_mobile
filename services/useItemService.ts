@@ -15,7 +15,7 @@ const useItemService = () => {
         setItem(response.content);
         return response.content;
       } catch (error) {
-        console.error("Lỗi khi lấy chi tiết item:", error);
+        console.log("Lỗi khi lấy chi tiết item:", error);
         return null;
       } finally {
         setIsLoading(false);

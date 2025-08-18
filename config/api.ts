@@ -54,7 +54,7 @@ const refreshToken = async (): Promise<string | null> => {
 
     throw new Error("Invalid refresh response");
   } catch (error) {
-    console.error("Token refresh failed:", error);
+    console.log("Token refresh failed:", error);
     // Clear tokens on refresh failure
     await AsyncStorage.removeItem("access_token");
     await AsyncStorage.removeItem("refresh_token");

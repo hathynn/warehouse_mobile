@@ -56,7 +56,7 @@ export default function NotificationTabIcon({ color, size, focused }: Notificati
         setUnviewedCount(unviewed.length);
       }
     } catch (error) {
-      console.error('Failed to fetch notifications:', error);
+      console.log('Failed to fetch notifications:', error);
       // Reset count on error to prevent stale data
       setUnviewedCount(0);
     }

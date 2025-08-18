@@ -72,7 +72,7 @@ const SimpleProductList: React.FC<Props> = ({
               console.warn(`⚠️ Inventory item has no itemId:`, inventoryItem);
             }
           } catch (error) {
-            console.error(`❌ Error fetching inventory/item details for ${product.inventoryItemId}:`, error);
+            console.log(`❌ Error fetching inventory/item details for ${product.inventoryItemId}:`, error);
           }
         } else {
           console.log("⏭️ Skipping product - not an inventory item");

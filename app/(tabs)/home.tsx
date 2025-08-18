@@ -70,7 +70,7 @@ const MainDashboard = () => {
           }));
         }
       } catch (error) {
-        console.error("HomeScreen: Error fetching user data:", error);
+        console.log("HomeScreen: Error fetching user data:", error);
       }
     };
     fetchUser();

@@ -28,7 +28,7 @@ const useInventoryService = () => {
         setInventoryItems(response.content || []);
         return response.content || [];
       } catch (error) {
-        console.error("❌ Lỗi khi lấy inventory items:", error);
+        console.log("❌ Lỗi khi lấy inventory items:", error);
         return [];
       }
     },
@@ -51,7 +51,7 @@ const useInventoryService = () => {
         setInventoryItems(response.content || []);
         return response.content || [];
       } catch (error) {
-        console.error("❌ Lỗi khi lấy export inventory items:", error);
+        console.log("❌ Lỗi khi lấy export inventory items:", error);
         return [];
       }
     },
@@ -73,7 +73,7 @@ const useInventoryService = () => {
 
         return response;
       } catch (error) {
-        console.error("❌ Lỗi khi gọi auto-change:", error);
+        console.log("❌ Lỗi khi gọi auto-change:", error);
         throw error;
       }
     },
@@ -98,7 +98,7 @@ const useInventoryService = () => {
 
   //       return response;
   //     } catch (error) {
-  //       console.error("❌ Lỗi khi đổi inventory item export detail:", error);
+  //       console.log("❌ Lỗi khi đổi inventory item export detail:", error);
   //       return null;
   //     }
   //   },
@@ -129,7 +129,7 @@ const useInventoryService = () => {
 
         return response;
       } catch (error) {
-        console.error("❌ Lỗi khi đổi inventory item với lý do:", error);
+        console.log("❌ Lỗi khi đổi inventory item với lý do:", error);
 
         // ✅ Throw error với message để component cha xử lý
         throw error;
@@ -152,7 +152,7 @@ const useInventoryService = () => {
 
         return response.content;
       } catch (error) {
-        console.error("❌ Lỗi khi lấy inventory item theo ID:", error);
+        console.log("❌ Lỗi khi lấy inventory item theo ID:", error);
         return null;
       }
     },
@@ -174,7 +174,7 @@ const useInventoryService = () => {
 
         return response;
       } catch (error) {
-        console.error("❌ Lỗi khi cập nhật inventory item:", error);
+        console.log("❌ Lỗi khi cập nhật inventory item:", error);
         throw error;
       }
     },
@@ -197,7 +197,7 @@ const useInventoryService = () => {
       // API should return an array of inventory items for the given itemId
       return response?.content || response || [];
     } catch (error) {
-      console.error("❌ Lỗi khi lấy inventory items theo itemId:", error);
+      console.log("❌ Lỗi khi lấy inventory items theo itemId:", error);
       return [];
     }
   },

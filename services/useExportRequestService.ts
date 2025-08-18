@@ -18,7 +18,7 @@ const useExportRequest = () => {
       setExportRequests(response.content);
       return response.content;
     } catch (error) {
-      console.error("Lỗi khi lấy danh sách export request:", error);
+      console.log("Lỗi khi lấy danh sách export request:", error);
       return [];
     } finally {
       setIsLoading(false);
@@ -46,7 +46,7 @@ const useExportRequest = () => {
         setExportRequests(content);
         return content;
       } catch (error) {
-        console.error("Lỗi khi lấy export request theo staffId:", error);
+        console.log("Lỗi khi lấy export request theo staffId:", error);
         return [];
       } finally {
         setIsLoading(false);
@@ -99,7 +99,7 @@ const filterExportRequestsByRole = useCallback(
         // console.log("1", response);
         return response;
       } catch (error) {
-        console.error("❌ Lỗi khi cập nhật trạng thái export request:", error);
+        console.log("❌ Lỗi khi cập nhật trạng thái export request:", error);
         return false;
       } finally {
         setIsLoading(false);
@@ -117,7 +117,7 @@ const filterExportRequestsByRole = useCallback(
         const response = await callApi("get", `/export-request/${id}`);
         setExportRequest(response.content);
       } catch (error) {
-        console.error("Lỗi khi lấy export request:", error);
+        console.log("Lỗi khi lấy export request:", error);
       } finally {
         setIsLoading(false);
       }
@@ -138,7 +138,7 @@ const filterExportRequestsByRole = useCallback(
         );
         return response;
       } catch (error) {
-        console.error("Lỗi khi cập nhật export request:", error);
+        console.log("Lỗi khi cập nhật export request:", error);
         return null;
       } finally {
         setIsLoading(false);

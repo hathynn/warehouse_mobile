@@ -160,7 +160,7 @@ const ManagerSignScreen = () => {
                 ]
               );
             } catch (error) {
-              console.error("❌ Error in signing process:", error);
+              console.log("❌ Error in signing process:", error);
               Alert.alert(
                 "Lỗi",
                 "Không thể hoàn thành việc ký chứng từ. Vui lòng thử lại!"

@@ -132,7 +132,7 @@ export default function ReceiptDetail() {
       const fetchedPapers = await Promise.all(paperIds.map(getPaperById));
       setPapers(fetchedPapers);
     } catch (err) {
-      console.error("Lỗi khi lấy đơn nhập:", err);
+      console.log("Lỗi khi lấy đơn nhập:", err);
     }
   }, [userId, fetchImportOrders, getPaperById]);
 
@@ -184,7 +184,7 @@ export default function ReceiptDetail() {
 
   //     router.push("/import/scan-qr");
   //   } catch (error) {
-  //     console.error("Lỗi khi tạo chứng từ:", error);
+  //     console.log("Lỗi khi tạo chứng từ:", error);
   //   }
   // };
 
