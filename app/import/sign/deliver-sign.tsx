@@ -23,7 +23,9 @@ import ProductListAccordion from "@/components/ui/ProductList";
 import { Button } from "tamagui";
 import * as ImageManipulator from "expo-image-manipulator";
 import useImportOrder from "@/services/useImportOrderService";
-import StatusBadge from "@/components/StatusBadge";
+import useDepartment from "@/services/useDepartmentService";
+import useImportRequest from "@/services/useImportRequestService";
+import { ImportOrderStatus, ImportType } from "@/types/importOrder.type";
 
 const SignDeliverScreen = () => {
   const insets = useSafeAreaInsets();
@@ -34,6 +36,7 @@ const SignDeliverScreen = () => {
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [signature, setSignature] = useState<string | null>(null);
   const [providerName, setProviderName] = useState<string>("");
+  const [departmentInfo, setDepartmentInfo] = useState<{ responsiblePerson: string; departmentName: string } | null>(null);
   
   const selectProducts = (state: RootState) => state.product.products;
   const selectImportOrderId = (state: RootState) => state.paper.importOrderId;
@@ -50,6 +53,9 @@ const SignDeliverScreen = () => {
     fetchImportOrderById,
   } = useImportOrder();
 
+  const { fetchDepartmentById } = useDepartment();
+  const { fetchImportRequestById } = useImportRequest();
+
   const importOrderId = useSelector(
     (state: RootState) => state.paper.importOrderId
   );
@@ -61,13 +67,39 @@ const SignDeliverScreen = () => {
 
       if (order) {
         console.log("🧾 Import Order:", order);
+        
+        // If import type is RETURN, fetch department responsible
+        if (order.importType === "RETURN" && order.importRequestId) {
+          try {
+            // Fetch import request to get department ID
+            const importRequest = await fetchImportRequestById(order.importRequestId);
+            
+            // Check for departmentId in content
+            const departmentId = importRequest?.content?.departmentId || importRequest?.departmentId;
+            if (departmentId) {
+              // Fetch department to get responsible person
+              const department = await fetchDepartmentById(departmentId);
+              
+              if (department?.departmentResponsible) {
+                setProviderName(department.departmentResponsible);
+                setDepartmentInfo({
+                  responsiblePerson: department.departmentResponsible,
+                  departmentName: department.departmentName
+                });
+                dispatch(setPaperData({ signProviderName: department.departmentResponsible }));
+              }
+            }
+          } catch (error) {
+            console.error("Lỗi khi lấy thông tin phòng ban:", error);
+          }
+        }
       } else {
         console.warn("⚠️ Không tìm thấy đơn nhập");
       }
     };
 
     loadOrder();
-  }, [importOrderId]);
+  }, [importOrderId, fetchImportOrderById, fetchImportRequestById, fetchDepartmentById, dispatch]);
 
   const takePhoto = async () => {
     const result = await ImagePicker.launchCameraAsync({
@@ -98,17 +130,14 @@ const SignDeliverScreen = () => {
       setCapturedImage(null);
       dispatch(setPaperData({ signProviderUrl: null }));
     } else {
+      setSignature(null);
       signatureRef.current?.clearSignature();
       dispatch(setPaperData({ signProviderUrl: null }));
     }
   };
 
-  const handleEnd = async () => {
-    const img = await signatureRef.current?.readSignature();
-    if (img) {
-      setSignature(img);
-      dispatch(setPaperData({ signProviderUrl: img }));
-    }
+  const handleEnd = () => {
+    signatureRef.current?.readSignature();
   };
 
   const handleProviderNameChange = (text: string) => {
@@ -229,6 +258,7 @@ const SignDeliverScreen = () => {
                   ref={signatureRef}
                   onBegin={() => setScrollEnabled(false)}
                   onOK={(img) => {
+                    setSignature(img);
                     dispatch(setPaperData({ signProviderUrl: img }));
                   }}
                   onEnd={() => {
@@ -264,17 +294,34 @@ const SignDeliverScreen = () => {
               </View>
             )}
 
-            {/* Input tên người giao hàng */}
-            <View style={{ marginTop: 15}}>
-              <TextInput
-                style={styles.textInput}
-                value={providerName}
-                onChangeText={handleProviderNameChange}
-                placeholder="Nhập tên người giao hàng"
-                placeholderTextColor="#999"
-                returnKeyType="done"
-              />
-            </View>
+            {/* Display department info for RETURN or input for normal imports */}
+            {importOrder?.importType === ImportType.RETURN ? (
+              <View style={{ marginTop: 15 }}>
+                <View style={styles.departmentInfoContainer}>
+                  <Text style={styles.departmentLabel}>Người giao hàng:</Text>
+                  <Text style={styles.departmentResponsible}>
+                    {departmentInfo?.responsiblePerson || "Đang tải..."}
+                  </Text>
+                  {departmentInfo?.departmentName && (
+                    <Text style={styles.departmentName}>
+                      Phòng ban: {departmentInfo.departmentName}
+                    </Text>
+                  )}
+               
+                </View>
+              </View>
+            ) : (
+              <View style={{ marginTop: 15}}>
+                <TextInput
+                  style={styles.textInput}
+                  value={providerName}
+                  onChangeText={handleProviderNameChange}
+                  placeholder="Nhập tên người giao hàng"
+                  placeholderTextColor="#999"
+                  returnKeyType="done"
+                />
+              </View>
+            )}
             
             {/* Hành động */}
             <View
@@ -291,7 +338,7 @@ const SignDeliverScreen = () => {
                   paddingVertical: 12,
                   backgroundColor: "#DDDDDD",
                   borderRadius: 8,
-                  marginRight: 5,
+                  marginRight: (providerName.trim() && ((signMethod === "draw" && signature) || (signMethod === "camera" && capturedImage))) ? 5 : 0,
                   alignItems: "center",
                 }}
               >
@@ -304,25 +351,27 @@ const SignDeliverScreen = () => {
                 </Text>
               </TouchableOpacity>
 
-              <TouchableOpacity
-                onPress={() => router.push("/import/sign/receive-sign")}
-                style={{
-                  flex: 1,
-                  paddingVertical: 12,
-                  backgroundColor: "#1677ff",
-                  borderRadius: 8,
-                  marginLeft: 5,
-                  alignItems: "center",
-                }}
-              >
-                <Text
+              {providerName.trim() && ((signMethod === "draw" && signature) || (signMethod === "camera" && capturedImage)) && (
+                <TouchableOpacity
+                  onPress={() => router.push("/import/sign/receive-sign")}
                   style={{
-                    color: "white",
+                    flex: 1,
+                    paddingVertical: 12,
+                    backgroundColor: "#1677ff",
+                    borderRadius: 8,
+                    marginLeft: 5,
+                    alignItems: "center",
                   }}
                 >
-                  Tiếp tục
-                </Text>
-              </TouchableOpacity>
+                  <Text
+                    style={{
+                      color: "white",
+                    }}
+                  >
+                    Tiếp tục
+                  </Text>
+                </TouchableOpacity>
+              )}
             </View>
           </View>
         </ScrollView>
@@ -417,6 +466,41 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#e63946",
     fontWeight: "bold",
+  },
+  // Department info display styles
+  departmentInfoContainer: {
+    backgroundColor: "white",
+    borderRadius: 8,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "#ddd",
+    shadowColor: "#000",
+    borderLeftWidth: 4,
+    borderLeftColor: "#1677ff",
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  departmentLabel: {
+    fontSize: 14,
+    color: "#666",
+    marginBottom: 4,
+    fontWeight: "500",
+  },
+  departmentResponsible: {
+    fontSize: 18,
+    color: "#333",
+    fontWeight: "600",
+    marginBottom: 8,
+  },
+  departmentName: {
+    fontSize: 14,
+    color: "#555",
+    marginBottom: 4,
   },
 });
 

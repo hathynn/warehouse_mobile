@@ -258,13 +258,13 @@ export default function SuccessPage() {
 
                     {isInventoryItemScan && (
                       <>
-                        <View style={styles.row}>
+                        {/* <View style={styles.row}>
                           <Text style={styles.label}>Giá trị đo dự kiến</Text>
                           <Text style={styles.value}>
                             {product.expectMeasurementValue || 0}
                             {product.measurementUnit && ` ${product.measurementUnit}`}
                           </Text>
-                        </View>
+                        </View> */}
 
                         <View style={styles.row}>
                           <Text style={styles.label}>Giá trị đo tối đa</Text>

@@ -265,7 +265,7 @@ const ConfirmManual = () => {
                 {isReturnImport ? (
                   // Display measurement values for RETURN imports
                   <>
-                    <View
+                    {/* <View
                       style={{
                         flexDirection: "row",
                         justifyContent: "space-between",
@@ -277,7 +277,7 @@ const ConfirmManual = () => {
                         {product.expectMeasurementValue || 0}
                         {getUnit(product) && ` ${getUnit(product)}`}
                       </Text>
-                    </View>
+                    </View> */}
                     <View
                       style={{
                         flexDirection: "row",
@@ -399,10 +399,15 @@ const ConfirmManual = () => {
                 <Text className="text-sm text-red-600">
                   ⚠️ Giá trị đo lường không được vượt quá{' '}
                   <Text className="font-bold">
-                    {getMeasurementValue(products.find(p => p.id === selectedProductId))}
-                    {getUnit(products.find(p => p.id === selectedProductId)) && 
-                      ` ${getUnit(products.find(p => p.id === selectedProductId))}`
-                    }
+                    {(() => {
+                      const selectedProduct = products.find(p => p.id === selectedProductId);
+                      if (selectedProduct) {
+                        const measurementValue = getMeasurementValue(selectedProduct);
+                        const unit = getUnit(selectedProduct);
+                        return `${measurementValue}${unit ? ` ${unit}` : ''}`;
+                      }
+                      return '0';
+                    })()}
                   </Text>
                 </Text>
               </View>
@@ -413,13 +418,17 @@ const ConfirmManual = () => {
               keyboardType={isReturnImport ? "decimal-pad" : "numeric"}
               placeholder={(() => {
                 const selectedProduct = filteredProducts.find(p => p.id === selectedProductId);
-                if (selectedProduct?.inventoryItemId) {
+                if (!selectedProduct) {
+                  return isReturnImport ? "Nhập giá trị đo lường" : "Nhập số lượng";
+                }
+                
+                if (selectedProduct.inventoryItemId) {
                   const actualValue = selectedProduct.actualMeasurementValue || 0;
                   return actualValue !== 0 ? 
                     `${actualValue}${getUnit(selectedProduct) ? ` ${getUnit(selectedProduct)}` : ''}` : 
                     "Nhập giá trị đo lường";
                 } else {
-                  const actualValue = selectedProduct?.actual || 0;
+                  const actualValue = selectedProduct.actual || 0;
                   return actualValue !== 0 ? String(actualValue) : "Nhập số lượng";
                 }
               })()}
