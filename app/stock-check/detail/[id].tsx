@@ -455,10 +455,69 @@ const StockCheckDetailScreen: React.FC = () => {
     }
   };
 
+  // Validate inventory items before completing stock check
+  const validateInventoryItems = async (): Promise<{ isValid: boolean; errorMessage?: string }> => {
+    try {
+      console.log("🔄 Validating inventory items...");
+      
+      // Get all inventory items from all stock check details
+      const allInventoryItems: InventoryItem[] = [];
+      
+      for (const detail of stockCheckDetails) {
+        if (detail.inventoryItemIds && detail.inventoryItemIds.length > 0) {
+          const inventoryItems = await Promise.all(
+            detail.inventoryItemIds.map(async (inventoryItemId: string) => {
+              try {
+                return await fetchInventoryItemById(inventoryItemId);
+              } catch (error) {
+                console.log(`❌ Error fetching inventory item ${inventoryItemId}:`, error);
+                return null;
+              }
+            })
+          );
+          
+          const validItems = inventoryItems.filter((item) => item !== null);
+          allInventoryItems.push(...validItems);
+        }
+      }
+
+      // Check for AVAILABLE items that are not in checkedInventoryItemIds
+      const availableItemsNotChecked = allInventoryItems.filter(
+        (item) => 
+          item.status === "AVAILABLE" && 
+          !stockCheckDetails.some(detail => 
+            detail.checkedInventoryItemIds?.includes(item.id)
+          )
+      );
+
+      if (availableItemsNotChecked.length > 0) {
+        return {
+          isValid: false,
+          errorMessage: "Còn hàng tồn kho chưa xác nhận trạng thái"
+        };
+      }
+
+      return { isValid: true };
+    } catch (error) {
+      console.log("❌ Error validating inventory items:", error);
+      return {
+        isValid: false,
+        errorMessage: "Lỗi khi kiểm tra trạng thái hàng tồn kho"
+      };
+    }
+  };
+
   // Complete counting and finish stock check process
   const handleCompletecounting = async () => {
     try {
       console.log("🔄 Completing stock check process...");
+
+      // Validate inventory items first
+      const validation = await validateInventoryItems();
+      if (!validation.isValid) {
+        Alert.alert("Lỗi", validation.errorMessage || "Không thể hoàn tất kiểm kho");
+        return;
+      }
 
       // Directly complete the stock check (skip COUNTED status)
       const result = await updateStockCheckStatus(id, StockCheckStatus.COUNTED);
