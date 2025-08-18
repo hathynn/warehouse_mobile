@@ -5,6 +5,7 @@ export interface ImportRequestType {
   status: ImportRequestStatus;
   providerId: number;
   exportRequestId?: number | null;
+  departmentId?: number | null;
   importRequestDetailIds: number[];
   importOrdersId: number[];
   createdBy: string;

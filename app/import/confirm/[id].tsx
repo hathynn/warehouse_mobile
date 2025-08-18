@@ -287,7 +287,7 @@ const Confirm = () => {
                       <Text>Tên sản phẩm</Text>
                       <Text>{product.name}</Text>
                     </View>
-                    <View
+                    {/* <View
                       style={{
                         flexDirection: "row",
                         justifyContent: "space-between",
@@ -299,7 +299,7 @@ const Confirm = () => {
                         {product.expectMeasurementValue || 0}
                         {getUnit(product) && ` ${getUnit(product)}`}
                       </Text>
-                    </View>
+                    </View> */}
                     <View
                       style={{
                         flexDirection: "row",
