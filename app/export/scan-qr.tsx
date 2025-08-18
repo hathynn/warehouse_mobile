@@ -113,7 +113,7 @@ export default function ScanQrScreen() {
   const handleBarCodeScanned = async ({ data }: { data: string }) => {
     if (__DEV__) {
       console.warn = () => { };
-      console.error = () => { };
+      console.log = () => { };
     }
 
     const currentTime = Date.now();
@@ -229,7 +229,7 @@ export default function ScanQrScreen() {
         );
         console.log("✅ updateActualQuantity returned:", success);
       } catch (apiError) {
-        console.error("❌ updateActualQuantity threw error:", apiError);
+        console.log("❌ updateActualQuantity threw error:", apiError);
         throw apiError;
       }
 
@@ -264,7 +264,7 @@ export default function ScanQrScreen() {
 
       console.log("✅ Scan successful for:", inventoryItemId);
     } catch (err: any) {
-      console.error("❌ Scan error:", err);
+      console.log("❌ Scan error:", err);
 
       const message =
         err?.response?.data?.message || err?.message || "Lỗi không xác định";
@@ -301,7 +301,7 @@ export default function ScanQrScreen() {
             await updateActualQuantity(mapping.exportRequestDetailId, inventoryItemId);
           }
         } catch (updateError) {
-          console.error("❌ Error calling updateActualQuantity for no matching item:", updateError);
+          console.log("❌ Error calling updateActualQuantity for no matching item:", updateError);
         }
       } else {
         displayMessage = `${message}`;

@@ -17,7 +17,7 @@ const useStockCheck = () => {
         setStockChecks(response.content as StockCheckType[]);
         return response.content as StockCheckType[];
       } catch (error) {
-        console.error("Lỗi khi lấy danh sách stock check theo staff:", error);
+        console.log("Lỗi khi lấy danh sách stock check theo staff:", error);
         return [];
       } finally {
         setIsLoading(false);
@@ -34,7 +34,7 @@ const useStockCheck = () => {
         const response = await callApi("get", `/stock-check/${stockCheckId}`);
         return response.content || response;
       } catch (error) {
-        console.error("Lỗi khi lấy thông tin stock check:", error);
+        console.log("Lỗi khi lấy thông tin stock check:", error);
         return null;
       } finally {
         setIsLoading(false);
@@ -68,7 +68,7 @@ const useStockCheck = () => {
 
         return response;
       } catch (error) {
-        console.error("Lỗi khi cập nhật trạng thái stock check:", error);
+        console.log("Lỗi khi cập nhật trạng thái stock check:", error);
         return false;
       } finally {
         setIsLoading(false);
@@ -89,7 +89,7 @@ const useStockCheck = () => {
         );
         return response; // tùy backend trả gì: message/status/content
       } catch (error) {
-        console.error("Lỗi khi confirm counted stock check:", error);
+        console.log("Lỗi khi confirm counted stock check:", error);
         return false;
       } finally {
         setIsLoading(false);

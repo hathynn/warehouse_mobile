@@ -30,7 +30,7 @@ const useImportOrderDetail = () => {
         setInventoryItems(response.content || []);
         return response.content || [];
       } catch (error) {
-        console.error("Lỗi khi lấy inventory items:", error);
+        console.log("Lỗi khi lấy inventory items:", error);
         return [];
       } finally {
         setIsLoading(false);
@@ -63,7 +63,7 @@ const useImportOrderDetail = () => {
           return [];
         }
       } catch (error) {
-        console.error("Lỗi khi lấy danh sách import order details:", error);
+        console.log("Lỗi khi lấy danh sách import order details:", error);
         return [];
       } finally {
         setLoading(false);
@@ -83,7 +83,7 @@ const useImportOrderDetail = () => {
         setImportOrderDetail(response.content);
         return response.content;
       } catch (error) {
-        console.error("Lỗi khi lấy chi tiết import order detail:", error);
+        console.log("Lỗi khi lấy chi tiết import order detail:", error);
         return null;
       } finally {
         setLoading(false);
@@ -100,7 +100,7 @@ const useImportOrderDetail = () => {
         const response = await callApi("put", `/import-order-detail/${id}`, updatedData);
         return response;
       } catch (error) {
-        console.error("Lỗi khi cập nhật import order detail:", error);
+        console.log("Lỗi khi cập nhật import order detail:", error);
         return null;
       } finally {
         setLoading(false);
@@ -128,7 +128,7 @@ const useImportOrderDetail = () => {
         );
         return response;
       } catch (error) {
-        console.error("Lỗi khi cập nhật số lượng thực tế:", error);
+        console.log("Lỗi khi cập nhật số lượng thực tế:", error);
         return null;
       } finally {
         setLoading(false);
@@ -148,7 +148,7 @@ const updateImportOrderDetailMeasurement = useCallback(
     }
   ) => {
     if (!importOrderDetailId || !data.inventoryItemId) {
-      console.error("Missing required fields for measurement update:", {
+      console.log("Missing required fields for measurement update:", {
         importOrderDetailId,
         inventoryItemId: data.inventoryItemId
       });
@@ -232,8 +232,8 @@ const updateImportOrderDetailMeasurement = useCallback(
       
       return response;
     } catch (error) {
-      console.error("← [API ERROR]", error?.response?.status, error?.message);
-      console.error("Lỗi khi cập nhật actual measurement:", error);
+      console.log("← [API ERROR]", error?.response?.status, error?.message);
+      console.log("Lỗi khi cập nhật actual measurement:", error);
       throw error;
     } finally {
       setLoading(false);

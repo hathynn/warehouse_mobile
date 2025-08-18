@@ -31,7 +31,7 @@ export default function TabsLayout() {
     try {
       await viewAllNotifications(Number(user.id));
     } catch (error) {
-      console.error('Failed to mark all notifications as viewed:', error);
+      console.log('Failed to mark all notifications as viewed:', error);
     }
   };
 

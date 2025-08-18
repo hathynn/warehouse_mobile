@@ -90,7 +90,7 @@ const SignDeliverScreen = () => {
               }
             }
           } catch (error) {
-            console.error("Lỗi khi lấy thông tin phòng ban:", error);
+            console.log("Lỗi khi lấy thông tin phòng ban:", error);
           }
         }
       } else {

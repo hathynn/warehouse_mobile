@@ -284,7 +284,7 @@ export default function ScanQrScreen() {
       }, resetDelay);
 
     } catch (error) {
-      console.error("❌ Lỗi xử lý QR:", error);
+      console.log("❌ Lỗi xử lý QR:", error);
       showAlert("Không thể xử lý mã QR này.", "❌");
     }
   };

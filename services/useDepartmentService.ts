@@ -23,7 +23,7 @@ const useDepartment = () => {
         setDepartments(content);
         return content;
       } catch (error) {
-        console.error("Lỗi khi lấy danh sách phòng ban:", error);
+        console.log("Lỗi khi lấy danh sách phòng ban:", error);
         return [];
       }
     },
@@ -45,7 +45,7 @@ const useDepartment = () => {
         setDepartment(response.content);
         return response.content;
       } catch (error) {
-        console.error(`Lỗi khi lấy phòng ban ID ${id}:`, error);
+        console.log(`Lỗi khi lấy phòng ban ID ${id}:`, error);
         return null;
       }
     },

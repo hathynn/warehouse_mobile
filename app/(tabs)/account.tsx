@@ -78,7 +78,7 @@ const AccountScreen = () => {
           }));
         }
       } catch (error) {
-        console.error("Error fetching user data:", error);
+        console.log("Error fetching user data:", error);
       }
     };
     fetchUser();
@@ -130,12 +130,12 @@ const AccountScreen = () => {
             console.log("🔄 Navigating to login...");
             router.replace("/login");
           } catch (error) {
-            console.error("Logout error:", error);
+            console.log("Logout error:", error);
             // ✅ Force logout even if there's an error
             try {
               dispatch(logout());
             } catch (dispatchError) {
-              console.error("Error dispatching logout:", dispatchError);
+              console.log("Error dispatching logout:", dispatchError);
             }
             router.replace("/login");
           }

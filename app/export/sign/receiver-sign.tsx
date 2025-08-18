@@ -87,7 +87,7 @@ const SignReceiveScreen = () => {
           }));
         }
       } catch (error) {
-        console.error("ExportReceiverSign: Error fetching user data:", error);
+        console.log("ExportReceiverSign: Error fetching user data:", error);
       }
     };
     fetchUser();
@@ -221,11 +221,11 @@ const SignReceiveScreen = () => {
 
         router.push("/(tabs)/export");
       } else {
-        console.error("❌ CreatePaper returned null - check API logs for error details");
+        console.log("❌ CreatePaper returned null - check API logs for error details");
         alert("Lỗi: Không thể tạo phiếu. Vui lòng kiểm tra kết nối mạng và thử lại.");
       }
     } catch (err) {
-      console.error("❌ Exception in handleConfirm:", err);
+      console.log("❌ Exception in handleConfirm:", err);
       alert(`Lỗi: ${err.message || "Không thể tạo phiếu"}`);
     } finally {
       setIsLoading(false);

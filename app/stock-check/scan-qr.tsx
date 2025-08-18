@@ -112,7 +112,7 @@ export default function StockCheckScanQrScreen() {
   const handleBarCodeScanned = async ({ data }: { data: string }) => {
     if (__DEV__) {
       console.warn = () => {};
-      console.error = () => {};
+      console.log = () => {};
     }
 
     const currentTime = Date.now();
@@ -237,7 +237,7 @@ export default function StockCheckScanQrScreen() {
 
       console.log("✅ Stock check scan successful for:", normalizedId);
     } catch (err: any) {
-      console.error("❌ Stock check scan error:", err);
+      console.log("❌ Stock check scan error:", err);
 
       const message =
         err?.response?.data?.message || err?.message || "Lỗi không xác định";

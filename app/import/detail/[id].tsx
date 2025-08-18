@@ -195,7 +195,7 @@ const ImportOrderScreen: React.FC = () => {
 
       // Có thể thêm thông báo thành công ở đây
     } catch (error) {
-      console.error("Cập nhật trạng thái thất bại:", error);
+      console.log("Cập nhật trạng thái thất bại:", error);
       // Có thể thêm thông báo lỗi ở đây
     }
   };
@@ -425,7 +425,7 @@ const ImportOrderScreen: React.FC = () => {
 
                 router.push("/import/scan-qr");
               } catch (error) {
-                console.error("Lỗi khi tạo chứng từ:", error);
+                console.log("Lỗi khi tạo chứng từ:", error);
               }
             }}
           >
@@ -490,7 +490,7 @@ const ImportOrderScreen: React.FC = () => {
 
                 router.push(`/import/confirm/${importOrder.importOrderId}`);
               } catch (error) {
-                console.error("❌ Lỗi khi reset và kiểm đếm lại:", error);
+                console.log("❌ Lỗi khi reset và kiểm đếm lại:", error);
               }
             }}
           >

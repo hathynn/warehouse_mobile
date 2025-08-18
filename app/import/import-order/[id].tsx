@@ -180,7 +180,7 @@ export default function ReceiptDetail() {
 
                             router.push("/import/scan-qr");
                           } catch (error) {
-                            console.error("Lỗi khi tạo chứng từ:", error);
+                            console.log("Lỗi khi tạo chứng từ:", error);
                           }
                         }}
                       >

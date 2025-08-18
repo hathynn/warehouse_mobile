@@ -106,7 +106,7 @@ export default function ScanQrManualScreen() {
         newItemValue: newItem.measurementValue || 0
       };
     } catch (error) {
-      console.error("❌ Error validating measurement replacement:", error);
+      console.log("❌ Error validating measurement replacement:", error);
       return {
         isValid: true, // Allow if validation fails to avoid blocking legitimate operations
         totalAfterChange: 0,
@@ -192,7 +192,7 @@ export default function ScanQrManualScreen() {
   const handleBarCodeScanned = async ({ data }: { data: string }) => {
     if (__DEV__) {
       console.warn = () => { };
-      console.error = () => { };
+      console.log = () => { };
     }
 
     const currentTime = Date.now();
@@ -381,7 +381,7 @@ export default function ScanQrManualScreen() {
       });
 
     } catch (err: any) {
-      console.error("❌ Manual Scan error:", err);
+      console.log("❌ Manual Scan error:", err);
 
       const message =
         err?.response?.data?.message || err?.message || "Lỗi không xác định";
@@ -503,7 +503,7 @@ export default function ScanQrManualScreen() {
             console.log(`ℹ️ ${currentOriginalId} không tracking, bỏ qua reset`);
           }
         } catch (e) {
-          console.error("❌ Reset tracking error:", e);
+          console.log("❌ Reset tracking error:", e);
           setIsProcessing(false);
           setErrorMessage("Không thể huỷ tracking mã cũ. Vui lòng thử lại!");
           return;
@@ -579,7 +579,7 @@ export default function ScanQrManualScreen() {
       setTimeout(() => setLastScannedProduct(null), 2000);
 
     } catch (error: any) {
-      console.error("❌ QR Manual change error:", error);
+      console.log("❌ QR Manual change error:", error);
       const message = error?.response?.data?.message || error?.message || "Lỗi không xác định";
       setErrorMessage(`Lỗi thay đổi item: ${message}`);
 

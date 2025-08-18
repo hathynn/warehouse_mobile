@@ -84,7 +84,7 @@ export const useAppStateRestore = () => {
             // This would require a clearAuthState action, but for now we'll let the normal flow handle it
           }
         } catch (error) {
-          console.error('❌ Error in app state restoration:', error);
+          console.log('❌ Error in app state restoration:', error);
         }
       }
 

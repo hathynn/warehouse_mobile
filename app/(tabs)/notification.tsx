@@ -101,7 +101,7 @@ export default function NotificationScreen() {
       fetchNotifications();
       if (userId) {
         viewAllNotifications(Number(userId)).catch(error => {
-          console.error('Failed to mark all notifications as viewed:', error);
+          console.log('Failed to mark all notifications as viewed:', error);
         });
       }
     }, [userId])
@@ -119,7 +119,7 @@ export default function NotificationScreen() {
         await clickNotification(notification.id);
         await fetchNotifications();
       } catch (error) {
-        console.error("Failed to mark notification as clicked:", error);
+        console.log("Failed to mark notification as clicked:", error);
       }
     }
     if (notification.eventType === IMPORT_ORDER_ASSIGNED_EVENT) {

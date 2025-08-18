@@ -44,7 +44,7 @@ const authSlice = createSlice({
         const { access_token, refresh_token } = action.payload;
 
         if (!access_token || !refresh_token) {
-          console.error("Invalid tokens provided to login action");
+          console.log("Invalid tokens provided to login action");
           return;
         }
 
@@ -52,7 +52,7 @@ const authSlice = createSlice({
 
         // Validate decoded token has required fields
         if (!decoded.email || !decoded.role || !decoded.sub) {
-          console.error("Invalid token structure - missing required fields");
+          console.log("Invalid token structure - missing required fields");
           return;
         }
 
@@ -67,7 +67,7 @@ const authSlice = createSlice({
         state.isLoggingOut = false;
         state.isRestoring = false;
       } catch (error) {
-        console.error("Error decoding JWT token in login:", error);
+        console.log("Error decoding JWT token in login:", error);
         // Reset state on error
         state.accessToken = null;
         state.refreshToken = null;
@@ -84,7 +84,7 @@ const authSlice = createSlice({
         const { access_token, refresh_token } = action.payload;
 
         if (!access_token || !refresh_token) {
-          console.error("Invalid tokens provided to setToken action");
+          console.log("Invalid tokens provided to setToken action");
           return;
         }
 
@@ -92,7 +92,7 @@ const authSlice = createSlice({
 
         // Validate decoded token has required fields
         if (!decoded.email || !decoded.role || !decoded.sub) {
-          console.error("Invalid token structure - missing required fields");
+          console.log("Invalid token structure - missing required fields");
           return;
         }
 
@@ -104,7 +104,7 @@ const authSlice = createSlice({
           id: decoded.sub,
         };
       } catch (error) {
-        console.error("Error decoding JWT token in setToken:", error);
+        console.log("Error decoding JWT token in setToken:", error);
         // Don't reset state here as this might be called during token refresh
       }
     },
@@ -136,7 +136,7 @@ const authSlice = createSlice({
         const { access_token, refresh_token } = action.payload;
 
         if (!access_token || !refresh_token) {
-          console.error("Invalid tokens provided to restoreAuthState");
+          console.log("Invalid tokens provided to restoreAuthState");
           state.isRestoring = false;
           return;
         }
@@ -144,14 +144,14 @@ const authSlice = createSlice({
         const decoded: DecodedToken = jwtDecode(access_token);
 
         if (!decoded.email || !decoded.role || !decoded.sub) {
-          console.error("Invalid token structure during restore - missing required fields");
+          console.log("Invalid token structure during restore - missing required fields");
           state.isRestoring = false;
           return;
         }
 
         const currentTime = Math.floor(Date.now() / 1000);
         if (decoded.exp && decoded.exp < currentTime) {
-          console.error("Token expired during restore - will attempt refresh on next API call");
+          console.log("Token expired during restore - will attempt refresh on next API call");
           // Don't return here - let the API interceptor handle the refresh
           // But still restore the tokens so the refresh can work
         }
@@ -169,7 +169,7 @@ const authSlice = createSlice({
 
         console.log("Auth state restored successfully");
       } catch (error) {
-        console.error("Error restoring auth state:", error);
+        console.log("Error restoring auth state:", error);
         // Reset state on error
         state.accessToken = null;
         state.refreshToken = null;

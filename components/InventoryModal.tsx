@@ -149,7 +149,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
         newItemValue: newItem.measurementValue || 0
       };
     } catch (error) {
-      console.error("❌ Error validating measurement replacement:", error);
+      console.log("❌ Error validating measurement replacement:", error);
       return {
         isValid: true, // Allow if validation fails to avoid blocking legitimate operations
         totalAfterChange: 0,
@@ -173,7 +173,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
           const itemInfo = await getItemDetailById(selectedItemCode);
           setItemData(itemInfo);
         } catch (error) {
-          console.error("Error fetching item data:", error);
+          console.log("Error fetching item data:", error);
           setItemData(null);
         }
       }
@@ -190,7 +190,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
           const exportDetailInfo = await fetchExportRequestDetailById(exportRequestDetailId);
           setExportRequestDetailData(exportDetailInfo);
         } catch (error) {
-          console.error("Error fetching export request detail data:", error);
+          console.log("Error fetching export request detail data:", error);
           setExportRequestDetailData(null);
         }
       }
@@ -214,7 +214,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
             detailedItems[item.id] = detailedItem;
           }
         } catch (error) {
-          console.error(`Error fetching detailed item ${item.id}:`, error);
+          console.log(`Error fetching detailed item ${item.id}:`, error);
         }
       }
 
@@ -325,7 +325,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
           console.log(`✅ INTERNAL export - InventoryModal - Measurement replacement validation passed: total ${validation.totalAfterChange} >= required ${validation.requiredValue}`);
         }
       } catch (error) {
-        console.error("❌ Error validating original item:", error);
+        console.log("❌ Error validating original item:", error);
         // Continue with selection if validation fails to avoid blocking legitimate operations
       }
     }

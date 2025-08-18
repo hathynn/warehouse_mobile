@@ -171,7 +171,7 @@ const ExportRequestScreen: React.FC = () => {
           setPaper(data);
         })
         .catch((error) => {
-          console.error("❌ Lỗi lấy chứng từ:", error);
+          console.log("❌ Lỗi lấy chứng từ:", error);
           setPaper(null);
         });
     }
@@ -308,7 +308,7 @@ const ExportRequestScreen: React.FC = () => {
           case 'export-request-completed':
             console.log('🔄 Refreshing export request data...');
             fetchExportRequestById(id).catch((error) => {
-              console.error('❌ Error refreshing export request:', error);
+              console.log('❌ Error refreshing export request:', error);
             });
             break;
 
@@ -340,7 +340,7 @@ const ExportRequestScreen: React.FC = () => {
 
               console.log('✅ Export request details refresh completed');
             }).catch((error) => {
-              console.error('❌ Error refreshing export request details:', error);
+              console.log('❌ Error refreshing export request details:', error);
             });
 
             // Refresh modal inventory items if modal is currently open
@@ -352,7 +352,7 @@ const ExportRequestScreen: React.FC = () => {
                   console.log('✅ Modal inventory items refreshed, count:', refreshedItems.length);
                 })
                 .catch((error) => {
-                  console.error('❌ Error refreshing modal inventory items:', error);
+                  console.log('❌ Error refreshing modal inventory items:', error);
                 });
             }
             break;
@@ -361,7 +361,7 @@ const ExportRequestScreen: React.FC = () => {
             console.log('🔄 Generic refresh for event type:', type);
             // Generic refresh for other event types
             fetchExportRequestById(id).catch((error) => {
-              console.error('❌ Error refreshing export request:', error);
+              console.log('❌ Error refreshing export request:', error);
             });
             break;
         }
@@ -440,7 +440,7 @@ const ExportRequestScreen: React.FC = () => {
       globalPendingItemCode = "";
       setModalReopeningLoading(false);
     } catch (error) {
-      console.error(`❌ Error reopening modal:`, error);
+      console.log(`❌ Error reopening modal:`, error);
       // Clear globals on error too
       globalShouldReopenModal = false;
       globalPendingItemCode = "";
@@ -487,7 +487,7 @@ const ExportRequestScreen: React.FC = () => {
         console.warn("⚠️ Cập nhật status thất bại.");
       }
     } catch (error) {
-      console.error("❌ Lỗi khi xác nhận:", error);
+      console.log("❌ Lỗi khi xác nhận:", error);
     }
   };
 
@@ -561,7 +561,7 @@ const ExportRequestScreen: React.FC = () => {
       console.log(`✅ Set ${convertedItems.length} filtered inventory items for manual selection`);
 
     } catch (error) {
-      console.error("❌ Error in manual change:", error);
+      console.log("❌ Error in manual change:", error);
       Alert.alert("Lỗi", "Không thể tải danh sách inventory items");
     } finally {
       // Stop loading
@@ -600,7 +600,7 @@ const ExportRequestScreen: React.FC = () => {
           await Promise.race([resetPromise, timeoutPromise]);
           console.log("✅ Reset tracking thành công trước khi đổi (manual)");
         } catch (e) {
-          console.error("❌ Reset tracking thất bại/timeout (manual):", e);
+          console.log("❌ Reset tracking thất bại/timeout (manual):", e);
           setManualChangeLoading(false);
           Alert.alert("Lỗi", "Không thể huỷ tracking mã cũ. Vui lòng thử lại!");
           return; // ⛔ DỪNG — không tiếp tục đổi
@@ -674,14 +674,14 @@ const ExportRequestScreen: React.FC = () => {
           }
 
         } catch (error) {
-          console.error('❌ Manual change - Error refreshing data:', error);
+          console.log('❌ Manual change - Error refreshing data:', error);
         } finally {
           setMainTableLoading(false);
         }
       }, 100); // Small delay to ensure state updates
 
     } catch (error) {
-      console.error("❌ Error in manual change:", error);
+      console.log("❌ Error in manual change:", error);
       setManualChangeLoading(false);
 
       let errorMessage = "Không thể đổi item. Vui lòng thử lại!";
@@ -734,7 +734,7 @@ const ExportRequestScreen: React.FC = () => {
                     await Promise.race([resetPromise, timeoutPromise]);
                     console.log("✅ Reset tracking thành công sau khi auto-change");
                   } catch (e) {
-                    console.error("❌ Reset tracking thất bại/timeout sau auto-change:", e);
+                    console.log("❌ Reset tracking thất bại/timeout sau auto-change:", e);
                     Alert.alert("Cảnh báo", "Auto-change thành công nhưng không thể huỷ tracking mã cũ. Vui lòng kiểm tra lại!");
                   }
                 }
@@ -803,7 +803,7 @@ const ExportRequestScreen: React.FC = () => {
                     }
 
                   } catch (error) {
-                    console.error('⏰ Fallback refresh failed:', error);
+                    console.log('⏰ Fallback refresh failed:', error);
                   } finally {
                     // Stop main table loading
                     setMainTableLoading(false);
@@ -811,7 +811,7 @@ const ExportRequestScreen: React.FC = () => {
                 }, 1000);
 
               } catch (error) {
-                console.error("❌ Error auto-changing:", error);
+                console.log("❌ Error auto-changing:", error);
                 let errorMessage = "Không thể đổi mã inventory item. Vui lòng thử lại!";
                 const responseMessage = error?.response?.data?.message || error?.message || "";
 
@@ -824,7 +824,7 @@ const ExportRequestScreen: React.FC = () => {
                       await updateActualQuantity(selectedExportRequestDetailId.toString(), inventoryItemId);
                     }
                   } catch (updateError) {
-                    console.error("❌ Error calling updateActualQuantity for no matching item:", updateError);
+                    console.log("❌ Error calling updateActualQuantity for no matching item:", updateError);
                   }
                 } else if (responseMessage) {
                   errorMessage = `Lỗi: ${responseMessage}`;
@@ -839,7 +839,7 @@ const ExportRequestScreen: React.FC = () => {
         ]
       );
     } catch (error) {
-      console.error("❌ Error in handleAutoChange:", error);
+      console.log("❌ Error in handleAutoChange:", error);
       setAutoChangeLoading(null);
       autoChangeInProgress.current = false;
     }
@@ -859,7 +859,7 @@ const ExportRequestScreen: React.FC = () => {
   // Handle row press to fetch inventory items and item details
   const handleRowPress = async (detail: any) => {
     if (!detail.id) {
-      console.error("❌ Export request detail ID not found");
+      console.log("❌ Export request detail ID not found");
       return;
     }
 
@@ -898,7 +898,7 @@ const ExportRequestScreen: React.FC = () => {
         }
       }
     } catch (error) {
-      console.error("❌ Error fetching data:", error);
+      console.log("❌ Error fetching data:", error);
       setSelectedInventoryItems([]);
       setItemUnitType("đơn vị");
     }

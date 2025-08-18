@@ -16,7 +16,7 @@ const useImportRequest = () => {
         const response = await callApi("get", `/import-request/page?page=${page}&limit=${limit}`);
         return response.content;
       } catch (error) {
-        console.error("Lỗi khi lấy danh sách yêu cầu nhập hàng:", error);
+        console.log("Lỗi khi lấy danh sách yêu cầu nhập hàng:", error);
         return [];
       } finally {
         setIsLoading(false);
@@ -35,7 +35,7 @@ const useImportRequest = () => {
       setImportRequest(response);
       return response;
     } catch (error) {
-      console.error("Lỗi khi lấy chi tiết yêu cầu nhập hàng:", error);
+      console.log("Lỗi khi lấy chi tiết yêu cầu nhập hàng:", error);
       return null;
     } finally {
       setIsLoading(false);

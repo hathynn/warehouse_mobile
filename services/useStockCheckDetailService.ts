@@ -27,7 +27,7 @@ const useStockCheckDetail = () => {
         setStockCheckDetails(data);
         return data;
       } catch (error) {
-        console.error("Lỗi khi lấy stock check details:", error);
+        console.log("Lỗi khi lấy stock check details:", error);
         return [];
       } finally {
         setIsLoading(false);
@@ -65,8 +65,8 @@ const useStockCheckDetail = () => {
 
         return response;
       } catch (error) {
-        console.error("❌ [API] PUT /stock-check-detail/tracking - Error:", error);
-        console.error("❌ [API] Error details:", JSON.stringify(error, null, 2));
+        console.log("❌ [API] PUT /stock-check-detail/tracking - Error:", error);
+        console.log("❌ [API] Error details:", JSON.stringify(error, null, 2));
         throw error;
       } finally {
         setIsLoading(false);
@@ -97,7 +97,7 @@ const useStockCheckDetail = () => {
 
         return response;
       } catch (error) {
-        console.error("Lỗi khi reset tracking stock check detail:", error);
+        console.log("Lỗi khi reset tracking stock check detail:", error);
         throw error;
       } finally {
         setIsLoading(false);
