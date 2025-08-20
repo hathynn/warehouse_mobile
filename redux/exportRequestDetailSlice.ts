@@ -13,12 +13,14 @@ interface ExportRequestDetailState {
     exportRequestId: string;
     itemCode: string;
   } | null;
+  scannedNewItemForMultiSelect: string | null;
 }
 
 const initialState: ExportRequestDetailState = {
   details: [],
   scanMappings: [],
   pendingModalNavigation: null,
+  scannedNewItemForMultiSelect: null,
 };
 
 const exportRequestDetailSlice = createSlice({
@@ -100,6 +102,10 @@ const exportRequestDetailSlice = createSlice({
     clearPendingModalNavigation: (state) => {
       state.pendingModalNavigation = null;
     },
+
+    setScannedNewItemForMultiSelect: (state, action: PayloadAction<string | null>) => {
+      state.scannedNewItemForMultiSelect = action.payload;
+    },
   },
 });
 
@@ -109,7 +115,8 @@ export const {
   setScanMappings,
   updateInventoryItemId,
   setPendingModalNavigation,
-  clearPendingModalNavigation
+  clearPendingModalNavigation,
+  setScannedNewItemForMultiSelect
 } = exportRequestDetailSlice.actions;
 
 export default exportRequestDetailSlice.reducer;

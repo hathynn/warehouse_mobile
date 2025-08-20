@@ -15,7 +15,7 @@ import { Camera, CameraView } from "expo-camera";
 import { router, useLocalSearchParams } from "expo-router";
 import { useSelector, useDispatch } from "react-redux";
 import { RootState } from "@/redux/store";
-import { setScanMappings } from "@/redux/exportRequestDetailSlice";
+import { setScanMappings, setScannedNewItemForMultiSelect } from "@/redux/exportRequestDetailSlice";
 import { Button } from "tamagui";
 import { useIsFocused } from "@react-navigation/native";
 import { Audio } from "expo-av";
@@ -36,6 +36,9 @@ export default function ScanQrManualScreen() {
   const [currentOriginalId, setCurrentOriginalId] = useState<string>(
     (originalFromRoute || "").toUpperCase()
   );
+
+  // Check if this is INTERNAL multi-select mode
+  const isInternalMultiSelect = originalFromRoute === 'INTERNAL_MULTI_SELECT';
 
 
 
@@ -254,11 +257,15 @@ export default function ScanQrManualScreen() {
       console.log("📦 Raw QR data:", data);
       console.log("🔍 inventoryItemId:", inventoryItemId);
 
-      // Manual change mode: Validate same itemId before allowing change
-      console.log(`📝 Manual change mode: Scanned new item ${inventoryItemId} to replace ${currentOriginalId}`);
+      if (isInternalMultiSelect) {
+        console.log(`📝 INTERNAL Multi-select mode: Scanned item ${inventoryItemId} to add to selection`);
+      } else {
+        // Manual change mode: Validate same itemId before allowing change
+        console.log(`📝 Manual change mode: Scanned new item ${inventoryItemId} to replace ${currentOriginalId}`);
 
-      if (currentOriginalId && inventoryItemId === currentOriginalId) {
-        throw new Error("Không thể đổi sang cùng một inventory item!");
+        if (currentOriginalId && inventoryItemId === currentOriginalId) {
+          throw new Error("Không thể đổi sang cùng một inventory item!");
+        }
       }
 
       // Get inventory item details to validate itemId
@@ -267,18 +274,44 @@ export default function ScanQrManualScreen() {
         throw new Error("Không tìm thấy inventory item với mã đã quét");
       }
 
-      // Validate that the new item has the same itemId (product type) as the original
-      // We need to get the original item's data to compare itemId
-      const originalItemData = await fetchInventoryItemById(currentOriginalId || '');
-      if (!originalItemData) {
-        throw new Error("Không tìm thấy thông tin inventory item gốc");
+      let originalItemData = null;
+      
+      if (!isInternalMultiSelect) {
+        // Validate that the new item has the same itemId (product type) as the original
+        // We need to get the original item's data to compare itemId
+        originalItemData = await fetchInventoryItemById(currentOriginalId || '');
+        if (!originalItemData) {
+          throw new Error("Không tìm thấy thông tin inventory item gốc");
+        }
+
+        if (inventoryItemData.itemId !== originalItemData.itemId) {
+          throw new Error("Chỉ cho phép đổi hàng tồn kho cùng 1 loại sản phẩm");
+        }
+
+        console.log(`✅ ItemId validation passed: ${inventoryItemData.itemId} === ${originalItemData.itemId}`);
+      } else {
+        console.log(`✅ INTERNAL multi-select: Skipping original item validation`);
       }
 
-      if (inventoryItemData.itemId !== originalItemData.itemId) {
-        throw new Error("Chỉ cho phép đổi hàng tồn kho cùng 1 loại sản phẩm");
+      // For INTERNAL multi-select mode, handle differently
+      if (isInternalMultiSelect) {
+        // Just validate the scanned item and return to export-inventory with the result
+        console.log(`✅ INTERNAL multi-select: Item ${inventoryItemId} validated, navigating back`);
+        
+        setScannedNewItemId(inventoryItemId);
+        setIsProcessing(false);
+        
+        // Store scanned item in Redux and navigate back
+        console.log(`🔄 INTERNAL multi-select: Storing scanned item ${inventoryItemId} in Redux`);
+        dispatch(setScannedNewItemForMultiSelect(inventoryItemId));
+        
+        setTimeout(() => {
+          console.log(`🔄 INTERNAL multi-select: Navigating back to show measurement modal`);
+          router.back();
+        }, 500);
+        
+        return; // Skip all the replacement logic
       }
-
-      console.log(`✅ ItemId validation passed: ${inventoryItemData.itemId} === ${originalItemData.itemId}`);
 
       // Validate inventory item status - không cho đổi nếu UNAVAILABLE hoặc NEED_LIQUID
       if (inventoryItemData.status === 'UNAVAILABLE' || inventoryItemData.status === 'NEED_LIQUID') {
