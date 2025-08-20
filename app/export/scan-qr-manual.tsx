@@ -128,6 +128,10 @@ export default function ScanQrManualScreen() {
     (state: RootState) => state.exportRequestDetail.scanMappings
   );
 
+  const savedExportRequestDetails = useSelector(
+    (state: RootState) => state.exportRequestDetail.details
+  );
+
   const [audioPlayer, setAudioPlayer] = useState<any>(null);
 
   useEffect(() => {
@@ -190,10 +194,7 @@ export default function ScanQrManualScreen() {
   }, [isFocused]);
 
   const handleBarCodeScanned = async ({ data }: { data: string }) => {
-    if (__DEV__) {
-      console.warn = () => { };
-      console.log = () => { };
-    }
+    // Removed console.log disabling in development mode to allow debugging
 
     const currentTime = Date.now();
     const rawInventoryItemId = data.trim().toUpperCase(); // Always convert to uppercase
@@ -620,8 +621,39 @@ export default function ScanQrManualScreen() {
       {/* Header */}
       <View style={styles.header}>
         <Button onPress={() => {
-          console.log(`🔙 Back pressed - navigating with openModal params for itemCode: ${itemIdForNavigation}`);
-          router.replace(`/export/export-detail/${id}?openModal=true&itemCode=${itemIdForNavigation}`);
+          const targetItemCode = itemIdForNavigation || '';
+          console.log(`🔙 QR Manual back pressed - targetItemCode: ${targetItemCode}`);
+          
+          if (targetItemCode) {
+            // Find the export request detail for this itemCode
+            const targetDetail = savedExportRequestDetails.find(
+              (detail: any) => detail.itemId === targetItemCode
+            );
+            
+            if (targetDetail) {
+              // Navigate directly to ExportInventory screen
+              console.log(`🔙 QR Manual - navigating to ExportInventory for itemCode: ${targetItemCode}`);
+              router.replace({
+                pathname: '/export/export-inventory/[id]',
+                params: {
+                  id: targetDetail.id,
+                  itemCode: targetItemCode,
+                  exportRequestDetailId: targetDetail.id,
+                  exportRequestId: id, // Add the exportRequestId for back navigation
+                  exportRequestType: exportRequest?.type || "",
+                  exportRequestStatus: exportRequest?.status || "",
+                },
+              });
+            } else {
+              // Fallback to export-detail if no matching detail found
+              console.log(`🔙 QR Manual - no matching detail found, navigating to export-detail: ${id}`);
+              router.replace(`/export/export-detail/${id}`);
+            }
+          } else {
+            // No itemCode, go back to export-detail
+            console.log(`🔙 QR Manual - no itemCode, navigating to export-detail: ${id}`);
+            router.replace(`/export/export-detail/${id}`);
+          }
         }}>←</Button>
         <Text style={styles.headerTitle}>Quét QR - Thay đổi thủ công</Text>
       </View>

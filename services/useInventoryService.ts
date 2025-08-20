@@ -105,33 +105,72 @@ const useInventoryService = () => {
   //   [callApi]
   // );
 
-  // Trong useInventoryService.js - THÊM SERVICE MỚI nếu cần reason
+  // Change manual 1 - 1 for SELLING
   const changeInventoryItemForExportDetail = useCallback(
     async (
       oldInventoryItemId: string,
       newInventoryItemId: string,
-      note: string
+      note?: string
     ) => {
       if (!oldInventoryItemId || !newInventoryItemId) return null;
+
+      try {
+        const requestBody = {
+          oldInventoryItemIds: [oldInventoryItemId],
+          newInventoryItemIds: [newInventoryItemId],
+          note: note ?? "",
+        };
+        
+        console.log("🔍 Manual change request body:", JSON.stringify(requestBody, null, 2));
+        
+        const response = await callApi(
+          "post",
+          "/inventory-item/change-inventory-item-export-detail",
+          requestBody,
+          undefined,
+          `✅ Manual change với lý do: ${oldInventoryItemId} -> ${newInventoryItemId}`
+        );
+
+        return response;
+      } catch (error: any) {
+        console.log("❌ Lỗi khi đổi inventory item selling export detail:", error);
+        console.log("❌ Error response:", error?.response?.data);
+        console.log("❌ Error status:", error?.response?.status);
+        console.log("❌ Error message:", error?.message);
+        throw error; // để component cha xử lý
+      }
+    },
+    [callApi]
+  );
+
+
+  // Change manual 1 - n or n - 1 for INTERNAL
+  const changeInventoryItemsForExportDetail = useCallback(
+    async (
+      oldInventoryItemIds: string[],
+      newInventoryItemIds: string[],
+      note?: string
+    ) => {
+      if (!oldInventoryItemIds?.length || !newInventoryItemIds?.length) return null;
+
+
 
       try {
         const response = await callApi(
           "post",
           "/inventory-item/change-inventory-item-export-detail",
           {
-            oldInventoryItemId,
-            newInventoryItemId,
-            note,
+            oldInventoryItemIds,
+            newInventoryItemIds,
+            note: note ?? ""
           },
           undefined,
-          `✅ Manual change với lý do: ${oldInventoryItemId} -> ${newInventoryItemId}`
+          `✅ Manual change (batch): ${oldInventoryItemIds.length} item(s)`
         );
 
         return response;
       } catch (error) {
-        console.log("❌ Lỗi khi đổi inventory item với lý do:", error);
-
-        // ✅ Throw error với message để component cha xử lý
+        console.log("Lỗi khi đổi inventory item internal export:", error);
         throw error;
       }
     },
@@ -152,7 +191,7 @@ const useInventoryService = () => {
 
         return response.content;
       } catch (error) {
-        console.log("❌ Lỗi khi lấy inventory item theo ID:", error);
+        console.log("Lỗi khi lấy inventory item theo ID:", error);
         return null;
       }
     },
@@ -182,27 +221,27 @@ const useInventoryService = () => {
   );
 
   const fetchInventoryItemByItemId = useCallback(
-  async (itemId: string): Promise<InventoryItemDetail[]> => {
-    if (!itemId) return [];
+    async (itemId: string): Promise<InventoryItemDetail[]> => {
+      if (!itemId) return [];
 
-    try {
-      const response = await callApi(
-        "get",
-        `/inventory-item/item/${itemId}`,
-        undefined,
-        undefined,
-        `✅ Lấy inventory items theo itemId: ${itemId}`
-      );
+      try {
+        const response = await callApi(
+          "get",
+          `/inventory-item/item/${itemId}`,
+          undefined,
+          undefined,
+          `✅ Lấy inventory items theo itemId: ${itemId}`
+        );
 
-      // API should return an array of inventory items for the given itemId
-      return response?.content || response || [];
-    } catch (error) {
-      console.log("❌ Lỗi khi lấy inventory items theo itemId:", error);
-      return [];
-    }
-  },
-  [callApi]
-);
+        // API should return an array of inventory items for the given itemId
+        return response?.content || response || [];
+      } catch (error) {
+        console.log("❌ Lỗi khi lấy inventory items theo itemId:", error);
+        return [];
+      }
+    },
+    [callApi]
+  );
 
   return {
     loading,
@@ -211,6 +250,7 @@ const useInventoryService = () => {
     fetchInventoryItemsByExportRequestDetailId,
     autoChangeInventoryItem,
     changeInventoryItemForExportDetail,
+    changeInventoryItemsForExportDetail,
     fetchInventoryItemById,
     updateInventoryItem,
     fetchInventoryItemByItemId
