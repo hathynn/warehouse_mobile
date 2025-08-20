@@ -56,6 +56,7 @@ const ExportRequestScreen: React.FC = () => {
     autoChangeInventoryItem,
     fetchInventoryItemByItemId,
     changeInventoryItemForExportDetail,
+    fetchInventoryItemById,
     loading: inventoryLoading,
   } = useInventoryService();
 
@@ -96,6 +97,112 @@ const ExportRequestScreen: React.FC = () => {
   const timeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
   const autoChangeInProgress = useRef(false);
   const pusherEventReceived = useRef(false); // Track if Pusher event was received
+
+  // For INTERNAL export measurement calculations
+  const [measurementTotals, setMeasurementTotals] = useState<{ [detailId: string]: number }>({});
+  const [itemUnits, setItemUnits] = useState<{ [itemId: string]: string }>({});
+
+  // Helper function to calculate total measurement value for a detail's inventory items
+  const calculateTotalMeasurementValue = async (detail: any) => {
+    console.log(`🔍 INTERNAL - Calculating for detail ${detail.id} with inventoryItemIds:`, detail.inventoryItemIds);
+
+    if (!detail.inventoryItemIds || detail.inventoryItemIds.length === 0) {
+      console.log(`🔍 INTERNAL - Detail ${detail.id} has no inventoryItemIds, returning 0`);
+      return 0;
+    }
+
+    try {
+      let total = 0;
+      for (const inventoryItemId of detail.inventoryItemIds) {
+        console.log(`🔍 INTERNAL - Fetching inventory item ${inventoryItemId}...`);
+        const inventoryItem = await fetchInventoryItemById(inventoryItemId);
+        console.log(`🔍 INTERNAL - Inventory item ${inventoryItemId}:`, {
+          measurementValue: inventoryItem?.measurementValue,
+          isTrackingForExport: inventoryItem?.isTrackingForExport,
+          status: inventoryItem?.status,
+          id: inventoryItem?.id
+        });
+
+        // For INTERNAL exports, only count items with isTrackingForExport = true
+        if (inventoryItem && inventoryItem.measurementValue && inventoryItem.isTrackingForExport === true) {
+          console.log(`✅ INTERNAL - Adding ${inventoryItem.measurementValue} to total`);
+          total += inventoryItem.measurementValue;
+        } else {
+          console.log(`❌ INTERNAL - Skipping item ${inventoryItemId} - measurementValue: ${inventoryItem?.measurementValue}, isTrackingForExport: ${inventoryItem?.isTrackingForExport}`);
+        }
+      }
+      console.log(`🔍 INTERNAL - Final total for detail ${detail.id}: ${total}`);
+      return total;
+    } catch (error) {
+      console.log(`❌ Error calculating measurement total for detail ${detail.id}:`, error);
+      return 0;
+    }
+  };
+
+  // Function to calculate measurement totals for all details (for INTERNAL exports)
+  const calculateAllMeasurementTotals = async (details: any[], forceExportType?: string) => {
+    const currentExportType = forceExportType || exportRequest?.type;
+    console.log(`📊 INTERNAL - calculateAllMeasurementTotals called with exportRequest.type:`, currentExportType);
+    console.log(`📊 INTERNAL - Details to process:`, details?.length);
+
+    if (currentExportType !== "INTERNAL") {
+      console.log(`📊 INTERNAL - Not INTERNAL export (${currentExportType}), skipping calculation`);
+      return;
+    }
+
+    const totals: { [detailId: string]: number } = {};
+    const units: { [itemId: string]: string } = {};
+
+    for (const detail of details) {
+      console.log(`📊 INTERNAL - Processing detail ${detail.id}...`);
+
+      // Get measurement total
+      const total = await calculateTotalMeasurementValue(detail);
+      totals[detail.id] = total;
+      console.log(`📊 INTERNAL - Set total for detail ${detail.id}: ${total}`);
+
+      // Get item unit information
+      try {
+        const itemInfo = await getItemDetailById(detail.itemId);
+        if (itemInfo?.measurementUnit) {
+          units[detail.itemId] = itemInfo.measurementUnit;
+          console.log(`📊 INTERNAL - Got unit for ${detail.itemId}: ${itemInfo.measurementUnit}`);
+        } else {
+          console.log(`📊 INTERNAL - No unit found for ${detail.itemId}`);
+        }
+      } catch (error) {
+        console.log(`❌ INTERNAL - Error getting unit for ${detail.itemId}:`, error);
+      }
+    }
+
+    console.log(`📊 INTERNAL export - Setting measurement totals:`, totals);
+    console.log(`📊 INTERNAL export - Setting item units:`, units);
+    setMeasurementTotals(totals);
+    setItemUnits(units);
+    console.log(`📊 INTERNAL export - State updated`);
+  };
+
+  // Helper function to get the expected measurement value for an exportRequestDetail
+  const getExpectedMeasurementValue = (detail: any) => {
+    if (exportRequest?.type !== "INTERNAL") {
+      return detail.quantity; // For non-INTERNAL exports, show normal quantity
+    }
+
+    // For INTERNAL exports, show the measurementValue of the exportRequestDetail
+    return detail.measurementValue || 0;
+  };
+
+  // Helper function to get the actual measurement total for an exportRequestDetail
+  const getActualMeasurementTotal = (detail: any) => {
+    if (exportRequest?.type !== "INTERNAL") {
+      return detail.actualQuantity; // For non-INTERNAL exports, show normal actualQuantity
+    }
+
+    // For INTERNAL exports, show the calculated measurement total
+    const total = measurementTotals[detail.id] || 0;
+    console.log(`🔍 DISPLAY - Getting actual total for detail ${detail.id}: ${total} (from measurementTotals:`, measurementTotals, `)`);
+    return total;
+  };
 
   const getExportTypeLabel = (type: string | undefined) => {
     switch (type) {
@@ -146,6 +253,10 @@ const ExportRequestScreen: React.FC = () => {
 
           dispatch(setExportRequestDetail(refreshedDetails));
 
+          // Calculate measurement totals for INTERNAL exports
+          console.log(`🚀 TRIGGER CHECK 1: exportRequest?.type = ${exportRequest?.type}, calling calculateAllMeasurementTotals`);
+          calculateAllMeasurementTotals(refreshedDetails);
+
           const mappings = refreshedDetails.flatMap((detail) =>
             (detail.inventoryItemIds ?? []).map((inventoryItemId: string) => ({
               inventoryItemId: inventoryItemId.trim().toLowerCase(),
@@ -176,6 +287,15 @@ const ExportRequestScreen: React.FC = () => {
         });
     }
   }, [exportRequest?.paperId, exportRequest?.status]);
+
+  // Trigger INTERNAL calculation when export request type is loaded
+  useEffect(() => {
+    console.log(`🎯 TRIGGER CHECK - Export request loaded: type = ${exportRequest?.type}, details = ${savedExportRequestDetails?.length}`);
+    if (exportRequest?.type === "INTERNAL" && savedExportRequestDetails?.length > 0) {
+      console.log(`🎯 TRIGGERING INTERNAL calculation for ${savedExportRequestDetails.length} details`);
+      calculateAllMeasurementTotals(savedExportRequestDetails, exportRequest.type);
+    }
+  }, [exportRequest?.type, savedExportRequestDetails?.length]);
 
   // Cleanup timeout when component unmounts
   useEffect(() => {
@@ -329,6 +449,11 @@ const ExportRequestScreen: React.FC = () => {
               }));
 
               dispatch(setExportRequestDetail(refreshedDetails));
+
+              // Calculate measurement totals for INTERNAL exports
+              if (exportRequest?.type === "INTERNAL") {
+                calculateAllMeasurementTotals(refreshedDetails);
+              }
 
               const mappings = refreshedDetails.flatMap((detail) =>
                 (detail.inventoryItemIds ?? []).map((inventoryItemId: string) => ({
@@ -657,6 +782,10 @@ const ExportRequestScreen: React.FC = () => {
           }));
           dispatch(setExportRequestDetail(refreshedDetails));
 
+          // Calculate measurement totals for INTERNAL exports
+          console.log(`🚀 TRIGGER CHECK 1: exportRequest?.type = ${exportRequest?.type}, calling calculateAllMeasurementTotals`);
+          calculateAllMeasurementTotals(refreshedDetails);
+
           // Update scan mappings
           const mappings = refreshedDetails.flatMap((detail) =>
             (detail.inventoryItemIds ?? []).map((inventoryItemId: string) => ({
@@ -783,6 +912,10 @@ const ExportRequestScreen: React.FC = () => {
                       inventoryItemIds: item.inventoryItemIds ?? [],
                     }));
                     dispatch(setExportRequestDetail(refreshedDetails));
+
+                    // Calculate measurement totals for INTERNAL exports
+                    console.log(`🚀 TRIGGER CHECK 2: exportRequest?.type = ${exportRequest?.type}, calling calculateAllMeasurementTotals`);
+                    calculateAllMeasurementTotals(refreshedDetails);
 
                     // Update scan mappings
                     const mappings = refreshedDetails.flatMap((detail) =>
@@ -1163,8 +1296,21 @@ const ExportRequestScreen: React.FC = () => {
         <View style={styles.tableContainer}>
           <View style={[styles.tableRow, styles.tableHeader]}>
             <Text style={[styles.cellCode]}>Mã hàng</Text>
-            <Text style={[styles.cellAlignRight]}>Cần</Text>
-            <Text style={[styles.cellAlignRight]}>Kiểm đếm</Text>
+
+
+            {exportRequest?.type === "INTERNAL" ? (
+              <>
+                <Text style={[styles.cellAlignRight]}>Cần</Text>
+                <Text style={[styles.cellAlignRight]}>Kiểm đếm</Text>
+                <Text style={[styles.cellAlignRight]}>Đơn vị</Text>
+              </>
+            ) : (
+              <>
+                <Text style={[styles.cellAlignRight]}>Cần</Text>
+                <Text style={[styles.cellAlignRight]}>Kiểm đếm</Text>
+              </>
+            )}
+
             {[
               ExportRequestStatus.IN_PROGRESS,
               ExportRequestStatus.COUNTED,
@@ -1203,11 +1349,16 @@ const ExportRequestScreen: React.FC = () => {
                   >
                     <Text style={[styles.cellCode]}>{detail.itemId}</Text>
                     <Text style={[styles.cellAlignRight]}>
-                      {detail.quantity}
+                      {getExpectedMeasurementValue(detail)}
                     </Text>
                     <Text style={[styles.cellAlignRight]}>
-                      {detail.actualQuantity}
+                      {getActualMeasurementTotal(detail)}
                     </Text>
+                    {exportRequest?.type === "INTERNAL" && (
+                      <Text style={[styles.cellAlignRight]}>
+                        {itemUnits[detail.itemId] || ""}
+                      </Text>
+                    )}
 
                     {[
                       ExportRequestStatus.IN_PROGRESS,
