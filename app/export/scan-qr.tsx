@@ -20,6 +20,7 @@ import { Button } from "tamagui";
 import { useIsFocused } from "@react-navigation/native";
 import { Audio } from "expo-av";
 import useExportRequestDetail from "@/services/useExportRequestDetailService";
+import useExportRequest from "@/services/useExportRequestService";
 
 
 export default function ScanQrScreen() {
@@ -35,6 +36,7 @@ export default function ScanQrScreen() {
   const [cameraKey, setCameraKey] = useState(0);
   const isFocused = useIsFocused();
   const { updateActualQuantity } = useExportRequestDetail();
+  const { exportRequest, fetchExportRequestById } = useExportRequest();
   const [scanningEnabled, setScanningEnabled] = useState(true);
 
   const [lastScannedProduct, setLastScannedProduct] = useState<any | null>(
@@ -71,7 +73,7 @@ export default function ScanQrScreen() {
     loadBeep();
 
     return () => {
-      audioPlayer?.unloadAsync();
+      // Cleanup will be handled by component unmount
     };
   }, []);
 
@@ -96,6 +98,13 @@ export default function ScanQrScreen() {
     })();
   }, []);
 
+  // Fetch export request data when component mounts
+  useEffect(() => {
+    if (id && exportRequest === null) {
+      fetchExportRequestById(id);
+    }
+  }, [id]);
+
   // Reset scanning state when screen is focused
   useEffect(() => {
     if (isFocused) {
@@ -111,10 +120,7 @@ export default function ScanQrScreen() {
   }, [isFocused]);
 
   const handleBarCodeScanned = async ({ data }: { data: string }) => {
-    if (__DEV__) {
-      console.warn = () => { };
-      console.log = () => { };
-    }
+    // Removed console.log disabling in development mode to allow debugging
 
     const currentTime = Date.now();
     const rawInventoryItemId = data.trim().toUpperCase(); // Always convert to uppercase
@@ -351,15 +357,39 @@ export default function ScanQrScreen() {
       {/* Header */}
       <View style={styles.header}>
         <Button onPress={() => {
-          console.log(`🔙 Back pressed - navigating with openModal params for itemCode: ${scannedItemCode}`);
-          router.replace({
-            pathname: '/export/export-detail/[id]',
-            params: {
-              id: String(id),
-              openModal: 'true',
-              itemCode: String(itemIdForNavigation || scannedItemCode || '')
-            },
-          });
+          const targetItemCode = itemIdForNavigation || scannedItemCode || '';
+          console.log(`🔙 QR Scan back pressed - targetItemCode: ${targetItemCode}`);
+          
+          if (targetItemCode) {
+            // Find the export request detail for this itemCode
+            const targetDetail = exportDetails.find(
+              (detail: any) => detail.itemId === targetItemCode
+            );
+            
+            if (targetDetail) {
+              // Navigate directly to ExportInventory screen
+              console.log(`🔙 QR Scan - navigating to ExportInventory for itemCode: ${targetItemCode}`);
+              router.replace({
+                pathname: '/export/export-inventory/[id]',
+                params: {
+                  id: targetDetail.id,
+                  itemCode: targetItemCode,
+                  exportRequestDetailId: targetDetail.id,
+                  exportRequestId: id, // Add the exportRequestId for back navigation
+                  exportRequestType: exportRequest?.type || "",
+                  exportRequestStatus: exportRequest?.status || "",
+                },
+              });
+            } else {
+              // Fallback to export-detail if no matching detail found
+              console.log(`🔙 QR Scan - no matching detail found, navigating to export-detail: ${id}`);
+              router.replace(`/export/export-detail/${id}`);
+            }
+          } else {
+            // No itemCode, go back to export-detail
+            console.log(`🔙 QR Scan - no itemCode, navigating to export-detail: ${id}`);
+            router.replace(`/export/export-detail/${id}`);
+          }
         }}>←</Button>
         <Text style={styles.headerTitle}>Quét QR</Text>
       </View>

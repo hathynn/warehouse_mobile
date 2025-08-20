@@ -71,12 +71,19 @@ const exportRequestDetailSlice = createSlice({
       // Cập nhật trong scanMappings
       const mappingIndex = state.scanMappings.findIndex(
         (mapping) => 
-          mapping.exportRequestDetailId === exportRequestDetailId && 
+          mapping.exportRequestDetailId.toString() === exportRequestDetailId.toString() && 
           mapping.inventoryItemId === oldInventoryItemId.trim().toLowerCase()
       );
       
+      console.log(`🔍 Redux - mappingIndex found: ${mappingIndex}`);
+      console.log(`🔍 Redux - Looking for: exportRequestDetailId=${exportRequestDetailId}, oldInventoryItemId=${oldInventoryItemId.trim().toLowerCase()}`);
+      
       if (mappingIndex !== -1) {
+        console.log(`🔄 Redux - Updating mapping at index ${mappingIndex}: ${oldInventoryItemId} → ${newInventoryItemId}`);
         state.scanMappings[mappingIndex].inventoryItemId = newInventoryItemId.trim().toLowerCase();
+        console.log(`✅ Redux - Updated successfully to: ${state.scanMappings[mappingIndex].inventoryItemId}`);
+      } else {
+        console.log(`❌ Redux - Mapping not found for update`);
       }
     },
 

@@ -30,7 +30,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import StyledButton from "@/components/ui/StyledButton";
 import StatusBadge from "@/components/StatusBadge";
 import { InventoryItem, InventoryItemStatus } from "@/types/inventoryItem.type";
-import InventoryModal from "@/components/InventoryModal"; // Import modal component
+// InventoryModal import removed - now using ExportInventoryScreen navigation
 import { PusherContext } from "@/contexts/pusher/PusherContext";
 
 interface RouteParams {
@@ -856,52 +856,25 @@ const ExportRequestScreen: React.FC = () => {
   };
 
 
-  // Handle row press to fetch inventory items and item details
+  // Handle row press to navigate to export inventory screen
   const handleRowPress = async (detail: any) => {
     if (!detail.id) {
       console.log("❌ Export request detail ID not found");
       return;
     }
 
-    // Simple state reset
-    setSelectedManualItem(null);
-    setChangeReason("");
-    setOriginalItemId("");
-    setManualSearchText("");
-    setAllInventoryItems([]);
-
-    setSelectedItemCode(detail.itemId || "");
-    setSelectedExportRequestDetailId(detail.id);
-    setInventoryModalVisible(true);
-    setSearchText("");
-    setItemUnitType("");
-
-    try {
-      console.log(
-        `🔍 Fetching inventory items for exportRequestDetailId: ${detail.id}`
-      );
-
-      const inventoryItems = await fetchInventoryItemsByExportRequestDetailId(
-        detail.id
-      );
-      setSelectedInventoryItems(inventoryItems);
-      console.log(`✅ Loaded ${inventoryItems.length} inventory items`);
-
-      if (detail.itemId) {
-        console.log(`🔍 Fetching item details for itemId: ${detail.itemId}`);
-        const itemDetails = await getItemDetailById(detail.itemId);
-        if (itemDetails && itemDetails.measurementUnit) {
-          setItemUnitType(itemDetails.measurementUnit);
-        } else {
-          setItemUnitType("đơn vị");
-          console.warn("⚠️ Không tìm thấy unitType cho item");
-        }
-      }
-    } catch (error) {
-      console.log("❌ Error fetching data:", error);
-      setSelectedInventoryItems([]);
-      setItemUnitType("đơn vị");
-    }
+    // Navigate to the new export inventory screen
+    router.push({
+      pathname: '/export/export-inventory/[id]',
+      params: {
+        id: detail.id,
+        itemCode: detail.itemId || "",
+        exportRequestDetailId: detail.id,
+        exportRequestId: id, // Truyền thêm exportRequestId để QR scan sử dụng
+        exportRequestType: exportRequest?.type || "",
+        exportRequestStatus: exportRequest?.status || "",
+      },
+    });
   };
 
   const handleCloseModal = () => {
@@ -1287,32 +1260,7 @@ const ExportRequestScreen: React.FC = () => {
       </ScrollView>
 
 
-      <InventoryModal
-        visible={inventoryModalVisible}
-        onClose={handleCloseModal}
-        selectedItemCode={selectedItemCode}
-        selectedInventoryItems={selectedInventoryItems}
-        itemUnitType={itemUnitType}
-        inventoryLoading={inventoryLoading}
-        searchText={searchText}
-        onSearchTextChange={setSearchText}
-        exportRequest={exportRequest}
-        exportRequestDetailId={selectedExportRequestDetailId}
-        autoChangeLoading={autoChangeLoading}
-        onAutoChange={handleAutoChange}
-        onManualChangePress={handleManualChangePress}
-        allInventoryItems={allInventoryItems}
-        manualSearchText={manualSearchText}
-        onManualSearchTextChange={setManualSearchText}
-        selectedManualItem={selectedManualItem}
-        changeReason={changeReason}
-        onChangeReasonChange={setChangeReason}
-        manualChangeLoading={manualChangeLoading}
-        manualDataLoading={manualDataLoading}
-        onManualItemSelect={handleManualItemSelect}
-        onManualChangeSubmit={handleManualChangeSubmit}
-        onQRScanPress={handleQRScanPress}
-      />
+      {/* InventoryModal is now replaced with ExportInventoryScreen navigation */}
 
       {renderLoadingOverlay()}
     </View>
