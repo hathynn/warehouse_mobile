@@ -200,7 +200,7 @@ const ExportRequestScreen: React.FC = () => {
 
     // For INTERNAL exports, show the calculated measurement total
     const total = measurementTotals[detail.id] || 0;
-    console.log(`🔍 DISPLAY - Getting actual total for detail ${detail.id}: ${total} (from measurementTotals:`, measurementTotals, `)`);
+    // console.log(`🔍 DISPLAY - Getting actual total for detail ${detail.id}: ${total} (from measurementTotals:`, measurementTotals, `)`);
     return total;
   };
 
