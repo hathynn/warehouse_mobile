@@ -2,11 +2,13 @@
 import { useState, useCallback } from "react";
 import useApiService from "./useApi";
 import { DepartmentDetail, DepartmentType } from "@/types/department.type";
+import { AccountContent } from "@/types/account.type";
 
 const useDepartment = () => {
   const { callApi, loading } = useApiService();
   const [departments, setDepartments] = useState<DepartmentType[]>([]);
   const [department, setDepartment] = useState<DepartmentDetail | null>(null);
+  const [accountsByDepartment, setAccountsByDepartment] = useState<AccountContent[]>([]);
 
   // Lấy danh sách phòng ban có phân trang
   const fetchDepartments = useCallback(
@@ -15,7 +17,7 @@ const useDepartment = () => {
         const response = await callApi(
           "get",
           "/department",
-          undefined, 
+          undefined,
           { params: { page, limit } }, // options
           `Lấy danh sách phòng ban (page: ${page}, limit: ${limit})`
         );
@@ -52,12 +54,37 @@ const useDepartment = () => {
     [callApi]
   );
 
+
+  const fetchAccountsByDepartment = useCallback(
+    async (departmentId: number | string) => {
+      if (!departmentId) return [];
+      try {
+        const response = await callApi(
+          "get",
+          `/account/by-department/${departmentId}`,
+          undefined,
+          undefined,
+          `Lấy danh sách account theo phòng ban ID: ${departmentId}`
+        );
+        const content = response?.content || [];
+        setAccountsByDepartment(content);
+        return content;
+      } catch (error) {
+        console.log(`Lỗi khi lấy account theo department ID ${departmentId}:`, error);
+        return [];
+      }
+    },
+    [callApi]
+  );
+
   return {
     loading,
     departments,
     department,
+    accountsByDepartment,
     fetchDepartments,
     fetchDepartmentById,
+    fetchAccountsByDepartment, 
   };
 };
 

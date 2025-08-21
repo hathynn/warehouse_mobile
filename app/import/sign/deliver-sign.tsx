@@ -9,6 +9,8 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
+  Modal,
+  FlatList,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Signature, { SignatureViewRef } from "react-native-signature-canvas";
@@ -37,6 +39,9 @@ const SignDeliverScreen = () => {
   const [signature, setSignature] = useState<string | null>(null);
   const [providerName, setProviderName] = useState<string>("");
   const [departmentInfo, setDepartmentInfo] = useState<{ responsiblePerson: string; departmentName: string } | null>(null);
+  const [departmentAccounts, setDepartmentAccounts] = useState<any[]>([]);
+  const [selectedAccountId, setSelectedAccountId] = useState<string>("");
+  const [showAccountModal, setShowAccountModal] = useState<boolean>(false);
   
   const selectProducts = (state: RootState) => state.product.products;
   const selectImportOrderId = (state: RootState) => state.paper.importOrderId;
@@ -53,7 +58,7 @@ const SignDeliverScreen = () => {
     fetchImportOrderById,
   } = useImportOrder();
 
-  const { fetchDepartmentById } = useDepartment();
+  const { fetchDepartmentById, fetchAccountsByDepartment } = useDepartment();
   const { fetchImportRequestById } = useImportRequest();
 
   const importOrderId = useSelector(
@@ -68,7 +73,7 @@ const SignDeliverScreen = () => {
       if (order) {
         console.log("🧾 Import Order:", order);
         
-        // If import type is RETURN, fetch department responsible
+        // If import type is RETURN, fetch accounts from department for selection
         if (order.importType === "RETURN" && order.importRequestId) {
           try {
             // Fetch import request to get department ID
@@ -77,20 +82,22 @@ const SignDeliverScreen = () => {
             // Check for departmentId in content
             const departmentId = importRequest?.content?.departmentId || importRequest?.departmentId;
             if (departmentId) {
-              // Fetch department to get responsible person
-              const department = await fetchDepartmentById(departmentId);
+              // Fetch accounts from department for picker selection
+              const accounts = await fetchAccountsByDepartment(departmentId);
+              console.log('🏢 Fetched accounts for department:', departmentId, accounts);
+              setDepartmentAccounts(accounts);
               
-              if (department?.departmentResponsible) {
-                setProviderName(department.departmentResponsible);
+              // Also fetch department info for display
+              const department = await fetchDepartmentById(departmentId);
+              if (department) {
                 setDepartmentInfo({
                   responsiblePerson: department.departmentResponsible,
                   departmentName: department.departmentName
                 });
-                dispatch(setPaperData({ signProviderName: department.departmentResponsible }));
               }
             }
           } catch (error) {
-            console.log("Lỗi khi lấy thông tin phòng ban:", error);
+            console.log("Lỗi khi lấy danh sách nhân viên phòng ban:", error);
           }
         }
       } else {
@@ -145,6 +152,22 @@ const SignDeliverScreen = () => {
     dispatch(setPaperData({ signProviderName: text }));
   };
 
+  const handleAccountSelection = (account: any) => {
+    console.log('🎯 Account selected:', account);
+    
+    setSelectedAccountId(account.id.toString());
+    setProviderName(account.fullName);
+    dispatch(setPaperData({ signProviderName: account.fullName }));
+    setShowAccountModal(false);
+    console.log('✅ Set provider name:', account.fullName);
+  };
+
+  const clearSelection = () => {
+    setSelectedAccountId("");
+    setProviderName("");
+    dispatch(setPaperData({ signProviderName: "" }));
+  };
+
   return (
     <KeyboardAvoidingView 
       style={{ flex: 1 }} 
@@ -187,7 +210,10 @@ const SignDeliverScreen = () => {
           scrollEnabled={scrollEnabled}
         >
           <View style={{ paddingHorizontal: 16, paddingTop: 16 }}>
-            <ProductListAccordion products={products} />
+            <ProductListAccordion 
+              products={products} 
+              isReturnType={importOrder?.importType === ImportType.RETURN}
+            />
           </View>
 
           <View style={{ padding: 16 }}>
@@ -294,8 +320,36 @@ const SignDeliverScreen = () => {
               </View>
             )}
 
-            {/* Display department info for RETURN or input for normal imports */}
-            {importOrder?.importType === ImportType.RETURN ? (
+            {/* RETURN type: picker to select person, ORDER type: input to enter name */}
+            {importOrder?.importType === ImportType.RETURN && departmentAccounts.length > 0 ? (
+              <View style={styles.selectionContainer}>
+                <View style={styles.selectionHeader}>
+                  <Text style={styles.selectionTitle}>Chọn người giao hàng</Text>
+                  {departmentInfo?.departmentName && (
+                    <Text style={styles.departmentSubtitle}>
+                      {departmentInfo.departmentName}
+                    </Text>
+                  )}
+                </View>
+                
+                <TouchableOpacity 
+                  style={styles.selectorButton}
+                  onPress={() => setShowAccountModal(true)}
+                >
+                  <Text style={styles.selectorButtonText}>
+                    {providerName || "-- Chọn người giao hàng --"}
+                  </Text>
+                  <Ionicons name="chevron-down" size={20} color="#666" />
+                </TouchableOpacity>
+                
+                {/* {selectedAccountId && providerName && (
+                  <View style={styles.selectedPersonContainer}>
+                    <Text style={styles.selectedPersonLabel}>Người được chọn:</Text>
+                    <Text style={styles.selectedPersonName}>{providerName}</Text>
+                  </View>
+                )} */}
+              </View>
+            ) : importOrder?.importType === ImportType.RETURN ? (
               <View style={{ marginTop: 15 }}>
                 <View style={styles.departmentInfoContainer}>
                   <Text style={styles.departmentLabel}>Người giao hàng:</Text>
@@ -307,7 +361,6 @@ const SignDeliverScreen = () => {
                       Phòng ban: {departmentInfo.departmentName}
                     </Text>
                   )}
-               
                 </View>
               </View>
             ) : (
@@ -376,6 +429,62 @@ const SignDeliverScreen = () => {
           </View>
         </ScrollView>
       </View>
+
+      {/* Modal for account selection */}
+      <Modal
+        visible={showAccountModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowAccountModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Chọn người giao hàng</Text>
+              <TouchableOpacity 
+                onPress={() => setShowAccountModal(false)}
+                style={styles.modalCloseButton}
+              >
+                <Ionicons name="close" size={24} color="#666" />
+              </TouchableOpacity>
+            </View>
+            
+            <FlatList
+              data={departmentAccounts}
+              keyExtractor={(item) => item.id.toString()}
+              renderItem={({ item }) => (
+                <TouchableOpacity 
+                  style={[
+                    styles.accountItem,
+                    selectedAccountId === item.id.toString() && styles.selectedAccountItem
+                  ]}
+                  onPress={() => handleAccountSelection(item)}
+                >
+                  <Text style={[
+                    styles.accountItemText,
+                    selectedAccountId === item.id.toString() && styles.selectedAccountItemText
+                  ]}>
+                    {item.fullName}
+                  </Text>
+                  {selectedAccountId === item.id.toString() && (
+                    <Ionicons name="checkmark" size={20} color="#1677ff" />
+                  )}
+                </TouchableOpacity>
+              )}
+              showsVerticalScrollIndicator={false}
+            />
+            
+            {selectedAccountId && (
+              <TouchableOpacity 
+                style={styles.clearButton}
+                onPress={clearSelection}
+              >
+                <Text style={styles.clearButtonText}>Bỏ chọn</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 };
@@ -501,6 +610,140 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#555",
     marginBottom: 4,
+  },
+  // Enhanced selection styles
+  selectionContainer: {
+    marginTop: 20,
+    backgroundColor: "white",
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "#e1e5e9",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  selectionHeader: {
+    marginBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f0f0f0",
+    paddingBottom: 12,
+  },
+  selectionTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#333",
+    marginBottom: 4,
+  },
+  departmentSubtitle: {
+    fontSize: 14,
+    color: "#1677ff",
+    fontWeight: "500",
+  },
+  // Selector button styles
+  selectorButton: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    borderWidth: 1.5,
+    borderColor: "#d1d5db",
+    borderRadius: 10,
+    backgroundColor: "#fafafa",
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    marginBottom: 12,
+  },
+  selectorButtonText: {
+    fontSize: 16,
+    color: "#374151",
+    flex: 1,
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "flex-end",
+  },
+  modalContent: {
+    backgroundColor: "white",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingTop: 20,
+    maxHeight: "70%",
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f0f0f0",
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#333",
+  },
+  modalCloseButton: {
+    padding: 4,
+  },
+  accountItem: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f5f5f5",
+  },
+  selectedAccountItem: {
+    backgroundColor: "#f0f9ff",
+  },
+  accountItemText: {
+    fontSize: 16,
+    color: "#333",
+    flex: 1,
+  },
+  selectedAccountItemText: {
+    color: "#1677ff",
+    fontWeight: "600",
+  },
+  clearButton: {
+    margin: 20,
+    paddingVertical: 12,
+    backgroundColor: "#f5f5f5",
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  clearButtonText: {
+    fontSize: 16,
+    color: "#666",
+    fontWeight: "500",
+  },
+  selectedPersonContainer: {
+    backgroundColor: "#f0f9ff",
+    borderRadius: 8,
+    padding: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: "#1677ff",
+    marginTop: 8,
+  },
+  selectedPersonLabel: {
+    fontSize: 14,
+    color: "#6b7280",
+    marginBottom: 4,
+    fontWeight: "500",
+  },
+  selectedPersonName: {
+    fontSize: 16,
+    color: "#1677ff",
+    fontWeight: "600",
   },
 });
 

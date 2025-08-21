@@ -128,7 +128,10 @@ const usePaperService = () => {
       console.log("❌ Error response:", error.response?.data);
       console.log("❌ Error status:", error.response?.status);
       console.log("❌ Error message:", error.message);
-      return null;
+      
+      // Throw error với message từ API response để component có thể catch
+      const apiErrorMessage = error.response?.data?.message || error.message || "Không thể tạo phiếu";
+      throw new Error(apiErrorMessage);
     }
   }, []);
 
