@@ -205,28 +205,31 @@ const SignReceiveScreen = () => {
       const response = await createPaper(paperPayload);
       
       console.log("📋 Create paper response:", response);
-      if (response) {
-        console.log("✅ Tạo phiếu thành công");
+      console.log("✅ Tạo phiếu thành công");
 
-        const statusUpdated = await updateExportRequestStatus(
-          exportRequestId,
-          "COMPLETED"
-        );
-        console.log("2", statusUpdated);
-        if (statusUpdated) {
-          console.log("✅ Đã cập nhật trạng thái COMPLETED");
-        } else {
-          console.warn("⚠️ Không thể cập nhật trạng thái");
-        }
-
-        router.push("/(tabs)/export");
+      const statusUpdated = await updateExportRequestStatus(
+        exportRequestId,
+        "COMPLETED"
+      );
+      console.log("2", statusUpdated);
+      if (statusUpdated) {
+        console.log("✅ Đã cập nhật trạng thái COMPLETED");
       } else {
-        console.log("❌ CreatePaper returned null - check API logs for error details");
-        alert("Lỗi: Không thể tạo phiếu. Vui lòng kiểm tra kết nối mạng và thử lại.");
+        console.warn("⚠️ Không thể cập nhật trạng thái");
       }
+
+      router.push("/(tabs)/export");
     } catch (err) {
       console.log("❌ Exception in handleConfirm:", err);
-      alert(`Lỗi: ${err.message || "Không thể tạo phiếu"}`);
+      
+      // Check for specific error message and customize
+      let errorMessage = err.message || "Không thể tạo phiếu";
+      
+      if (errorMessage.includes("Cannot confirm export request before export date received")) {
+        errorMessage = "Không thể hoàn thành phiếu nhập trước ngày dự kiến xuất hàng";
+      }
+      
+      alert(`Lỗi: ${errorMessage}`);
     } finally {
       setIsLoading(false);
     }

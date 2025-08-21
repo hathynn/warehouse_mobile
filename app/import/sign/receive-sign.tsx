@@ -306,7 +306,10 @@ const SignReceiveScreen = () => {
 
         <View style={{ paddingHorizontal: 16, paddingTop: 16 }}>
           {/* <Label>Xác nhận thông tin sản phẩm</Label> */}
-          <ProductListAccordion products={products} />
+          <ProductListAccordion 
+            products={products} 
+            isReturnType={importOrder?.importType === "RETURN"}
+          />
         </View>
 
         <View style={{ padding: 16 }}>

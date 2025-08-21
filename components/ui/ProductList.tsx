@@ -27,6 +27,7 @@ type Props = {
   style?: any;
   scrollEnabled?: boolean;
   onItemPress?: (product: Product) => void;
+  isReturnType?: boolean; // RETURN type chỉ hiện actual, không so sánh với expect
 };
 
 const SimpleProductList: React.FC<Props> = ({
@@ -34,6 +35,7 @@ const SimpleProductList: React.FC<Props> = ({
   style,
   scrollEnabled = true,
   onItemPress,
+  isReturnType = false,
 }) => {
   const { getItemDetailById } = useItemService();
   const { fetchInventoryItemById } = useInventoryService();
@@ -131,8 +133,11 @@ const SimpleProductList: React.FC<Props> = ({
 
   const renderItem = ({ item: product }: { item: Product }) => {
     const { actual, expect, unit, displayName } = getDisplayValues(product);
-    const { name, color } = getStatusIcon(actual, expect);
-    const statusBackground = getStatusBackground(actual, expect);
+    
+    // For RETURN type, don't show status icons or backgrounds
+    const showStatus = !isReturnType;
+    const { name, color } = showStatus ? getStatusIcon(actual, expect) : { name: "checkmark-circle" as const, color: "#4CAF50" };
+    const statusBackground = showStatus ? getStatusBackground(actual, expect) : "#F9F9F9";
 
     return (
       <TouchableOpacity
@@ -160,10 +165,14 @@ const SimpleProductList: React.FC<Props> = ({
               { backgroundColor: statusBackground },
             ]}
           >
-            <Text style={[styles.quantity, { color }]}>
-              {actual}{unit}
-              <Text style={styles.slash}>/</Text>
-              <Text style={styles.expected}>{expect}{unit}</Text>
+            <Text style={[styles.quantity, { color: isReturnType ? "#4CAF50" : color }]}>
+              {actual}{isReturnType ? unit : ''}
+              {!isReturnType && (
+                <>
+                  <Text style={styles.slash}>/</Text>
+                  <Text style={styles.expected}>{expect}</Text>
+                </>
+              )}
             </Text>
           </View>
         </View>
@@ -191,8 +200,11 @@ const SimpleProductList: React.FC<Props> = ({
           ) : (
             products.map((product) => {
               const { actual, expect, unit, displayName } = getDisplayValues(product);
-              const { name, color } = getStatusIcon(actual, expect);
-              const statusBackground = getStatusBackground(actual, expect);
+              
+              // For RETURN type, don't show status icons or backgrounds
+              const showStatus = !isReturnType;
+              const { name, color } = showStatus ? getStatusIcon(actual, expect) : { name: "checkmark-circle" as const, color: "#4CAF50" };
+              const statusBackground = showStatus ? getStatusBackground(actual, expect) : "#F9F9F9";
 
               return (
                 <TouchableOpacity
@@ -221,10 +233,14 @@ const SimpleProductList: React.FC<Props> = ({
                         { backgroundColor: statusBackground },
                       ]}
                     >
-                      <Text style={[styles.quantity, { color }]}>
-                        {actual}
-                        <Text>/</Text>
-                        <Text>{expect} {unit}</Text>
+                      <Text style={[styles.quantity, { color: isReturnType ? "#4CAF50" : color }]}>
+                        {actual}{isReturnType ? ` ${unit}` : ''}
+                        {!isReturnType && (
+                          <>
+                            <Text>/</Text>
+                            <Text>{expect}</Text>
+                          </>
+                        )}
                       </Text>
                     </View>
                   </View>

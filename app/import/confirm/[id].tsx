@@ -119,7 +119,9 @@ const Confirm = () => {
   );
   const [inputValue, setInputValue] = useState("");
 
-  const handleUpdateQuantity = (productId: string) => {
+  const handleUpdateQuantity = (productId: string, inventoryItemId?: string | null) => {
+    // For ORDER imports with measurement values, use productId
+    // For normal imports, also use productId
     setSelectedProductId(productId);
     setInputValue(""); // reset input
     setModalVisible(true);
@@ -131,7 +133,7 @@ const Confirm = () => {
       const selectedProduct = filteredProducts.find(p => p.id === selectedProductId);
       
       if (selectedProduct?.inventoryItemId) {
-        // Validate measurement value for inventory items
+        // Has inventoryItemId - this is ORDER import with measurement value
         const maxMeasurementValue = getMeasurementValue(selectedProduct);
         
         if (maxMeasurementValue > 0 && value > maxMeasurementValue) {
@@ -139,15 +141,15 @@ const Confirm = () => {
           return;
         }
         
-        // Cập nhật giá trị đo lường cho inventory item
+        // Update measurement value for ORDER import (use productId, not inventoryItemId specific)
         dispatch(updateActual({ 
-          id: selectedProductId, 
-          actualMeasurementValue: value 
+          id: selectedProduct.id, 
+          actualMeasurementValue: value
         }));
       } else {
-        // Cập nhật số lượng cho sản phẩm thông thường
+        // Normal import without measurement - update quantity only
         dispatch(updateActual({ 
-          id: selectedProductId, 
+          id: selectedProduct?.id, 
           actual: Math.floor(value) 
         }));
       }
@@ -326,7 +328,7 @@ const Confirm = () => {
                         {getUnit(product) && ` ${getUnit(product)}`}
                       </Text>
                     </View>
-                    <Button onPress={() => handleUpdateQuantity(product.id)}>
+                    <Button onPress={() => handleUpdateQuantity(product.id, product.inventoryItemId)}>
                       Cập nhật giá trị đo lường
                     </Button>
                   </>
@@ -353,7 +355,7 @@ const Confirm = () => {
                       <Text>Số lượng thực tế</Text>
                       <Text>{product.actual}</Text>
                     </View>
-                    <Button onPress={() => handleUpdateQuantity(product.id)}>
+                    <Button onPress={() => handleUpdateQuantity(product.id, product.inventoryItemId)}>
                       Cập nhật số lượng
                     </Button>
                   </>

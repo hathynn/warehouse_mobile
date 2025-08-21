@@ -107,8 +107,14 @@ const ConfirmManual = () => {
     return 0;
   };
 
-  const handleUpdateQuantity = (productId: string) => {
-    setSelectedProductId(productId);
+  const handleUpdateQuantity = (productId: string, inventoryItemId?: string | null) => {
+    // For RETURN imports with measurement values, use inventoryItemId
+    // For ORDER/normal imports, use productId
+    if (isReturnImport && inventoryItemId) {
+      setSelectedProductId(inventoryItemId);
+    } else {
+      setSelectedProductId(productId);
+    }
     setInputValue("");
     setModalVisible(true);
   };
@@ -117,34 +123,54 @@ const ConfirmManual = () => {
     const value = parseFloat(inputValue);
     if (!isNaN(value) && selectedProductId !== null) {
       if (isReturnImport) {
-        // Validate measurement value for RETURN imports
-        const currentProduct = products.find(p => p.id === selectedProductId);
-        if (currentProduct) {
-          const maxMeasurementValue = getMeasurementValue(currentProduct);
+        // For RETURN imports, selectedProductId is inventoryItemId
+        const selectedProduct = products.find(p => p.inventoryItemId === selectedProductId);
+        if (selectedProduct) {
+          const maxMeasurementValue = getMeasurementValue(selectedProduct);
           
           if (maxMeasurementValue > 0 && value > maxMeasurementValue) {
-            alert(`Giá trị đo lường không được vượt quá ${maxMeasurementValue}${getUnit(currentProduct) ? ` ${getUnit(currentProduct)}` : ''}`);
+            alert(`Giá trị đo lường không được vượt quá ${maxMeasurementValue}${getUnit(selectedProduct) ? ` ${getUnit(selectedProduct)}` : ''}`);
             return;
           }
         }
         
-        // For RETURN imports, update measurement value only
-        // For ORDER imports, also update actual quantity
+        // Update measurement value for specific inventory item
         const updatePayload: any = {
-          id: selectedProductId,
-          actualMeasurementValue: value
+          id: selectedProduct?.id,
+          actualMeasurementValue: value,
+          inventoryItemId: selectedProduct?.inventoryItemId
         };
-        
-        // If ORDER import and measurement value > 0, automatically increase actual quantity by 1
-        if (!isReturnImport && value > 0) {
-          const currentProduct = products.find(p => p.id === selectedProductId);
-          updatePayload.actual = (currentProduct?.actual || 0) + 1;
-        }
         
         dispatch(updateActual(updatePayload));
       } else {
-        // For normal imports, update quantity as before
-        dispatch(updateActual({ id: selectedProductId, actual: Math.floor(value) }));
+        // For ORDER/normal imports, selectedProductId is productId
+        const selectedProduct = products.find(p => p.id === selectedProductId);
+        
+        if (selectedProduct?.inventoryItemId) {
+          // If has inventoryItemId, it's ORDER import - update measurement value and possibly quantity
+          const maxMeasurementValue = getMeasurementValue(selectedProduct);
+          
+          if (maxMeasurementValue > 0 && value > maxMeasurementValue) {
+            alert(`Giá trị đo lường không được vượt quá ${maxMeasurementValue}${getUnit(selectedProduct) ? ` ${getUnit(selectedProduct)}` : ''}`);
+            return;
+          }
+          
+          const updatePayload: any = {
+            id: selectedProduct.id,
+            actualMeasurementValue: value,
+            inventoryItemId: selectedProduct.inventoryItemId
+          };
+          
+          // For ORDER import, automatically increase actual quantity by 1 when measurement value > 0
+          if (value > 0) {
+            updatePayload.actual = (selectedProduct.actual || 0) + 1;
+          }
+          
+          dispatch(updateActual(updatePayload));
+        } else {
+          // Normal import without measurement - update quantity only
+          dispatch(updateActual({ id: selectedProduct?.id, actual: Math.floor(value) }));
+        }
       }
     }
     setModalVisible(false);
@@ -304,7 +330,7 @@ const ConfirmManual = () => {
                         {getUnit(product) && ` ${getUnit(product)}`}
                       </Text>
                     </View>
-                    <Button onPress={() => handleUpdateQuantity(product.id)}>
+                    <Button onPress={() => handleUpdateQuantity(product.id, product.inventoryItemId)}>
                       Cập nhật giá trị đo lường
                     </Button>
                   </>
@@ -331,7 +357,7 @@ const ConfirmManual = () => {
                       <Text>Số lượng thực tế</Text>
                       <Text>{product.actual}</Text>
                     </View>
-                    <Button onPress={() => handleUpdateQuantity(product.id)}>
+                    <Button onPress={() => handleUpdateQuantity(product.id, product.inventoryItemId)}>
                       Cập nhật số lượng
                     </Button>
                   </>
@@ -400,7 +426,7 @@ const ConfirmManual = () => {
                   ⚠️ Giá trị đo lường không được vượt quá{' '}
                   <Text className="font-bold">
                     {(() => {
-                      const selectedProduct = products.find(p => p.id === selectedProductId);
+                      const selectedProduct = products.find(p => p.inventoryItemId === selectedProductId);
                       if (selectedProduct) {
                         const measurementValue = getMeasurementValue(selectedProduct);
                         const unit = getUnit(selectedProduct);
