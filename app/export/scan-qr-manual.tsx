@@ -322,7 +322,7 @@ export default function ScanQrManualScreen() {
 
       // Validate measurement for replacement when new item has lower measurement value (INTERNAL exports only)
       if (exportRequest?.type === "INTERNAL" && exportDetailIdNum && (inventoryItemData.measurementValue || 0) < (originalItemData.measurementValue || 0)) {
-        console.log(`🔍 INTERNAL export - Validating measurement replacement: new ${inventoryItemData.measurementValue} < old ${originalItemData.measurementValue}`);
+        // console.log(`🔍 INTERNAL export - Validating measurement replacement: new ${inventoryItemData.measurementValue} < old ${originalItemData.measurementValue}`);
         
         const validation = await validateMeasurementForReplacement(
           currentOriginalId,
@@ -331,7 +331,7 @@ export default function ScanQrManualScreen() {
         );
         
         if (!validation.isValid) {
-          console.log(`❌ INTERNAL export - Measurement replacement validation failed: total ${validation.totalAfterChange} < required ${validation.requiredValue}`);
+          // console.log(`❌ INTERNAL export - Measurement replacement validation failed: total ${validation.totalAfterChange} < required ${validation.requiredValue}`);
           
           // Show error message and force re-scan
           setErrorMessage("Giá trị đo lường của sản phẩm tồn kho không phù hợp với giá trị xuất của sản phẩm này");
@@ -345,7 +345,7 @@ export default function ScanQrManualScreen() {
 
           return; // Stop processing and force re-scan
         }
-        console.log(`✅ INTERNAL export - Measurement replacement validation passed: total ${validation.totalAfterChange} >= required ${validation.requiredValue}`);
+        // console.log(`✅ INTERNAL export - Measurement replacement validation passed: total ${validation.totalAfterChange} >= required ${validation.requiredValue}`);
       }
 
       // Check for SELLING export type with mismatched measurement value (both exceeded and insufficient)

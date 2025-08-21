@@ -65,7 +65,7 @@ const ExportInventoryScreen: React.FC = () => {
   });
 
   // Debug INTERNAL multi-selection check
-  console.log(`🔍 INTERNAL check - exportRequestType: "${exportRequestType}", is INTERNAL: ${exportRequestType === "INTERNAL"}`);
+  // console.log(`🔍 INTERNAL check - exportRequestType: "${exportRequestType}", is INTERNAL: ${exportRequestType === "INTERNAL"}`);
 
   // Get current scan mappings from Redux store for debugging
   const scanMappings = useSelector(
@@ -122,7 +122,7 @@ const ExportInventoryScreen: React.FC = () => {
   } = useInventoryService();
 
   const { getItemDetailById } = useItemService();
-  const { fetchExportRequestDetailById, resetTracking } = useExportRequestDetail();
+  const { fetchExportRequestDetailById, resetTracking, updateActualQuantity } = useExportRequestDetail();
 
   // Validation function for measurement replacement
   const validateMeasurementForReplacement = async (
@@ -215,6 +215,21 @@ const ExportInventoryScreen: React.FC = () => {
         try {
           const inventoryItem = await fetchInventoryItemById(scannedNewItemFromRedux);
           if (inventoryItem) {
+            // ✅ VALIDATION: Check if scanned item has same itemId as selected old items
+            if (selectedOldItems.length > 0) {
+              const oldItemId = selectedOldItems[0].itemId;
+              if (inventoryItem.itemId !== oldItemId) {
+                Alert.alert(
+                  "Không thể chọn", 
+                  `Sản phẩm được quét (${inventoryItem.itemCode || inventoryItem.itemId}) không cùng loại với sản phẩm cần thay thế (${selectedOldItems[0].itemCode || oldItemId}). Vui lòng quét sản phẩm cùng loại.`
+                );
+                // Clear the Redux state
+                dispatch(setScannedNewItemForMultiSelect(null));
+                return;
+              }
+              console.log(`✅ INTERNAL QR - ItemId validation passed: ${inventoryItem.itemId} matches ${oldItemId}`);
+            }
+            
             console.log(`📊 Adding scanned item to measurement modal: ${scannedNewItemFromRedux}`);
             
             // Add to scanned items array for modal (avoid duplicates)
@@ -244,7 +259,7 @@ const ExportInventoryScreen: React.FC = () => {
       
       showMeasurementModalForScannedItem();
     }
-  }, [scannedNewItemFromRedux, exportRequestType, multiSelectMode]);
+  }, [scannedNewItemFromRedux, exportRequestType, multiSelectMode, selectedOldItems]);
 
   // Function to refresh inventory data
   const refreshInventoryData = async () => {
@@ -512,6 +527,19 @@ const ExportInventoryScreen: React.FC = () => {
         console.log(`🔄 INTERNAL - Added old item to selection: ${item.id}`);
       }
     } else if (multiSelectMode === 'new') {
+      // ✅ VALIDATION: Check if new item has same itemId as selected old items
+      if (selectedOldItems.length > 0) {
+        const oldItemId = selectedOldItems[0].itemId; // All old items should have same itemId
+        if (item.itemId !== oldItemId) {
+          Alert.alert(
+            "Không thể chọn", 
+            `Sản phẩm được chọn (${item.itemCode || item.itemId}) không cùng loại với sản phẩm cần thay thế (${selectedOldItems[0].itemCode || oldItemId}). Vui lòng chọn sản phẩm cùng loại.`
+          );
+          return; // Stop processing and don't select the item
+        }
+        console.log(`✅ INTERNAL - ItemId validation passed: ${item.itemId} matches ${oldItemId}`);
+      }
+      
       // Selecting new items as replacements
       const isAlreadySelected = selectedNewItems.some(selected => selected.id === item.id);
       
@@ -616,39 +644,81 @@ const ExportInventoryScreen: React.FC = () => {
         reason: changeReason.trim()
       });
 
-      // Reset tracking for all old items first
+      // ✅ 1) RESET TRACKING CHO TẤT CẢ OLD ITEMS TRƯỚC KHI CHANGE
+      const itemsWereTracking: { [itemId: string]: boolean } = {};
+      
       for (const oldItem of selectedOldItems) {
         if (oldItem.isTrackingForExport && exportRequestDetailId) {
           try {
-            console.log(`🔄 INTERNAL - Reset tracking for old item: ${oldItem.id}`);
+            // console.log(`🔄 INTERNAL - Reset tracking trước khi manual change cho item: ${oldItem.id}`);
+            itemsWereTracking[oldItem.id] = true; // Lưu trạng thái tracking
+            
             const ok = await resetTracking(exportRequestDetailId.toString(), oldItem.id);
-            if (!ok) throw new Error(`Không thể reset tracking cho item ${oldItem.id}`);
-            console.log(`✅ INTERNAL - Reset tracking successful for: ${oldItem.id}`);
-          } catch (e) {
-            console.log(`❌ INTERNAL - Reset tracking error for ${oldItem.id}:`, e);
-            throw new Error(`Không thể huỷ tracking mã cũ ${oldItem.id}. Vui lòng thử lại!`);
+            if (!ok) {
+              throw new Error(`Reset tracking returned false for item ${oldItem.id}`);
+            }
+            // console.log(`✅ INTERNAL - Reset tracking successful for: ${oldItem.id}`);
+          } catch (e: any) {
+            const errorMsg = e?.response?.data?.message || e?.message || 'Unknown error';
+            console.log(`❌ INTERNAL - Reset tracking error for ${oldItem.id}: ${errorMsg}`);
+            
+            // If error indicates item is not being tracked, it's actually okay
+            if (errorMsg.includes('is not being tracked') || 
+                errorMsg.includes('not stable for export') ||
+                errorMsg.includes('is not stable for export request detail')) {
+              // console.log(`ℹ️ INTERNAL - Item ${oldItem.id} already not associated with export request detail, considering as success`);
+              continue;
+            }
+            
+            throw new Error(`Không thể reset tracking cho item ${oldItem.id}. ${errorMsg}`);
           }
+        } else {
+          // console.log(`ℹ️ INTERNAL - Item ${oldItem.id} is not being tracked, skipping reset`);
+          itemsWereTracking[oldItem.id] = false;
         }
       }
 
-      // Call the multi-item change API
-      const result = await changeInventoryItemsForExportDetail(
-        selectedOldItems.map(item => item.id),
-        selectedNewItems.map(item => item.id),
-        changeReason.trim()
-      );
+      // ✅ 2) SAU KHI RESET TRACKING THÀNH CÔNG, MỚI THỰC HIỆN MANUAL CHANGE
+      let manualChangeResult: any;
+      try {
+        manualChangeResult = await changeInventoryItemsForExportDetail(
+          selectedOldItems.map(item => item.id),
+          selectedNewItems.map(item => item.id),
+          changeReason.trim()
+        );
 
-      if (!result) {
-        throw new Error("API call failed");
+        if (!manualChangeResult) {
+          throw new Error("API call returned null/undefined");
+        }
+
+        console.log("✅ INTERNAL manual change API successful");
+      } catch (changeError) {
+        // ❌ Nếu manual change thất bại sau khi đã reset tracking, khôi phục tracking cho các items đã bị reset
+        // console.log("🔄 INTERNAL manual change thất bại, đang khôi phục tracking...");
+        
+        for (const oldItem of selectedOldItems) {
+          if (itemsWereTracking[oldItem.id] && exportRequestDetailId) {
+            try {
+              await updateActualQuantity(exportRequestDetailId.toString(), oldItem.id);
+              console.log(`✅ INTERNAL - Đã khôi phục tracking cho item: ${oldItem.id}`);
+            } catch (updateError) {
+              console.log(`❌ INTERNAL - Không thể khôi phục tracking cho item ${oldItem.id}:`, updateError);
+            }
+          }
+        }
+        
+        throw changeError; // Re-throw để xử lý lỗi bình thường
       }
 
-      console.log("✅ INTERNAL manual change successful");
-
       // Update scan mappings for all changed items
-      for (const oldItem of selectedOldItems) {
-        // Find corresponding new item (for now, map 1:1 or first available)
-        const newItem = selectedNewItems[0]; // Simplified mapping
-        if (newItem && exportRequestDetailId) {
+      if (exportRequestDetailId && selectedNewItems.length > 0) {
+        // console.log(`🔄 INTERNAL - Updating scan mappings for ${selectedOldItems.length} old → ${selectedNewItems.length} new items`);
+        
+        // For each old item, try to find existing mapping and update it
+        for (let i = 0; i < selectedOldItems.length; i++) {
+          const oldItem = selectedOldItems[i];
+          const newItem = selectedNewItems[i] || selectedNewItems[0]; // Use first new item if not enough new items
+          
           const existingMapping = scanMappings.find(
             mapping => mapping.exportRequestDetailId.toString() === exportRequestDetailId.toString() && 
                        mapping.inventoryItemId.toLowerCase() === oldItem.id.toLowerCase()
@@ -660,7 +730,9 @@ const ExportInventoryScreen: React.FC = () => {
               oldInventoryItemId: oldItem.id,
               newInventoryItemId: newItem.id
             }));
-            console.log(`✅ INTERNAL - Updated scan mapping: ${oldItem.id} → ${newItem.id}`);
+            // console.log(`✅ INTERNAL - Updated scan mapping ${i + 1}: ${oldItem.id} → ${newItem.id}`);
+          } else {
+            // console.log(`ℹ️ INTERNAL - No existing mapping found for old item: ${oldItem.id}`);
           }
         }
       }
@@ -695,13 +767,23 @@ const ExportInventoryScreen: React.FC = () => {
       return handleInternalItemSelect(item);
     }
 
-    // Original logic for other export types
-    // Validate measurement for replacement when new item has lower measurement value (INTERNAL exports only)
-    if (exportRequestType === "INTERNAL" && exportRequestDetailId && originalItemId) {
-      // First, get original item to compare measurement values
+    // ✅ VALIDATION: Check if new item has same itemId as original item + measurement validation
+    if (originalItemId) {
       try {
         const originalItem = await fetchInventoryItemById(originalItemId);
-        if (originalItem && (item.measurementValue || 0) < (originalItem.measurementValue || 0)) {
+        
+        // ✅ 1) Check itemId matching first
+        if (originalItem && originalItem.itemId !== item.itemId) {
+          Alert.alert(
+            "Không thể chọn", 
+            `Sản phẩm được chọn (${item.itemCode || item.itemId}) không cùng loại với sản phẩm gốc (${originalItem.itemCode || originalItem.itemId}). Vui lòng chọn sản phẩm cùng loại.`
+          );
+          return; // Stop processing and don't select the item
+        }
+        console.log(`✅ ItemId validation passed: ${item.itemId} matches ${originalItem.itemId}`);
+
+        // ✅ 2) Then check measurement validation for INTERNAL exports only
+        if (exportRequestType === "INTERNAL" && exportRequestDetailId && originalItem && (item.measurementValue || 0) < (originalItem.measurementValue || 0)) {
           console.log(`🔍 INTERNAL export - ExportInventoryScreen - Validating measurement replacement: new ${item.measurementValue} < old ${originalItem.measurementValue}`);
 
           const validation = await validateMeasurementForReplacement(
@@ -722,9 +804,11 @@ const ExportInventoryScreen: React.FC = () => {
           }
           console.log(`✅ INTERNAL export - ExportInventoryScreen - Measurement replacement validation passed: total ${validation.totalAfterChange} >= required ${validation.requiredValue}`);
         }
+        
       } catch (error) {
         console.log("❌ Error validating original item:", error);
-        // Continue with selection if validation fails to avoid blocking legitimate operations
+        Alert.alert("Lỗi", "Không thể xác thực sản phẩm. Vui lòng thử lại!");
+        return;
       }
     }
 
@@ -766,16 +850,20 @@ const ExportInventoryScreen: React.FC = () => {
 
     try {
       // ✅ 1) RESET TRACKING TRƯỚC KHI ĐỔI - giống như QR manual change
+      let wasTrackingBeforeReset = false;
+      
       if (exportRequestDetailId && originalItemId) {
         try {
-          console.log(`🔄 ExportInventory - Reset tracking trước khi manual change cho item: ${originalItemId}`);
+          // console.log(`🔄 ExportInventory - Reset tracking trước khi manual change cho item: ${originalItemId}`);
           const originalInventoryItemData = await fetchInventoryItemById(originalItemId);
+          wasTrackingBeforeReset = !!originalInventoryItemData?.isTrackingForExport;
+          
           if (originalInventoryItemData?.isTrackingForExport) {
             const ok = await resetTracking(exportRequestDetailId.toString(), originalItemId);
             if (!ok) throw new Error("Không thể reset tracking cho item cũ");
-            console.log(`✅ ExportInventory - Reset tracking successful for: ${originalItemId}`);
+            // console.log(`✅ ExportInventory - Reset tracking successful for: ${originalItemId}`);
           } else {
-            console.log(`ℹ️ ExportInventory - ${originalItemId} không tracking, bỏ qua reset`);
+            // console.log(`ℹ️ ExportInventory - ${originalItemId} không tracking, bỏ qua reset`);
           }
         } catch (e) {
           console.log("❌ ExportInventory - Reset tracking error:", e);
@@ -788,13 +876,30 @@ const ExportInventoryScreen: React.FC = () => {
       }
 
       // ✅ 2) SAU KHI RESET TRACKING THÀNH CÔNG, MỚI THỰC HIỆN MANUAL CHANGE
-      const result = await changeInventoryItemForExportDetail(
-        originalItemId,
-        selectedManualItem.id,
-        changeReason
-      );
+      let manualChangeResult: any;
 
-      if (!result) {
+      try {
+        manualChangeResult = await changeInventoryItemForExportDetail(
+          originalItemId,
+          selectedManualItem.id,
+          changeReason
+        );
+
+        if (!manualChangeResult) {
+          throw new Error("API trả về null/undefined");
+        }
+      } catch (manualChangeError) {
+        // ❌ Nếu manual change thất bại sau khi đã reset tracking, gọi lại updateActualQuantity để khôi phục
+        if (wasTrackingBeforeReset && exportRequestDetailId && originalItemId) {
+          // console.log("🔄 Manual change thất bại, đang khôi phục tracking bằng updateActualQuantity...");
+          try {
+            await updateActualQuantity(exportRequestDetailId.toString(), originalItemId);
+            console.log("✅ Đã khôi phục tracking thành công sau lỗi manual change");
+          } catch (updateError) {
+            console.log("❌ Không thể khôi phục tracking sau lỗi manual change:", updateError);
+          }
+        }
+        
         setManualChangeLoading(false);
         Alert.alert("Lỗi", "Không thể đổi item. Vui lòng thử lại!");
         return;
@@ -805,16 +910,16 @@ const ExportInventoryScreen: React.FC = () => {
       // ✅ CẬP NHẬT SCAN MAPPING VỚI ITEM MỚI (giống auto-change)
       if (selectedManualItem?.id && exportRequestDetailId && originalItemId) {
         const newInventoryItemId = selectedManualItem.id;
-        console.log(`🔄 Manual change - Cập nhật scan mapping: ${originalItemId} → ${newInventoryItemId}`);
-        console.log(`🔍 Manual change - exportRequestDetailId: ${exportRequestDetailId}`);
-        console.log(`🔍 Manual change - Current scan mappings:`, JSON.stringify(scanMappings, null, 2));
+        // console.log(`🔄 Manual change - Cập nhật scan mapping: ${originalItemId} → ${newInventoryItemId}`);
+        // console.log(`🔍 Manual change - exportRequestDetailId: ${exportRequestDetailId}`);
+        // console.log(`🔍 Manual change - Current scan mappings:`, JSON.stringify(scanMappings, null, 2));
         
         // Tìm mapping hiện tại
         const existingMapping = scanMappings.find(
           mapping => mapping.exportRequestDetailId.toString() === exportRequestDetailId.toString() && 
                      mapping.inventoryItemId.toLowerCase() === originalItemId.toLowerCase()
         );
-        console.log(`🔍 Manual change - Existing mapping found:`, existingMapping);
+        // console.log(`🔍 Manual change - Existing mapping found:`, existingMapping);
         
         if (existingMapping) {
           // Cập nhật mapping hiện tại
@@ -897,56 +1002,118 @@ const ExportInventoryScreen: React.FC = () => {
     setManualChangeLoading(true);
 
     try {
-      console.log(`🔄 INTERNAL measurement modal - submitting with:`, {
-        oldItems: selectedOldItems.map(item => item.id),
-        newItems: scannedNewItemsForModal.map(item => item.id),
-        reason: measurementModalReason.trim()
-      });
+      // console.log(`🔄 INTERNAL measurement modal - submitting with:`, {
+      //   oldItems: selectedOldItems.map(item => item.id),
+      //   newItems: scannedNewItemsForModal.map(item => item.id),
+      //   reason: measurementModalReason.trim()
+      // });
 
-      // Reset tracking for old items that are currently being tracked
+      // ✅ 1) RESET TRACKING CHO TẤT CẢ OLD ITEMS TRƯỚC KHI CHANGE
+      const itemsWereTracking: { [itemId: string]: boolean } = {};
+      
       for (const oldItem of selectedOldItems) {
         if (oldItem.isTrackingForExport && exportRequestDetailId) {
           try {
-            console.log(`🔄 INTERNAL - Reset tracking for tracked old item: ${oldItem.id}`);
+            // console.log(`🔄 INTERNAL - Reset tracking trước khi change cho item: ${oldItem.id}`);
+            itemsWereTracking[oldItem.id] = true; // Lưu trạng thái tracking
+            
             const ok = await resetTracking(exportRequestDetailId.toString(), oldItem.id);
-            if (!ok) throw new Error(`Không thể reset tracking cho item ${oldItem.id}`);
-            console.log(`✅ INTERNAL - Reset tracking successful for: ${oldItem.id}`);
-          } catch (e) {
-            console.log(`❌ INTERNAL - Reset tracking error for ${oldItem.id}:`, e);
-            throw new Error(`Không thể huỷ tracking mã cũ ${oldItem.id}. Vui lòng thử lại!`);
+            if (!ok) {
+              throw new Error(`Reset tracking returned false for item ${oldItem.id}`);
+            }
+            // console.log(`✅ INTERNAL - Reset tracking successful for: ${oldItem.id}`);
+          } catch (e: any) {
+            const errorMsg = e?.response?.data?.message || e?.message || 'Unknown error';
+            console.log(`❌ INTERNAL - Reset tracking error for ${oldItem.id}: ${errorMsg}`);
+            
+            // If error indicates item is not being tracked, it's actually okay
+            if (errorMsg.includes('is not being tracked') || 
+                errorMsg.includes('not stable for export') ||
+                errorMsg.includes('is not stable for export request detail')) {
+              // console.log(`ℹ️ INTERNAL - Item ${oldItem.id} already not associated with export request detail, considering as success`);
+              continue;
+            }
+            
+            throw new Error(`Không thể reset tracking cho item ${oldItem.id}. ${errorMsg}`);
           }
-        } else if (!oldItem.isTrackingForExport) {
-          console.log(`ℹ️ INTERNAL - Item ${oldItem.id} is not being tracked, skipping reset`);
+        } else {
+          // console.log(`ℹ️ INTERNAL - Item ${oldItem.id} is not being tracked, skipping reset`);
+          itemsWereTracking[oldItem.id] = false;
         }
       }
 
-      // Call the multi-item change API with the scanned items
-      const result = await changeInventoryItemsForExportDetail(
-        selectedOldItems.map(item => item.id),
-        scannedNewItemsForModal.map(item => item.id), // Array of scanned items
-        measurementModalReason.trim()
-      );
+      // ✅ 2) SAU KHI RESET TRACKING THÀNH CÔNG, MỚI THỰC HIỆN CHANGE
+      let changeResult: any;
+      try {
+        changeResult = await changeInventoryItemsForExportDetail(
+          selectedOldItems.map(item => item.id),
+          scannedNewItemsForModal.map(item => item.id), // Array of scanned items
+          measurementModalReason.trim()
+        );
 
-      if (!result) {
-        throw new Error("API call failed");
+        if (!changeResult) {
+          throw new Error("API call returned null/undefined");
+        }
+
+        console.log("✅ INTERNAL measurement modal - API change successful");
+
+        // ✅ 3) SAU KHI CHANGE THÀNH CÔNG, GỌI updateActualQuantity CHO CÁC NEW INVENTORY ITEMS
+        if (exportRequestDetailId && scannedNewItemsForModal.length > 0) {
+          console.log(`🔄 INTERNAL - Calling updateActualQuantity for ${scannedNewItemsForModal.length} new items...`);
+          
+          for (const newItem of scannedNewItemsForModal) {
+            try {
+              await updateActualQuantity(exportRequestDetailId.toString(), newItem.id);
+              console.log(`✅ INTERNAL - Updated actualQuantity for new item: ${newItem.id}`);
+            } catch (updateError) {
+              console.log(`❌ INTERNAL - Failed to update actualQuantity for new item ${newItem.id}:`, updateError);
+              // Continue với các items khác thay vì throw error
+            }
+          }
+        }
+
+      } catch (changeError) {
+        // ❌ Nếu change thất bại sau khi đã reset tracking, khôi phục tracking cho các items đã bị reset
+        // console.log("🔄 INTERNAL change thất bại, đang khôi phục tracking...");
+        
+        for (const oldItem of selectedOldItems) {
+          if (itemsWereTracking[oldItem.id] && exportRequestDetailId) {
+            try {
+              await updateActualQuantity(exportRequestDetailId.toString(), oldItem.id);
+              console.log(`✅ INTERNAL - Đã khôi phục tracking cho item: ${oldItem.id}`);
+            } catch (updateError) {
+              console.log(`❌ INTERNAL - Không thể khôi phục tracking cho item ${oldItem.id}:`, updateError);
+            }
+          }
+        }
+        
+        throw changeError; // Re-throw để xử lý lỗi bình thường
       }
 
-      console.log("✅ INTERNAL measurement modal - change successful");
-
-      // Update scan mappings
-      if (exportRequestDetailId) {
-        const existingMapping = scanMappings.find(
-          mapping => mapping.exportRequestDetailId.toString() === exportRequestDetailId.toString() && 
-                     mapping.inventoryItemId.toLowerCase() === selectedOldItems[0].id.toLowerCase()
-        );
+      // Update scan mappings for all changed items
+      if (exportRequestDetailId && scannedNewItemsForModal.length > 0) {
+        // console.log(`🔄 INTERNAL - Updating scan mappings for ${selectedOldItems.length} old → ${scannedNewItemsForModal.length} new items`);
         
-        if (existingMapping && scannedNewItemsForModal.length > 0) {
-          dispatch(updateInventoryItemId({
-            exportRequestDetailId: exportRequestDetailId,
-            oldInventoryItemId: selectedOldItems[0].id,
-            newInventoryItemId: scannedNewItemsForModal[0].id
-          }));
-          console.log(`✅ INTERNAL - Updated scan mapping: ${selectedOldItems[0].id} → ${scannedNewItemsForModal[0].id}`);
+        // For each old item, try to find existing mapping and update it
+        for (let i = 0; i < selectedOldItems.length; i++) {
+          const oldItem = selectedOldItems[i];
+          const newItem = scannedNewItemsForModal[i] || scannedNewItemsForModal[0]; // Use first new item if not enough new items
+          
+          const existingMapping = scanMappings.find(
+            mapping => mapping.exportRequestDetailId.toString() === exportRequestDetailId.toString() && 
+                       mapping.inventoryItemId.toLowerCase() === oldItem.id.toLowerCase()
+          );
+          
+          if (existingMapping) {
+            dispatch(updateInventoryItemId({
+              exportRequestDetailId: exportRequestDetailId,
+              oldInventoryItemId: oldItem.id,
+              newInventoryItemId: newItem.id
+            }));
+            // console.log(`✅ INTERNAL - Updated scan mapping ${i + 1}: ${oldItem.id} → ${newItem.id}`);
+          } else {
+            // console.log(`ℹ️ INTERNAL - No existing mapping found for old item: ${oldItem.id}`);
+          }
         }
       }
 
@@ -991,6 +1158,15 @@ const ExportInventoryScreen: React.FC = () => {
     handleQRScanForInternalReplacement();
   };
 
+  // Handle removing a scanned item from the modal
+  const handleRemoveScannedItem = (itemId: string) => {
+    setScannedNewItemsForModal(prevItems => {
+      const updatedItems = prevItems.filter(item => item.id !== itemId);
+      console.log(`🗑️ Removed item ${itemId} from modal. Remaining: ${updatedItems.length}`);
+      return updatedItems;
+    });
+  };
+
   // Handle auto-change inventory item
   const handleAutoChange = async (inventoryItemId: string) => {
     setAutoChangeLoading(inventoryItemId);
@@ -1014,7 +1190,7 @@ const ExportInventoryScreen: React.FC = () => {
               // ✅ 1) NẾU ITEM ĐANG TRACKING, RESET TRACKING TRƯỚC KHI AUTO-CHANGE
               if (currentItem?.isTrackingForExport && exportRequestDetailId) {
                 try {
-                  console.log(`🔄 Reset tracking trước khi auto-change cho item: ${inventoryItemId}`);
+                  // console.log(`🔄 Reset tracking trước khi auto-change cho item: ${inventoryItemId}`);
                   const resetPromise = resetTracking(
                     exportRequestDetailId.toString(),
                     inventoryItemId
@@ -1023,7 +1199,7 @@ const ExportInventoryScreen: React.FC = () => {
                     setTimeout(() => reject(new Error("Reset tracking timeout")), 10000)
                   );
                   await Promise.race([resetPromise, timeoutPromise]);
-                  console.log("✅ Reset tracking thành công trước khi auto-change");
+                  // console.log("✅ Reset tracking thành công trước khi auto-change");
                 } catch (e) {
                   console.log("❌ Reset tracking thất bại/timeout trước auto-change:", e);
                   Alert.alert("Lỗi", "Không thể huỷ tracking mã cũ. Vui lòng thử lại!");
@@ -1033,26 +1209,41 @@ const ExportInventoryScreen: React.FC = () => {
               }
 
               // ✅ 2) SAU KHI RESET TRACKING THÀNH CÔNG, MỚI THỰC HIỆN AUTO-CHANGE
-              const result = await autoChangeInventoryItem(inventoryItemId);
-              console.log("✅ Auto change thành công:", result);
+              let autoChangeResult: any;
+              try {
+                autoChangeResult = await autoChangeInventoryItem(inventoryItemId);
+                console.log("✅ Auto change thành công:", autoChangeResult);
+              } catch (autoChangeError) {
+                // ❌ Nếu auto change thất bại sau khi đã reset tracking, gọi lại updateActualQuantity để khôi phục
+                if (currentItem?.isTrackingForExport && exportRequestDetailId) {
+                  // console.log("🔄 Auto change thất bại, đang khôi phục tracking bằng updateActualQuantity...");
+                  try {
+                    await updateActualQuantity(exportRequestDetailId.toString(), inventoryItemId);
+                    console.log("✅ Đã khôi phục tracking thành công sau lỗi auto change");
+                  } catch (updateError) {
+                    console.log("❌ Không thể khôi phục tracking sau lỗi auto change:", updateError);
+                  }
+                }
+                throw autoChangeError; // Re-throw để xử lý lỗi bình thường
+              }
 
-              // ✅ 3) CẬP NHẬT SCAN MAPPING VỚI ITEM MỚI - DEBUG CHECK
-              console.log(`🔍 Debug check - result?.content?.id: ${result?.content?.id}`);
-              console.log(`🔍 Debug check - exportRequestDetailId: ${exportRequestDetailId}`);
-              console.log(`🔍 Debug check - condition result: ${!!(result?.content?.id && exportRequestDetailId)}`);
+              // ✅ 3) CẬP NHẬT SCAN MAPPING VỚI ITEM MỚI
+              // console.log(`🔍 Debug check - autoChangeResult?.content?.id: ${autoChangeResult?.content?.id}`);
+              // console.log(`🔍 Debug check - exportRequestDetailId: ${exportRequestDetailId}`);
+              // console.log(`🔍 Debug check - condition result: ${!!(autoChangeResult?.content?.id && exportRequestDetailId)}`);
               
-              if (result?.content?.id && exportRequestDetailId) {
-                const newInventoryItemId = result.content.id;
-                console.log(`🔄 Cập nhật scan mapping: ${inventoryItemId} → ${newInventoryItemId}`);
-                console.log(`🔍 Debug - exportRequestDetailId: ${exportRequestDetailId}`);
-                console.log(`🔍 Debug - Current scan mappings:`, JSON.stringify(scanMappings, null, 2));
+              if (autoChangeResult?.content?.id && exportRequestDetailId) {
+                const newInventoryItemId = autoChangeResult.content.id;
+                // console.log(`🔄 Cập nhật scan mapping: ${inventoryItemId} → ${newInventoryItemId}`);
+                // console.log(`🔍 Debug - exportRequestDetailId: ${exportRequestDetailId}`);
+                // console.log(`🔍 Debug - Current scan mappings:`, JSON.stringify(scanMappings, null, 2));
                 
                 // Tìm mapping hiện tại
                 const existingMapping = scanMappings.find(
                   mapping => mapping.exportRequestDetailId.toString() === exportRequestDetailId.toString() && 
                              mapping.inventoryItemId.toLowerCase() === inventoryItemId.toLowerCase()
                 );
-                console.log(`🔍 Debug - Existing mapping found:`, existingMapping);
+                // console.log(`🔍 Debug - Existing mapping found:`, existingMapping);
                 
                 if (existingMapping) {
                   // Cập nhật mapping hiện tại
@@ -1061,7 +1252,7 @@ const ExportInventoryScreen: React.FC = () => {
                     oldInventoryItemId: inventoryItemId,
                     newInventoryItemId: newInventoryItemId
                   }));
-                  console.log("✅ Đã cập nhật scan mapping hiện tại");
+                  // console.log("✅ Đã cập nhật scan mapping hiện tại");
                 } else {
                   // Tạo mapping mới nếu chưa có
                   const newMappings = [
@@ -1072,7 +1263,7 @@ const ExportInventoryScreen: React.FC = () => {
                     }
                   ];
                   dispatch(setScanMappings(newMappings));
-                  console.log("✅ Đã tạo scan mapping mới");
+                  // console.log("✅ Đã tạo scan mapping mới");
                 }
               }
 
@@ -1741,12 +1932,23 @@ const ExportInventoryScreen: React.FC = () => {
 
               {/* Scanned new items info */}
               <View style={styles.measurementSection}>
-                <Text style={styles.measurementSectionTitle}>Sản phẩm thay thế ({scannedNewItemsForModal.length} đã quét QR):</Text>
+                <Text style={styles.measurementSectionTitle}>Sản phẩm thay thế (Đã quét {scannedNewItemsForModal.length} QR):</Text>
                 {scannedNewItemsForModal.map((scannedItem, index) => (
                   <View key={scannedItem.id} style={styles.measurementItemInfo}>
-                    <Text style={styles.measurementItemId}>{index + 1}. {scannedItem.id}</Text>
-                    <Text style={styles.measurementItemValue}>Giá trị: {scannedItem.measurementValue} {itemUnitType || "đơn vị"}</Text>
-                    <Text style={styles.measurementItemLocation}>Vị trí: {formatLocationString(scannedItem.storedLocationName)}</Text>
+                    <View style={styles.measurementItemContent}>
+                      <View style={styles.measurementItemDetails}>
+                        <Text style={styles.measurementItemId}>{index + 1}. {scannedItem.id}</Text>
+                        <Text style={styles.measurementItemValue}>Giá trị: {scannedItem.measurementValue} {itemUnitType || "đơn vị"}</Text>
+                        <Text style={styles.measurementItemLocation}>Vị trí: {formatLocationString(scannedItem.storedLocationName)}</Text>
+                      </View>
+                      <TouchableOpacity
+                        style={styles.removeItemButton}
+                        onPress={() => handleRemoveScannedItem(scannedItem.id)}
+                        disabled={manualChangeLoading}
+                      >
+                        <Ionicons name="close-circle" size={24} color="#ff4444" />
+                      </TouchableOpacity>
+                    </View>
                   </View>
                 ))}
               </View>
@@ -2407,6 +2609,20 @@ const styles = StyleSheet.create({
   },
   measurementModalButtonDisabled: {
     backgroundColor: "#ccc",
+  },
+  // New styles for measurement item layout with delete button
+  measurementItemContent: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+  },
+  measurementItemDetails: {
+    flex: 1,
+    marginRight: 8,
+  },
+  removeItemButton: {
+    padding: 4,
+    marginTop: 2,
   },
 });
 
