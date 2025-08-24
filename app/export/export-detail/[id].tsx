@@ -99,87 +99,108 @@ const ExportRequestScreen: React.FC = () => {
   const pusherEventReceived = useRef(false); // Track if Pusher event was received
 
   // For INTERNAL export measurement calculations
-  const [measurementTotals, setMeasurementTotals] = useState<{ [detailId: string]: number }>({});
+  // const [measurementTotals, setMeasurementTotals] = useState<{ [detailId: string]: number }>({});
   const [itemUnits, setItemUnits] = useState<{ [itemId: string]: string }>({});
 
   // Helper function to calculate total measurement value for a detail's inventory items
-  const calculateTotalMeasurementValue = async (detail: any) => {
-    console.log(`🔍 INTERNAL - Calculating for detail ${detail.id} with inventoryItemIds:`, detail.inventoryItemIds);
+  // const calculateTotalMeasurementValue = async (detail: any) => {
+  //   console.log(`🔍 INTERNAL - Calculating for detail ${detail.id} with inventoryItemIds:`, detail.inventoryItemIds);
 
-    if (!detail.inventoryItemIds || detail.inventoryItemIds.length === 0) {
-      console.log(`🔍 INTERNAL - Detail ${detail.id} has no inventoryItemIds, returning 0`);
-      return 0;
-    }
+  //   if (!detail.inventoryItemIds || detail.inventoryItemIds.length === 0) {
+  //     console.log(`🔍 INTERNAL - Detail ${detail.id} has no inventoryItemIds, returning 0`);
+  //     return 0;
+  //   }
 
-    try {
-      let total = 0;
-      for (const inventoryItemId of detail.inventoryItemIds) {
-        console.log(`🔍 INTERNAL - Fetching inventory item ${inventoryItemId}...`);
-        const inventoryItem = await fetchInventoryItemById(inventoryItemId);
-        console.log(`🔍 INTERNAL - Inventory item ${inventoryItemId}:`, {
-          measurementValue: inventoryItem?.measurementValue,
-          isTrackingForExport: inventoryItem?.isTrackingForExport,
-          status: inventoryItem?.status,
-          id: inventoryItem?.id
-        });
+  //   try {
+  //     let total = 0;
+  //     for (const inventoryItemId of detail.inventoryItemIds) {
+  //       console.log(`🔍 INTERNAL - Fetching inventory item ${inventoryItemId}...`);
+  //       const inventoryItem = await fetchInventoryItemById(inventoryItemId);
+  //       console.log(`🔍 INTERNAL - Inventory item ${inventoryItemId}:`, {
+  //         measurementValue: inventoryItem?.measurementValue,
+  //         isTrackingForExport: inventoryItem?.isTrackingForExport,
+  //         status: inventoryItem?.status,
+  //         id: inventoryItem?.id
+  //       });
 
-        // For INTERNAL exports, only count items with isTrackingForExport = true
-        if (inventoryItem && inventoryItem.measurementValue && inventoryItem.isTrackingForExport === true) {
-          console.log(`✅ INTERNAL - Adding ${inventoryItem.measurementValue} to total`);
-          total += inventoryItem.measurementValue;
-        } else {
-          console.log(`❌ INTERNAL - Skipping item ${inventoryItemId} - measurementValue: ${inventoryItem?.measurementValue}, isTrackingForExport: ${inventoryItem?.isTrackingForExport}`);
-        }
-      }
-      console.log(`🔍 INTERNAL - Final total for detail ${detail.id}: ${total}`);
-      return total;
-    } catch (error) {
-      console.log(`❌ Error calculating measurement total for detail ${detail.id}:`, error);
-      return 0;
-    }
-  };
+  //       // For INTERNAL exports, only count items with isTrackingForExport = true
+  //       if (inventoryItem && inventoryItem.measurementValue && inventoryItem.isTrackingForExport === true) {
+  //         console.log(`✅ INTERNAL - Adding ${inventoryItem.measurementValue} to total`);
+  //         total += inventoryItem.measurementValue;
+  //       } else {
+  //         console.log(`❌ INTERNAL - Skipping item ${inventoryItemId} - measurementValue: ${inventoryItem?.measurementValue}, isTrackingForExport: ${inventoryItem?.isTrackingForExport}`);
+  //       }
+  //     }
+  //     console.log(`🔍 INTERNAL - Final total for detail ${detail.id}: ${total}`);
+  //     return total;
+  //   } catch (error) {
+  //     console.log(`❌ Error calculating measurement total for detail ${detail.id}:`, error);
+  //     return 0;
+  //   }
+  // };
 
   // Function to calculate measurement totals for all details (for INTERNAL exports)
-  const calculateAllMeasurementTotals = async (details: any[], forceExportType?: string) => {
-    const currentExportType = forceExportType || exportRequest?.type;
-    console.log(`📊 INTERNAL - calculateAllMeasurementTotals called with exportRequest.type:`, currentExportType);
-    console.log(`📊 INTERNAL - Details to process:`, details?.length);
+  // const calculateAllMeasurementTotals = async (details: any[], forceExportType?: string) => {
+  //   const currentExportType = forceExportType || exportRequest?.type;
+  //   console.log(`📊 INTERNAL - calculateAllMeasurementTotals called with exportRequest.type:`, currentExportType);
+  //   console.log(`📊 INTERNAL - Details to process:`, details?.length);
 
+  //   if (currentExportType !== "INTERNAL") {
+  //     console.log(`📊 INTERNAL - Not INTERNAL export (${currentExportType}), skipping calculation`);
+  //     return;
+  //   }
+
+  //   const totals: { [detailId: string]: number } = {};
+  //   const units: { [itemId: string]: string } = {};
+
+  //   for (const detail of details) {
+  //     console.log(`📊 INTERNAL - Processing detail ${detail.id}...`);
+
+  //     // Get measurement total
+  //     const total = await calculateTotalMeasurementValue(detail);
+  //     totals[detail.id] = total;
+  //     console.log(`📊 INTERNAL - Set total for detail ${detail.id}: ${total}`);
+
+  //     // Get item unit information
+  //     try {
+  //       const itemInfo = await getItemDetailById(detail.itemId);
+  //       if (itemInfo?.measurementUnit) {
+  //         units[detail.itemId] = itemInfo.measurementUnit;
+  //         console.log(`📊 INTERNAL - Got unit for ${detail.itemId}: ${itemInfo.measurementUnit}`);
+  //       } else {
+  //         console.log(`📊 INTERNAL - No unit found for ${detail.itemId}`);
+  //       }
+  //     } catch (error) {
+  //       console.log(`❌ INTERNAL - Error getting unit for ${detail.itemId}:`, error);
+  //     }
+  //   }
+
+  //   console.log(`📊 INTERNAL export - Setting measurement totals:`, totals);
+  //   console.log(`📊 INTERNAL export - Setting item units:`, units);
+  //   setMeasurementTotals(totals);
+  //   setItemUnits(units);
+  //   console.log(`📊 INTERNAL export - State updated`);
+  // };
+
+  // Function to get item units for INTERNAL exports
+  const getItemUnits = async (details: any[]) => {
+    const currentExportType = exportRequest?.type;
     if (currentExportType !== "INTERNAL") {
-      console.log(`📊 INTERNAL - Not INTERNAL export (${currentExportType}), skipping calculation`);
       return;
     }
 
-    const totals: { [detailId: string]: number } = {};
     const units: { [itemId: string]: string } = {};
-
     for (const detail of details) {
-      console.log(`📊 INTERNAL - Processing detail ${detail.id}...`);
-
-      // Get measurement total
-      const total = await calculateTotalMeasurementValue(detail);
-      totals[detail.id] = total;
-      console.log(`📊 INTERNAL - Set total for detail ${detail.id}: ${total}`);
-
-      // Get item unit information
       try {
         const itemInfo = await getItemDetailById(detail.itemId);
         if (itemInfo?.measurementUnit) {
           units[detail.itemId] = itemInfo.measurementUnit;
-          console.log(`📊 INTERNAL - Got unit for ${detail.itemId}: ${itemInfo.measurementUnit}`);
-        } else {
-          console.log(`📊 INTERNAL - No unit found for ${detail.itemId}`);
         }
       } catch (error) {
-        console.log(`❌ INTERNAL - Error getting unit for ${detail.itemId}:`, error);
+        console.log(`❌ Error getting unit for ${detail.itemId}:`, error);
       }
     }
-
-    console.log(`📊 INTERNAL export - Setting measurement totals:`, totals);
-    console.log(`📊 INTERNAL export - Setting item units:`, units);
-    setMeasurementTotals(totals);
     setItemUnits(units);
-    console.log(`📊 INTERNAL export - State updated`);
   };
 
   // Helper function to get the expected measurement value for an exportRequestDetail
@@ -198,10 +219,8 @@ const ExportRequestScreen: React.FC = () => {
       return detail.actualQuantity; // For non-INTERNAL exports, show normal actualQuantity
     }
 
-    // For INTERNAL exports, show the calculated measurement total
-    const total = measurementTotals[detail.id] || 0;
-    // console.log(`🔍 DISPLAY - Getting actual total for detail ${detail.id}: ${total} (from measurementTotals:`, measurementTotals, `)`);
-    return total;
+    // For INTERNAL exports, use actualMeasurementValue from backend
+    return detail.actualMeasurementValue || 0;
   };
 
   const getExportTypeLabel = (type: string | undefined) => {
@@ -253,9 +272,8 @@ const ExportRequestScreen: React.FC = () => {
 
           dispatch(setExportRequestDetail(refreshedDetails));
 
-          // Calculate measurement totals for INTERNAL exports
-          console.log(`🚀 TRIGGER CHECK 1: exportRequest?.type = ${exportRequest?.type}, calling calculateAllMeasurementTotals`);
-          calculateAllMeasurementTotals(refreshedDetails);
+          // Get item units for INTERNAL exports
+          getItemUnits(refreshedDetails);
 
           const mappings = refreshedDetails.flatMap((detail) =>
             (detail.inventoryItemIds ?? []).map((inventoryItemId: string) => ({
@@ -288,12 +306,10 @@ const ExportRequestScreen: React.FC = () => {
     }
   }, [exportRequest?.paperId, exportRequest?.status]);
 
-  // Trigger INTERNAL calculation when export request type is loaded
+  // Get item units when export request type is loaded
   useEffect(() => {
-    console.log(`🎯 TRIGGER CHECK - Export request loaded: type = ${exportRequest?.type}, details = ${savedExportRequestDetails?.length}`);
     if (exportRequest?.type === "INTERNAL" && savedExportRequestDetails?.length > 0) {
-      console.log(`🎯 TRIGGERING INTERNAL calculation for ${savedExportRequestDetails.length} details`);
-      calculateAllMeasurementTotals(savedExportRequestDetails, exportRequest.type);
+      getItemUnits(savedExportRequestDetails);
     }
   }, [exportRequest?.type, savedExportRequestDetails?.length]);
 
@@ -450,9 +466,9 @@ const ExportRequestScreen: React.FC = () => {
 
               dispatch(setExportRequestDetail(refreshedDetails));
 
-              // Calculate measurement totals for INTERNAL exports
+              // Get item units for INTERNAL exports
               if (exportRequest?.type === "INTERNAL") {
-                calculateAllMeasurementTotals(refreshedDetails);
+                getItemUnits(refreshedDetails);
               }
 
               const mappings = refreshedDetails.flatMap((detail) =>
@@ -782,9 +798,8 @@ const ExportRequestScreen: React.FC = () => {
           }));
           dispatch(setExportRequestDetail(refreshedDetails));
 
-          // Calculate measurement totals for INTERNAL exports
-          console.log(`🚀 TRIGGER CHECK 1: exportRequest?.type = ${exportRequest?.type}, calling calculateAllMeasurementTotals`);
-          calculateAllMeasurementTotals(refreshedDetails);
+          // Get item units for INTERNAL exports
+          getItemUnits(refreshedDetails);
 
           // Update scan mappings
           const mappings = refreshedDetails.flatMap((detail) =>
@@ -913,9 +928,8 @@ const ExportRequestScreen: React.FC = () => {
                     }));
                     dispatch(setExportRequestDetail(refreshedDetails));
 
-                    // Calculate measurement totals for INTERNAL exports
-                    console.log(`🚀 TRIGGER CHECK 2: exportRequest?.type = ${exportRequest?.type}, calling calculateAllMeasurementTotals`);
-                    calculateAllMeasurementTotals(refreshedDetails);
+                    // Get item units for INTERNAL exports
+                    getItemUnits(refreshedDetails);
 
                     // Update scan mappings
                     const mappings = refreshedDetails.flatMap((detail) =>

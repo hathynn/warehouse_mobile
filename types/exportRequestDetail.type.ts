@@ -2,6 +2,7 @@ export interface ExportRequestDetailType {
   id: string;
   measurementValue: number | null;
   actualQuantity: number;
+  actualMeasurementValue: number | 0;
   quantity: number;
   status: ExportRequestDetailStatus | null;
   exportRequestId: number;
