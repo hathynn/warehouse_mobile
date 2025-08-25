@@ -28,7 +28,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import StyledButton from "@/components/ui/StyledButton";
 import StatusBadge from "@/components/StatusBadge";
 import { InventoryItem } from "@/types/inventoryItem.type";
-import InventoryModal from "@/components/InventoryModal";
+// import InventoryModal from "@/components/InventoryModal";
 
 interface RouteParams {
   id: string;
@@ -63,26 +63,26 @@ const StockCheckDetailScreen: React.FC = () => {
   const [paperLoading, setPaperLoading] = useState(false);
 
   // Modal states
-  const [inventoryModalVisible, setInventoryModalVisible] = useState(false);
-  const [selectedInventoryItems, setSelectedInventoryItems] = useState<
-    InventoryItem[]
-  >([]);
-  const [selectedItemCode, setSelectedItemCode] = useState("");
-  const [selectedStockCheckDetailId, setSelectedStockCheckDetailId] = useState<
-    number | null
-  >(null);
-  const [searchText, setSearchText] = useState("");
-  const [itemUnitType, setItemUnitType] = useState<string>("");
-  const [checkedInventoryItemIds, setCheckedInventoryItemIds] = useState<
-    string[]
-  >([]);
+  // const [inventoryModalVisible, setInventoryModalVisible] = useState(false);
+  // const [selectedInventoryItems, setSelectedInventoryItems] = useState<
+  //   InventoryItem[]
+  // >([]);
+  // const [selectedItemCode, setSelectedItemCode] = useState("");
+  // const [selectedStockCheckDetailId, setSelectedStockCheckDetailId] = useState<
+  //   number | null
+  // >(null);
+  // const [searchText, setSearchText] = useState("");
+  // const [itemUnitType, setItemUnitType] = useState<string>("");
+  // const [checkedInventoryItemIds, setCheckedInventoryItemIds] = useState<
+  //   string[]
+  // >([]);
 
-  const [shouldReopenModal, setShouldReopenModal] = useState(false);
-  const [pendingItemCode, setPendingItemCode] = useState<string>("");
+  // const [shouldReopenModal, setShouldReopenModal] = useState(false);
+  // const [pendingItemCode, setPendingItemCode] = useState<string>("");
 
   // Track loading state
-  const [trackLoading, setTrackLoading] = useState<string | null>(null);
-  const [inventoryLoading, setInventoryLoading] = useState(false);
+  // const [trackLoading, setTrackLoading] = useState<string | null>(null);
+  // const [inventoryLoading, setInventoryLoading] = useState(false);
 
   const {
     loading: loadingStockCheck,
@@ -135,289 +135,289 @@ const StockCheckDetailScreen: React.FC = () => {
   // }, [stockCheck?.paperId, stockCheck?.status]);
 
   // Add a ref to prevent multiple modal openings
-  const modalReopenProcessed = useRef(false);
-  useEffect(() => {
-    if (openModal === "true" && itemCode) {
-      // console.log(`🔍 QR return detected: ${itemCode}`);
-      // console.log(`🔍 modalReopenProcessed.current: ${modalReopenProcessed.current}`);
+  // const modalReopenProcessed = useRef(false);
+  // useEffect(() => {
+  //   if (openModal === "true" && itemCode) {
+  //     // console.log(`🔍 QR return detected: ${itemCode}`);
+  //     // console.log(`🔍 modalReopenProcessed.current: ${modalReopenProcessed.current}`);
 
-      // RESET the ref first to allow reprocessing
-      modalReopenProcessed.current = false;
+  //     // RESET the ref first to allow reprocessing
+  //     modalReopenProcessed.current = false;
 
-      // Set GLOBAL variables thay vì state
-      // console.log(`🔄 Setting global variables before clearing URL...`);
-      globalPendingItemCode = itemCode;
-      globalShouldReopenModal = true;
+  //     // Set GLOBAL variables thay vì state
+  //     // console.log(`🔄 Setting global variables before clearing URL...`);
+  //     globalPendingItemCode = itemCode;
+  //     globalShouldReopenModal = true;
 
-      // Force re-render by setting a dummy state
-      setSearchText((prev) => prev); // Trigger re-render
+  //     // Force re-render by setting a dummy state
+  //     setSearchText((prev) => prev); // Trigger re-render
 
-      // console.log(`✅ Global vars set: pendingItemCode=${globalPendingItemCode}, shouldReopenModal=${globalShouldReopenModal}`);
+  //     // console.log(`✅ Global vars set: pendingItemCode=${globalPendingItemCode}, shouldReopenModal=${globalShouldReopenModal}`);
 
-      // Clear URL immediately
-      router.replace(`/stock-check/detail/${id}`);
-    }
-  }, [openModal, itemCode, id]);
+  //     // Clear URL immediately
+  //     router.replace(`/stock-check/detail/${id}`);
+  //   }
+  // }, [openModal, itemCode, id]);
 
-  useEffect(() => {
-    console.log(`🔍 Modal reopen check:`, {
-      shouldReopenModal,
-      pendingItemCode,
-      stockCheckDetailsLength: stockCheckDetails.length,
-      modalReopenProcessed: modalReopenProcessed.current,
-    });
+  // useEffect(() => {
+  //   console.log(`🔍 Modal reopen check:`, {
+  //     shouldReopenModal,
+  //     pendingItemCode,
+  //     stockCheckDetailsLength: stockCheckDetails.length,
+  //     modalReopenProcessed: modalReopenProcessed.current,
+  //   });
 
-    if (
-      shouldReopenModal &&
-      pendingItemCode &&
-      stockCheckDetails.length > 0 &&
-      !modalReopenProcessed.current
-    ) {
-      // console.log(
-      //   `🔄 ✅ ALL CONDITIONS MET - Attempting to reopen modal for: ${pendingItemCode}`
-      // );
-      modalReopenProcessed.current = true;
+  //   if (
+  //     shouldReopenModal &&
+  //     pendingItemCode &&
+  //     stockCheckDetails.length > 0 &&
+  //     !modalReopenProcessed.current
+  //   ) {
+  //     // console.log(
+  //     //   `🔄 ✅ ALL CONDITIONS MET - Attempting to reopen modal for: ${pendingItemCode}`
+  //     // );
+  //     modalReopenProcessed.current = true;
 
-      // Find the matching stock check detail
-      const targetDetail = stockCheckDetails.find(
-        (detail) => detail.itemId === pendingItemCode
-      );
+  //     // Find the matching stock check detail
+  //     const targetDetail = stockCheckDetails.find(
+  //       (detail) => detail.itemId === pendingItemCode
+  //     );
 
-      if (targetDetail) {
-        // console.log(`✅ Found matching detail, reopening modal:`, targetDetail);
+  //     if (targetDetail) {
+  //       // console.log(`✅ Found matching detail, reopening modal:`, targetDetail);
 
-        // Use setTimeout to ensure UI is fully updated
-        setTimeout(async () => {
-          try {
-            // console.log(`🔄 Setting modal state...`);
+  //       // Use setTimeout to ensure UI is fully updated
+  //       setTimeout(async () => {
+  //         try {
+  //           // console.log(`🔄 Setting modal state...`);
 
-            // Set modal state
-            setSelectedItemCode(targetDetail.itemId || "");
-            setSelectedStockCheckDetailId(targetDetail.id);
-            setCheckedInventoryItemIds(
-              targetDetail.checkedInventoryItemIds || []
-            );
-            setSearchText("");
-            setItemUnitType("");
-            setInventoryLoading(true);
+  //           // Set modal state
+  //           setSelectedItemCode(targetDetail.itemId || "");
+  //           setSelectedStockCheckDetailId(targetDetail.id);
+  //           setCheckedInventoryItemIds(
+  //             targetDetail.checkedInventoryItemIds || []
+  //           );
+  //           setSearchText("");
+  //           setItemUnitType("");
+  //           setInventoryLoading(true);
 
-            // console.log(
-            //   `🔄 Loading data for ${
-            //     targetDetail.inventoryItemIds?.length || 0
-            //   } inventory items`
-            // );
+  //           // console.log(
+  //           //   `🔄 Loading data for ${
+  //           //     targetDetail.inventoryItemIds?.length || 0
+  //           //   } inventory items`
+  //           // );
 
-            // Fetch data in parallel
-            const [inventoryItems, itemDetails] = await Promise.all([
-              Promise.all(
-                (targetDetail.inventoryItemIds || []).map(
-                  async (inventoryItemId: string) => {
-                    try {
-                      const item = await fetchInventoryItemById(
-                        inventoryItemId
-                      );
-                      console.log(
-                        `✅ Fetched inventory item: ${inventoryItemId}`
-                      );
-                      return item;
-                    } catch (error) {
-                      console.log(
-                        `❌ Error fetching inventory item ${inventoryItemId}:`,
-                        error
-                      );
-                      return null;
-                    }
-                  }
-                )
-              ),
-              targetDetail.itemId
-                ? getItemDetailById(targetDetail.itemId)
-                : Promise.resolve(null),
-            ]);
+  //           // Fetch data in parallel
+  //           const [inventoryItems, itemDetails] = await Promise.all([
+  //             Promise.all(
+  //               (targetDetail.inventoryItemIds || []).map(
+  //                 async (inventoryItemId: string) => {
+  //                   try {
+  //                     const item = await fetchInventoryItemById(
+  //                       inventoryItemId
+  //                     );
+  //                     console.log(
+  //                       `✅ Fetched inventory item: ${inventoryItemId}`
+  //                     );
+  //                     return item;
+  //                   } catch (error) {
+  //                     console.log(
+  //                       `❌ Error fetching inventory item ${inventoryItemId}:`,
+  //                       error
+  //                     );
+  //                     return null;
+  //                   }
+  //                 }
+  //               )
+  //             ),
+  //             targetDetail.itemId
+  //               ? getItemDetailById(targetDetail.itemId)
+  //               : Promise.resolve(null),
+  //           ]);
 
-            const validInventoryItems = inventoryItems.filter(
-              (item) => item !== null
-            );
-            setSelectedInventoryItems(validInventoryItems);
+  //           const validInventoryItems = inventoryItems.filter(
+  //             (item) => item !== null
+  //           );
+  //           setSelectedInventoryItems(validInventoryItems);
 
-            if (itemDetails?.measurementUnit) {
-              setItemUnitType(itemDetails.measurementUnit);
-            } else {
-              setItemUnitType("đơn vị");
-            }
+  //           if (itemDetails?.measurementUnit) {
+  //             setItemUnitType(itemDetails.measurementUnit);
+  //           } else {
+  //             setItemUnitType("đơn vị");
+  //           }
 
-            console.log(
-              `✅ Data loaded, opening modal with ${validInventoryItems.length} items`
-            );
-            // console.log(`🔄 About to set inventoryModalVisible to true`);
+  //           console.log(
+  //             `✅ Data loaded, opening modal with ${validInventoryItems.length} items`
+  //           );
+  //           // console.log(`🔄 About to set inventoryModalVisible to true`);
 
-            // Open modal after data is loaded
-            setInventoryModalVisible(true);
+  //           // Open modal after data is loaded
+  //           setInventoryModalVisible(true);
 
-            // console.log(`✅ Modal should be open now!`);
-          } catch (error) {
-            console.log("❌ Error loading modal data:", error);
-            setSelectedInventoryItems([]);
-            setItemUnitType("đơn vị");
-            modalReopenProcessed.current = false; // Reset on error
-          } finally {
-            setInventoryLoading(false);
-            // Reset flags
-            setShouldReopenModal(false);
-            setPendingItemCode("");
-          }
-        }, 200);
-      } else {
-        console.warn(
-          `❌ No matching detail found for itemCode: ${pendingItemCode}`
-        );
-        // Reset flags if no match found
-        setShouldReopenModal(false);
-        setPendingItemCode("");
-        modalReopenProcessed.current = false;
-      }
-    } else {
-      // Log lý do tại sao không trigger
-      if (!shouldReopenModal) console.log(`🚫 shouldReopenModal = false`);
-      if (!pendingItemCode) console.log(`🚫 pendingItemCode is empty`);
-      if (stockCheckDetails.length === 0)
-        console.log(`🚫 stockCheckDetails not loaded yet`);
-      if (modalReopenProcessed.current)
-        console.log(`🚫 modalReopenProcessed already true`);
-    }
-  }, [shouldReopenModal, pendingItemCode, stockCheckDetails.length]);
+  //           // console.log(`✅ Modal should be open now!`);
+  //         } catch (error) {
+  //           console.log("❌ Error loading modal data:", error);
+  //           setSelectedInventoryItems([]);
+  //           setItemUnitType("đơn vị");
+  //           modalReopenProcessed.current = false; // Reset on error
+  //         } finally {
+  //           setInventoryLoading(false);
+  //           // Reset flags
+  //           setShouldReopenModal(false);
+  //           setPendingItemCode("");
+  //         }
+  //       }, 200);
+  //     } else {
+  //       console.warn(
+  //         `❌ No matching detail found for itemCode: ${pendingItemCode}`
+  //       );
+  //       // Reset flags if no match found
+  //       setShouldReopenModal(false);
+  //       setPendingItemCode("");
+  //       modalReopenProcessed.current = false;
+  //     }
+  //   } else {
+  //     // Log lý do tại sao không trigger
+  //     if (!shouldReopenModal) console.log(`🚫 shouldReopenModal = false`);
+  //     if (!pendingItemCode) console.log(`🚫 pendingItemCode is empty`);
+  //     if (stockCheckDetails.length === 0)
+  //       console.log(`🚫 stockCheckDetails not loaded yet`);
+  //     if (modalReopenProcessed.current)
+  //       console.log(`🚫 modalReopenProcessed already true`);
+  //   }
+  // }, [shouldReopenModal, pendingItemCode, stockCheckDetails.length]);
 
-  useEffect(() => {
-    console.log(`🔍 pendingItemCode changed to: ${pendingItemCode}`);
-  }, [pendingItemCode]);
+  // useEffect(() => {
+  //   console.log(`🔍 pendingItemCode changed to: ${pendingItemCode}`);
+  // }, [pendingItemCode]);
 
-  useEffect(() => {
-    console.log(`🔍 Modal reopen check:`, {
-      globalShouldReopenModal,
-      globalPendingItemCode,
-      stockCheckDetailsLength: stockCheckDetails.length,
-      modalReopenProcessed: modalReopenProcessed.current,
-    });
+  // useEffect(() => {
+  //   console.log(`🔍 Modal reopen check:`, {
+  //     globalShouldReopenModal,
+  //     globalPendingItemCode,
+  //     stockCheckDetailsLength: stockCheckDetails.length,
+  //     modalReopenProcessed: modalReopenProcessed.current,
+  //   });
 
-    if (
-      globalShouldReopenModal &&
-      globalPendingItemCode &&
-      stockCheckDetails.length > 0 &&
-      !modalReopenProcessed.current
-    ) {
-      console.log(
-        `🔄 ✅ ALL CONDITIONS MET - Attempting to reopen modal for: ${globalPendingItemCode}`
-      );
-      modalReopenProcessed.current = true;
+  //   if (
+  //     globalShouldReopenModal &&
+  //     globalPendingItemCode &&
+  //     stockCheckDetails.length > 0 &&
+  //     !modalReopenProcessed.current
+  //   ) {
+  //     console.log(
+  //       `🔄 ✅ ALL CONDITIONS MET - Attempting to reopen modal for: ${globalPendingItemCode}`
+  //     );
+  //     modalReopenProcessed.current = true;
 
-      // Find the matching stock check detail
-      const targetDetail = stockCheckDetails.find(
-        (detail) => detail.itemId === globalPendingItemCode
-      );
+  //     // Find the matching stock check detail
+  //     const targetDetail = stockCheckDetails.find(
+  //       (detail) => detail.itemId === globalPendingItemCode
+  //     );
 
-      if (targetDetail) {
-        console.log(`✅ Found matching detail, reopening modal:`, targetDetail);
+  //     if (targetDetail) {
+  //       console.log(`✅ Found matching detail, reopening modal:`, targetDetail);
 
-        // Use setTimeout to ensure UI is fully updated
-        setTimeout(async () => {
-          try {
-            console.log(`🔄 Setting modal state...`);
+  //       // Use setTimeout to ensure UI is fully updated
+  //       setTimeout(async () => {
+  //         try {
+  //           console.log(`🔄 Setting modal state...`);
 
-            // Set modal state
-            setSelectedItemCode(targetDetail.itemId || "");
-            setSelectedStockCheckDetailId(targetDetail.id);
-            setCheckedInventoryItemIds(
-              targetDetail.checkedInventoryItemIds || []
-            );
-            setSearchText("");
-            setItemUnitType("");
-            setInventoryLoading(true);
+  //           // Set modal state
+  //           setSelectedItemCode(targetDetail.itemId || "");
+  //           setSelectedStockCheckDetailId(targetDetail.id);
+  //           setCheckedInventoryItemIds(
+  //             targetDetail.checkedInventoryItemIds || []
+  //           );
+  //           setSearchText("");
+  //           setItemUnitType("");
+  //           setInventoryLoading(true);
 
-            console.log(
-              `🔄 Loading data for ${
-                targetDetail.inventoryItemIds?.length || 0
-              } inventory items`
-            );
+  //           console.log(
+  //             `🔄 Loading data for ${
+  //               targetDetail.inventoryItemIds?.length || 0
+  //             } inventory items`
+  //           );
 
-            // Fetch data in parallel
-            const [inventoryItems, itemDetails] = await Promise.all([
-              Promise.all(
-                (targetDetail.inventoryItemIds || []).map(
-                  async (inventoryItemId: string) => {
-                    try {
-                      const item = await fetchInventoryItemById(
-                        inventoryItemId
-                      );
-                      console.log(
-                        `✅ Fetched inventory item: ${inventoryItemId}`
-                      );
-                      return item;
-                    } catch (error) {
-                      console.log(
-                        `❌ Error fetching inventory item ${inventoryItemId}:`,
-                        error
-                      );
-                      return null;
-                    }
-                  }
-                )
-              ),
-              targetDetail.itemId
-                ? getItemDetailById(targetDetail.itemId)
-                : Promise.resolve(null),
-            ]);
+  //           // Fetch data in parallel
+  //           const [inventoryItems, itemDetails] = await Promise.all([
+  //             Promise.all(
+  //               (targetDetail.inventoryItemIds || []).map(
+  //                 async (inventoryItemId: string) => {
+  //                   try {
+  //                     const item = await fetchInventoryItemById(
+  //                       inventoryItemId
+  //                     );
+  //                     console.log(
+  //                       `✅ Fetched inventory item: ${inventoryItemId}`
+  //                     );
+  //                     return item;
+  //                   } catch (error) {
+  //                     console.log(
+  //                       `❌ Error fetching inventory item ${inventoryItemId}:`,
+  //                       error
+  //                     );
+  //                     return null;
+  //                   }
+  //                 }
+  //               )
+  //             ),
+  //             targetDetail.itemId
+  //               ? getItemDetailById(targetDetail.itemId)
+  //               : Promise.resolve(null),
+  //           ]);
 
-            const validInventoryItems = inventoryItems.filter(
-              (item) => item !== null
-            );
-            setSelectedInventoryItems(validInventoryItems);
+  //           const validInventoryItems = inventoryItems.filter(
+  //             (item) => item !== null
+  //           );
+  //           setSelectedInventoryItems(validInventoryItems);
 
-            if (itemDetails?.measurementUnit) {
-              setItemUnitType(itemDetails.measurementUnit);
-            } else {
-              setItemUnitType("đơn vị");
-            }
+  //           if (itemDetails?.measurementUnit) {
+  //             setItemUnitType(itemDetails.measurementUnit);
+  //           } else {
+  //             setItemUnitType("đơn vị");
+  //           }
 
-            console.log(
-              `✅ Data loaded, opening modal with ${validInventoryItems.length} items`
-            );
-            console.log(`🔄 About to set inventoryModalVisible to true`);
+  //           console.log(
+  //             `✅ Data loaded, opening modal with ${validInventoryItems.length} items`
+  //           );
+  //           console.log(`🔄 About to set inventoryModalVisible to true`);
 
-            // Open modal after data is loaded
-            setInventoryModalVisible(true);
+  //           // Open modal after data is loaded
+  //           setInventoryModalVisible(true);
 
-            console.log(`✅ Modal should be open now!`);
-          } catch (error) {
-            console.log("❌ Error loading modal data:", error);
-            setSelectedInventoryItems([]);
-            setItemUnitType("đơn vị");
-            modalReopenProcessed.current = false; // Reset on error
-          } finally {
-            setInventoryLoading(false);
-            // Reset global flags
-            globalShouldReopenModal = false;
-            globalPendingItemCode = "";
-          }
-        }, 300); // Tăng delay lên 300ms
-      } else {
-        console.warn(
-          `❌ No matching detail found for itemCode: ${globalPendingItemCode}`
-        );
-        // Reset flags if no match found
-        globalShouldReopenModal = false;
-        globalPendingItemCode = "";
-        modalReopenProcessed.current = false;
-      }
-    }
-  }, [stockCheckDetails.length]);
+  //           console.log(`✅ Modal should be open now!`);
+  //         } catch (error) {
+  //           console.log("❌ Error loading modal data:", error);
+  //           setSelectedInventoryItems([]);
+  //           setItemUnitType("đơn vị");
+  //           modalReopenProcessed.current = false; // Reset on error
+  //         } finally {
+  //           setInventoryLoading(false);
+  //           // Reset global flags
+  //           globalShouldReopenModal = false;
+  //           globalPendingItemCode = "";
+  //         }
+  //       }, 300); // Tăng delay lên 300ms
+  //     } else {
+  //       console.warn(
+  //         `❌ No matching detail found for itemCode: ${globalPendingItemCode}`
+  //       );
+  //       // Reset flags if no match found
+  //       globalShouldReopenModal = false;
+  //       globalPendingItemCode = "";
+  //       modalReopenProcessed.current = false;
+  //     }
+  //   }
+  // }, [stockCheckDetails.length]);
   // Reset the ref when modal is closed
-  useEffect(() => {
-    if (!inventoryModalVisible) {
-      modalReopenProcessed.current = false;
-      setShouldReopenModal(false);
-      setPendingItemCode("");
-    }
-  }, [inventoryModalVisible]);
+  // useEffect(() => {
+  //   if (!inventoryModalVisible) {
+  //     modalReopenProcessed.current = false;
+  //     setShouldReopenModal(false);
+  //     setPendingItemCode("");
+  //   }
+  // }, [inventoryModalVisible]);
 
   // Debug logging
   useEffect(() => {
@@ -455,93 +455,55 @@ const StockCheckDetailScreen: React.FC = () => {
     }
   };
 
-  // Validate inventory items before completing stock check
-  const validateInventoryItems = async (): Promise<{ isValid: boolean; errorMessage?: string }> => {
-    try {
-      console.log("🔄 Validating inventory items...");
-      
-      // Get all inventory items from all stock check details
-      const allInventoryItems: InventoryItem[] = [];
-      
-      for (const detail of stockCheckDetails) {
-        if (detail.inventoryItemIds && detail.inventoryItemIds.length > 0) {
-          const inventoryItems = await Promise.all(
-            detail.inventoryItemIds.map(async (inventoryItemId: string) => {
-              try {
-                return await fetchInventoryItemById(inventoryItemId);
-              } catch (error) {
-                console.log(`❌ Error fetching inventory item ${inventoryItemId}:`, error);
-                return null;
-              }
-            })
-          );
-          
-          const validItems = inventoryItems.filter((item) => item !== null);
-          allInventoryItems.push(...validItems);
-        }
-      }
-
-      // Check for AVAILABLE items that are not in checkedInventoryItemIds
-      const availableItemsNotChecked = allInventoryItems.filter(
-        (item) => 
-          item.status === "AVAILABLE" && 
-          !stockCheckDetails.some(detail => 
-            detail.checkedInventoryItemIds?.includes(item.id)
-          )
-      );
-
-      if (availableItemsNotChecked.length > 0) {
-        return {
-          isValid: false,
-          errorMessage: "Còn hàng tồn kho chưa xác nhận trạng thái"
-        };
-      }
-
-      return { isValid: true };
-    } catch (error) {
-      console.log("❌ Error validating inventory items:", error);
-      return {
-        isValid: false,
-        errorMessage: "Lỗi khi kiểm tra trạng thái hàng tồn kho"
-      };
-    }
-  };
-
   // Complete counting and finish stock check process
   const handleCompletecounting = async () => {
     try {
       console.log("🔄 Completing stock check process...");
 
-      // Validate inventory items first
-      const validation = await validateInventoryItems();
-      if (!validation.isValid) {
-        Alert.alert("Lỗi", validation.errorMessage || "Không thể hoàn tất kiểm kho");
-        return;
-      }
+      // Show confirmation alert
+      Alert.alert(
+        "Xác nhận kiểm kho",
+        "Bạn xác nhận những thông tin kiểm kho trên là đúng?",
+        [
+          {
+            text: "Hủy",
+            style: "cancel"
+          },
+          {
+            text: "Xác nhận",
+            onPress: async () => {
+              try {
+                // Update stock check status to COUNTED
+                const result = await updateStockCheckStatus(id, StockCheckStatus.COUNTED);
 
-      // Directly complete the stock check (skip COUNTED status)
-      const result = await updateStockCheckStatus(id, StockCheckStatus.COUNTED);
+                if (result) {
+                  console.log("✅ Đã hoàn tất kiểm kho thành công");
+                  // Refresh data to show updated status
+                  const updatedStockCheck = await fetchStockCheckById(id);
+                  setStockCheck(updatedStockCheck);
 
-      if (result) {
-        console.log("✅ Đã hoàn tất kiểm kho thành công");
-        // Refresh data to show updated status
-        const updatedStockCheck = await fetchStockCheckById(id);
-        setStockCheck(updatedStockCheck);
-
-        Alert.alert(
-          "Thành công", 
-          "Đã hoàn tất kiểm kho thành công!",
-          [
-            {
-              text: "OK",
-              onPress: () => {
-                // Navigate back to stock check list
-                router.push("/(tabs)/stock-check");
+                  Alert.alert(
+                    "Thành công", 
+                    "Đã hoàn tất kiểm kho thành công!",
+                    [
+                      {
+                        text: "OK",
+                        onPress: () => {
+                          // Navigate back to stock check list
+                          router.push("/(tabs)/stock-check");
+                        }
+                      }
+                    ]
+                  );
+                }
+              } catch (error) {
+                console.log("❌ Lỗi khi hoàn tất kiểm kho:", error);
+                Alert.alert("Lỗi", "Không thể hoàn tất kiểm kho. Vui lòng thử lại!");
               }
             }
-          ]
-        );
-      }
+          }
+        ]
+      );
     } catch (error) {
       console.log("❌ Lỗi khi hoàn tất kiểm kho:", error);
       Alert.alert("Lỗi", "Không thể hoàn tất kiểm kho. Vui lòng thử lại!");
@@ -551,280 +513,233 @@ const StockCheckDetailScreen: React.FC = () => {
   // Removed signing-related functions as they are no longer needed
 
   // Function to refresh inventory items
-  const refreshInventoryItems = async () => {
-    if (!selectedStockCheckDetailId) return;
+  // const refreshInventoryItems = async () => {
+  //   if (!selectedStockCheckDetailId) return;
 
-    try {
-      console.log(
-        `🔄 Refreshing inventory items for stockCheckDetailId: ${selectedStockCheckDetailId}`
-      );
+  //   try {
+  //     console.log(
+  //       `🔄 Refreshing inventory items for stockCheckDetailId: ${selectedStockCheckDetailId}`
+  //     );
 
-      // Tìm detail tương ứng và sử dụng inventoryItemIds
-      const currentDetail = stockCheckDetails.find(
-        (d) => d.id === selectedStockCheckDetailId
-      );
-      if (!currentDetail || !currentDetail.inventoryItemIds) {
-        console.warn("⚠️ Không tìm thấy detail hoặc inventoryItemIds");
-        return;
-      }
+  //     // Tìm detail tương ứng và sử dụng inventoryItemIds
+  //     const currentDetail = stockCheckDetails.find(
+  //       (d) => d.id === selectedStockCheckDetailId
+  //     );
+  //     if (!currentDetail || !currentDetail.inventoryItemIds) {
+  //       console.warn("⚠️ Không tìm thấy detail hoặc inventoryItemIds");
+  //       return;
+  //     }
 
-      // Fetch chi tiết từng inventory item
-      const inventoryItems = await Promise.all(
-        currentDetail.inventoryItemIds.map(async (inventoryItemId: string) => {
-          try {
-            const inventoryItem = await fetchInventoryItemById(inventoryItemId);
-            return inventoryItem;
-          } catch (error) {
-            console.log(
-              `❌ Error fetching inventory item ${inventoryItemId}:`,
-              error
-            );
-            return null;
-          }
-        })
-      );
+  //     // Fetch chi tiết từng inventory item
+  //     const inventoryItems = await Promise.all(
+  //       currentDetail.inventoryItemIds.map(async (inventoryItemId: string) => {
+  //         try {
+  //           const inventoryItem = await fetchInventoryItemById(inventoryItemId);
+  //           return inventoryItem;
+  //         } catch (error) {
+  //           console.log(
+  //             `❌ Error fetching inventory item ${inventoryItemId}:`,
+  //             error
+  //           );
+  //           return null;
+  //         }
+  //       })
+  //     );
 
-      const validInventoryItems = inventoryItems.filter(
-        (item) => item !== null
-      );
-      setSelectedInventoryItems(validInventoryItems);
-      console.log(`✅ Refreshed ${validInventoryItems.length} inventory items`);
-    } catch (error) {
-      console.log("❌ Error refreshing inventory items:", error);
-    }
-  };
+  //     const validInventoryItems = inventoryItems.filter(
+  //       (item) => item !== null
+  //     );
+  //     setSelectedInventoryItems(validInventoryItems);
+  //     console.log(`✅ Refreshed ${validInventoryItems.length} inventory items`);
+  //   } catch (error) {
+  //     console.log("❌ Error refreshing inventory items:", error);
+  //   }
+  // };
 
   // Handle track inventory item
-  const handleTrackInventoryItem = async (inventoryItemId: string) => {
-    if (!selectedStockCheckDetailId) return;
+  // const handleTrackInventoryItem = async (inventoryItemId: string) => {
+  //   if (!selectedStockCheckDetailId) return;
 
-    try {
-      setTrackLoading(inventoryItemId);
+  //   try {
+  //     setTrackLoading(inventoryItemId);
 
-      Alert.alert(
-        "Xác nhận tracking",
-        `Bạn có chắc chắn muốn track inventory item: ${inventoryItemId}?`,
-        [
-          {
-            text: "Hủy",
-            style: "cancel",
-            onPress: () => setTrackLoading(null),
-          },
-          {
-            text: "Đồng ý",
-            onPress: async () => {
-              try {
-                console.log(`🔄 Tracking inventory item: ${inventoryItemId}`);
+  //     Alert.alert(
+  //       "Xác nhận tracking",
+  //       `Bạn có chắc chắn muốn track inventory item: ${inventoryItemId}?`,
+  //       [
+  //         {
+  //           text: "Hủy",
+  //           style: "cancel",
+  //           onPress: () => setTrackLoading(null),
+  //         },
+  //         {
+  //           text: "Đồng ý",
+  //           onPress: async () => {
+  //             try {
+  //               console.log(`🔄 Tracking inventory item: ${inventoryItemId}`);
 
-                await trackInventoryItem({
-                  stockCheckDetailId: selectedStockCheckDetailId,
-                  inventoryItemId: inventoryItemId,
-                });
+  //               await trackInventoryItem({
+  //                 stockCheckDetailId: selectedStockCheckDetailId,
+  //                 inventoryItemId: inventoryItemId,
+  //               });
 
-                console.log("✅ Track thành công");
+  //               console.log("✅ Track thành công");
 
-                // Refresh data
-                await fetchStockCheckDetails(id);
-                await refreshInventoryItems();
+  //               // Refresh data
+  //               await fetchStockCheckDetails(id);
+  //               await refreshInventoryItems();
 
-                Alert.alert(
-                  "Thành công",
-                  "Đã track inventory item thành công!"
-                );
-              } catch (error) {
-                console.log("❌ Error tracking:", error);
-                Alert.alert(
-                  "Lỗi",
-                  "Không thể track inventory item. Vui lòng thử lại!"
-                );
-              } finally {
-                setTrackLoading(null);
-              }
-            },
-          },
-        ]
-      );
-    } catch (error) {
-      console.log("❌ Error in handleTrackInventoryItem:", error);
-      setTrackLoading(null);
-    }
-  };
+  //               Alert.alert(
+  //                 "Thành công",
+  //                 "Đã track inventory item thành công!"
+  //               );
+  //             } catch (error) {
+  //               console.log("❌ Error tracking:", error);
+  //               Alert.alert(
+  //                 "Lỗi",
+  //                 "Không thể track inventory item. Vui lòng thử lại!"
+  //               );
+  //             } finally {
+  //               setTrackLoading(null);
+  //             }
+  //           },
+  //         },
+  //       ]
+  //     );
+  //   } catch (error) {
+  //     console.log("❌ Error in handleTrackInventoryItem:", error);
+  //     setTrackLoading(null);
+  //   }
+  // };
 
-  // Handle row press to fetch inventory items and item details
+  // Handle row press - navigate to inventory screen
   const handleRowPress = async (detail: any) => {
     if (!detail.id) {
       console.log("❌ Stock check detail ID not found");
       return;
     }
 
-    setSelectedItemCode(detail.itemId || "");
-    setSelectedStockCheckDetailId(detail.id);
-    setCheckedInventoryItemIds(detail.checkedInventoryItemIds || []);
-    setInventoryModalVisible(true);
-    setSearchText("");
-    setItemUnitType("");
-
-    // Show loading in modal
-    setInventoryLoading(true);
-
-    try {
-      // Fetch inventory items and item details in parallel
-      const [inventoryItems, itemDetails] = await Promise.all([
-        Promise.all(
-          (detail.inventoryItemIds || []).map(
-            async (inventoryItemId: string) => {
-              try {
-                return await fetchInventoryItemById(inventoryItemId);
-              } catch (error) {
-                console.log(
-                  `❌ Error fetching inventory item ${inventoryItemId}:`,
-                  error
-                );
-                return null;
-              }
-            }
-          )
-        ),
-        detail.itemId ? getItemDetailById(detail.itemId) : null,
-      ]);
-
-      const validInventoryItems = inventoryItems.filter(
-        (item) => item !== null
-      );
-      setSelectedInventoryItems(validInventoryItems);
-
-      if (itemDetails?.measurementUnit) {
-        setItemUnitType(itemDetails.measurementUnit);
-      } else {
-        setItemUnitType("đơn vị");
-      }
-
-      console.log(`✅ Loaded ${validInventoryItems.length} inventory items`);
-    } catch (error) {
-      console.log("❌ Error fetching data:", error);
-      setSelectedInventoryItems([]);
-      setItemUnitType("đơn vị");
-    } finally {
-      setInventoryLoading(false);
-    }
+    // Navigate to inventory screen
+    console.log('Navigate to:', `/stock-check/inventory/${stockCheck?.id}?itemCode=${detail.itemId}&stockCheckDetailId=${detail.id}`);
+    router.push(`/stock-check/inventory/${stockCheck?.id}?itemCode=${detail.itemId}&stockCheckDetailId=${detail.id}` as any);
   };
 
-  const handleCloseModal = () => {
-    setInventoryModalVisible(false);
-    setSelectedInventoryItems([]);
-    setSearchText("");
-    setItemUnitType("");
-    setCheckedInventoryItemIds([]);
-  };
+  // const handleCloseModal = () => {
+  //   setInventoryModalVisible(false);
+  //   setSelectedInventoryItems([]);
+  //   setSearchText("");
+  //   setItemUnitType("");
+  //   setCheckedInventoryItemIds([]);
+  // };
 
   // Handle QR scan navigation for stock check
-  const handleQRScanPress = () => {
-    setInventoryModalVisible(false);
-    router.push(
-      `/stock-check/scan-qr?stockCheckId=${stockCheck?.id}&stockCheckDetailId=${selectedStockCheckDetailId}&returnToModal=true&itemCode=${selectedItemCode}`
-    );
-  };
+  // const handleQRScanPress = () => {
+  //   setInventoryModalVisible(false);
+  //   router.push(
+  //     `/stock-check/scan-qr?stockCheckId=${stockCheck?.id}&stockCheckDetailId=${selectedStockCheckDetailId}&returnToModal=true&itemCode=${selectedItemCode}`
+  //   );
+  // };
 
   // Handle reset tracking (Thanh lý button)
-  const handleResetTracking = async (inventoryItemId: string) => {
-    if (!selectedStockCheckDetailId) {
-      Alert.alert("Lỗi", "Không tìm thấy stock check detail ID");
-      return;
-    }
+  // const handleResetTracking = async (inventoryItemId: string) => {
+  //   if (!selectedStockCheckDetailId) {
+  //     Alert.alert("Lỗi", "Không tìm thấy stock check detail ID");
+  //     return;
+  //   }
 
-    Alert.alert(
-      "Xác nhận thanh lý",
-      `Bạn có chắc chắn muốn thanh lý sản phẩm: ${inventoryItemId}?`,
-      [
-        {
-          text: "Hủy",
-          style: "cancel",
-        },
-        {
-          text: "Thanh lý",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              // First get the current inventory item
-              const currentItem = await fetchInventoryItemById(inventoryItemId);
-              if (!currentItem) {
-                Alert.alert("Lỗi", "Không tìm thấy sản phẩm");
-                return;
-              }
+  //   Alert.alert(
+  //     "Xác nhận thanh lý",
+  //     `Bạn có chắc chắn muốn thanh lý sản phẩm: ${inventoryItemId}?`,
+  //     [
+  //       {
+  //         text: "Hủy",
+  //         style: "cancel",
+  //       },
+  //       {
+  //         text: "Thanh lý",
+  //         style: "destructive",
+  //         onPress: async () => {
+  //           try {
+  //             // First get the current inventory item
+  //             const currentItem = await fetchInventoryItemById(inventoryItemId);
+  //             if (!currentItem) {
+  //               Alert.alert("Lỗi", "Không tìm thấy sản phẩm");
+  //               return;
+  //             }
 
-              // Update inventory item status to NEED_LIQUID
-              await updateInventoryItem({
-                ...currentItem,
-                status: "NEED_LIQUID",
-              });
+  //             // Update inventory item status to NEED_LIQUID
+  //             await updateInventoryItem({
+  //               ...currentItem,
+  //               status: "NEED_LIQUID",
+  //             });
 
-              // Then reset tracking
-              await resetTracking({
-                stockCheckDetailId: selectedStockCheckDetailId,
-                inventoryItemId: inventoryItemId,
-              });
+  //             // Then reset tracking
+  //             await resetTracking({
+  //               stockCheckDetailId: selectedStockCheckDetailId,
+  //               inventoryItemId: inventoryItemId,
+  //             });
 
-              Alert.alert("Thành công", "Đã thanh lý item thành công!");
+  //             Alert.alert("Thành công", "Đã thanh lý item thành công!");
 
-              // Refresh data
-              await fetchStockCheckDetails(id);
-              await refreshInventoryItems();
+  //             // Refresh data
+  //             await fetchStockCheckDetails(id);
+  //             await refreshInventoryItems();
 
-              // Update checked inventory item IDs
-              setCheckedInventoryItemIds((prev) =>
-                prev.filter((id) => id !== inventoryItemId)
-              );
-            } catch (error) {
-              console.log("❌ Error resetting tracking:", error);
-              Alert.alert("Lỗi", "Không thể thanh lý item. Vui lòng thử lại!");
-            }
-          },
-        },
-      ]
-    );
-  };
+  //             // Update checked inventory item IDs
+  //             setCheckedInventoryItemIds((prev) =>
+  //               prev.filter((id) => id !== inventoryItemId)
+  //             );
+  //           } catch (error) {
+  //             console.log("❌ Error resetting tracking:", error);
+  //             Alert.alert("Lỗi", "Không thể thanh lý item. Vui lòng thử lại!");
+  //           }
+  //         },
+  //       },
+  //     ]
+  //   );
+  // };
 
   // Handle mark as unavailable (Không tìm thấy sản phẩm button)
-  const handleMarkAsUnavailable = async (inventoryItemId: string) => {
-    Alert.alert(
-      "Xác nhận không tìm thấy",
-      `Bạn có chắc chắn không tìm thấy sản phẩm: ${inventoryItemId}?`,
-      [
-        {
-          text: "Hủy",
-          style: "cancel",
-        },
-        {
-          text: "Xác nhận",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              // Get the current inventory item
-              const currentItem = await fetchInventoryItemById(inventoryItemId);
-              if (!currentItem) {
-                Alert.alert("Lỗi", "Không tìm thấy sản phẩm");
-                return;
-              }
+  // const handleMarkAsUnavailable = async (inventoryItemId: string) => {
+  //   Alert.alert(
+  //     "Xác nhận không tìm thấy",
+  //     `Bạn có chắc chắn không tìm thấy sản phẩm: ${inventoryItemId}?`,
+  //     [
+  //       {
+  //         text: "Hủy",
+  //         style: "cancel",
+  //       },
+  //       {
+  //         text: "Xác nhận",
+  //         style: "destructive",
+  //         onPress: async () => {
+  //           try {
+  //             // Get the current inventory item
+  //             const currentItem = await fetchInventoryItemById(inventoryItemId);
+  //             if (!currentItem) {
+  //               Alert.alert("Lỗi", "Không tìm thấy sản phẩm");
+  //               return;
+  //             }
 
-              // Update inventory item status to UNAVAILABLE
-              await updateInventoryItem({
-                ...currentItem,
-                status: "UNAVAILABLE",
-              });
+  //             // Update inventory item status to UNAVAILABLE
+  //             await updateInventoryItem({
+  //               ...currentItem,
+  //               status: "UNAVAILABLE",
+  //             });
 
-              Alert.alert("Thành công", "Đã đánh dấu sản phẩm không tìm thấy!");
+  //             Alert.alert("Thành công", "Đã đánh dấu sản phẩm không tìm thấy!");
 
-              // Refresh data
-              await refreshInventoryItems();
-            } catch (error) {
-              console.log("❌ Error marking as unavailable:", error);
-              Alert.alert("Lỗi", "Không thể cập nhật trạng thái sản phẩm. Vui lòng thử lại!");
-            }
-          },
-        },
-      ]
-    );
-  };
+  //             // Refresh data
+  //             await refreshInventoryItems();
+  //           } catch (error) {
+  //             console.log("❌ Error marking as unavailable:", error);
+  //             Alert.alert("Lỗi", "Không thể cập nhật trạng thái sản phẩm. Vui lòng thử lại!");
+  //           }
+  //         },
+  //       },
+  //     ]
+  //   );
+  // };
 
   // Comment out signature section for stock check
   // const renderSignatureSection = () => {
@@ -943,10 +858,10 @@ const renderActionButton = () => {
   }
 };
 
-  if (__DEV__) {
-    console.warn = () => {};
-    console.log = () => {};
-  }
+  // if (__DEV__) {
+  //   console.warn = () => {};
+  //   console.log = () => {};
+  // }
 
   return (
     <View style={{ flex: 1 }}>
@@ -1069,8 +984,8 @@ const renderActionButton = () => {
         <View style={styles.tableContainer}>
           <View style={[styles.tableRow, styles.tableHeader]}>
             <Text style={[styles.cellCode]}>Mã hàng</Text>
-            <Text style={[styles.cellAlignRight]}>Tổng ban đầu</Text>
-            <Text style={[styles.cellAlignRight]}>Tổng đã kiểm</Text>
+            <Text style={[styles.cellAlignRight]}>Tổng kiểm đếm</Text>
+            <Text style={[styles.cellAlignRight]}>Tổng giá trị đo lường</Text>
             {[
               StockCheckStatus.NOT_STARTED,
               StockCheckStatus.IN_PROGRESS,
@@ -1101,10 +1016,10 @@ const renderActionButton = () => {
                     >
                       <Text style={[styles.cellCode]}>{detail.itemId}</Text>
                       <Text style={[styles.cellAlignRight]}>
-                        {detail.quantity}
+                        {detail.checkedInventoryItemIds?.length || 0}
                       </Text>
                       <Text style={[styles.cellAlignRight]}>
-                        {detail.actualQuantity}
+                        {detail.checkedInventoryItemIds?.reduce((sum: number, item: any) => sum + (item.measurementValue || 0), 0) || 0}
                       </Text>
 
                       {[
@@ -1153,7 +1068,7 @@ const renderActionButton = () => {
         {/* {renderSignatureSection()} */}
       </ScrollView>
 
-      <InventoryModal
+      {/* <InventoryModal
         visible={inventoryModalVisible}
         onClose={handleCloseModal}
         selectedItemCode={selectedItemCode}
@@ -1163,12 +1078,12 @@ const renderActionButton = () => {
         searchText={searchText}
         onSearchTextChange={setSearchText}
         stockCheck={stockCheck} // Pass stockCheck instead of exportRequest
-        checkedInventoryItemIds={checkedInventoryItemIds} // Pass checked inventory item IDs
+        // checkedInventoryItemIds={checkedInventoryItemIds} // Pass checked inventory item IDs
         onQRScanPress={handleQRScanPress} // QR scan navigation for stock check
         onResetTracking={handleResetTracking} // Reset tracking (Thanh lý) function
         onMarkAsUnavailable={handleMarkAsUnavailable} // Mark as unavailable function
         // Remove export-specific props that aren't needed for stock check
-      />
+      /> */}
     </View>
   );
 };

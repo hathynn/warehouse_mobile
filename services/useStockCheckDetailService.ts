@@ -5,6 +5,8 @@ import { StockCheckDetailType } from "../types/stockCheckDetail.type";
 export interface TrackInventoryItemPayload {
   stockCheckDetailId: number;
   inventoryItemId: string;
+  actualMeasurementValue?: number;
+  status?: "AVAILABLE" | "NEED_LIQUID";
 }
 
 const useStockCheckDetail = () => {
@@ -106,10 +108,30 @@ const useStockCheckDetail = () => {
     [callApi, setIsLoading]
   );
 
+  // Get single stock check detail
+  const getStockCheckDetailById = useCallback(
+    async (stockCheckDetailId: number) => {
+      if (!stockCheckDetailId) return null;
+
+      try {
+        const response = await callApi(
+          "get",
+          `/stock-check-detail/detail/${stockCheckDetailId}`
+        );
+        return (response?.content ?? response) as StockCheckDetailType;
+      } catch (error) {
+        console.log("Lỗi khi lấy stock check detail:", error);
+        return null;
+      }
+    },
+    [callApi]
+  );
+
   return {
     loading,
     stockCheckDetails,
     fetchStockCheckDetails,
+    getStockCheckDetailById,
     trackInventoryItem,
     resetTracking, 
   };
