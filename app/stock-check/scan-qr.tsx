@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Text, View, StyleSheet, SafeAreaView } from "react-native";
+import { Text, View, StyleSheet, SafeAreaView, Modal, TextInput, Alert, TouchableOpacity } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { Camera, CameraView } from "expo-camera";
 import { router, useLocalSearchParams } from "expo-router";
 import { Button } from "tamagui";
 import { useIsFocused } from "@react-navigation/native";
 import { Audio } from "expo-av";
 import useStockCheckDetail from "@/services/useStockCheckDetailService";
-import useInventoryService from "@/services/useInventoryService";
 
 // const { width } = Dimensions.get("window");
 
@@ -26,14 +26,17 @@ export default function StockCheckScanQrScreen() {
   // const [isPaused, setIsPaused] = useState(false);
   const [cameraKey, setCameraKey] = useState(0);
   const isFocused = useIsFocused();
-  const { trackInventoryItem } = useStockCheckDetail();
-  const { fetchInventoryItemById, updateInventoryItem } = useInventoryService();
+  const { trackInventoryItem, getStockCheckDetailById } = useStockCheckDetail();
   const [scanningEnabled, setScanningEnabled] = useState(true);
 
   const [lastScannedProduct, setLastScannedProduct] = useState<any | null>(
     null
   );
+  const [showMeasurementModal, setShowMeasurementModal] = useState(false);
+  const [measurementValue, setMeasurementValue] = useState("");
+  const [currentInventoryItemId, setCurrentInventoryItemId] = useState("");
   const [audioPlayer, setAudioPlayer] = useState<any>(null);
+  const [needsLiquidation, setNeedsLiquidation] = useState(false);
 
   // Refs for preventing duplicate processing
   const currentlyProcessingRef = useRef<string | null>(null);
@@ -110,10 +113,7 @@ export default function StockCheckScanQrScreen() {
   };
 
   const handleBarCodeScanned = async ({ data }: { data: string }) => {
-    if (__DEV__) {
-      console.warn = () => {};
-      console.log = () => {};
-    }
+ 
 
     const currentTime = Date.now();
     const rawInventoryItemId = data.trim();
@@ -138,9 +138,9 @@ export default function StockCheckScanQrScreen() {
       return;
     }
 
-    // Check if scanning is disabled or processing
-    if (!scanningEnabled || isProcessing) {
-      console.log("🚫 Scanning disabled or processing");
+    // Check if scanning is disabled, processing, or modal is open
+    if (!scanningEnabled || isProcessing || showMeasurementModal) {
+      console.log("🚫 Scanning disabled, processing, or modal is open");
       return;
     }
 
@@ -178,64 +178,42 @@ export default function StockCheckScanQrScreen() {
         throw new Error("Không tìm thấy thông tin stock check detail");
       }
 
+      // Check if this inventory item is already counted
+      console.log("🔍 Checking if item is already counted...");
+      const stockCheckDetail = await getStockCheckDetailById(parseInt(stockCheckDetailId));
+      
+      if (stockCheckDetail?.checkedInventoryItemIds?.some(item => item.inventoryItemId === rawInventoryItemId.toUpperCase())) {
+        throw new Error("Sản phẩm này đã được kiểm đếm");
+      }
+
       console.log("🔄 Call API với:", {
         stockCheckDetailId: parseInt(stockCheckDetailId),
         inventoryItemId: rawInventoryItemId.toUpperCase(),
       });
 
-      // First, check the inventory item status
-      console.log("📦 Checking inventory item status...");
-      const inventoryItem = await fetchInventoryItemById(rawInventoryItemId.toUpperCase());
+      // Show modal for entering measurement value
+      setCurrentInventoryItemId(rawInventoryItemId.toUpperCase());
+      setShowMeasurementModal(true);
+      setMeasurementValue("");
+      setNeedsLiquidation(false);
       
-      if (inventoryItem && inventoryItem.status === "UNAVAILABLE") {
-        console.log("🔄 Found UNAVAILABLE item, updating to AVAILABLE...");
-        
-        // Update inventory item status from UNAVAILABLE to AVAILABLE
-        await updateInventoryItem({
-          ...inventoryItem,
-          status: "AVAILABLE",
-        });
-        
-        console.log("✅ Updated inventory item status to AVAILABLE");
-      }
-
-      // Find the matching stock check detail for this inventory item
-      // This allows scanning any item in the request, not just the specific detail
-      console.log("🚀 Calling trackInventoryItem...");
-      const success = await trackInventoryItem({
-        stockCheckDetailId: parseInt(stockCheckDetailId),
-        inventoryItemId: rawInventoryItemId.toUpperCase(),
-      });
-
-      console.log("📄 trackInventoryItem response:", JSON.stringify(success, null, 2));
+      // Disable scanning while modal is open
+      setScanningEnabled(false);
       
-      if (!success) throw new Error("Lỗi cập nhật tracking");
-
-      // Success - add to scannedIds and show success message
+      // Add to scannedIds to prevent duplicate scans
       setScannedIds((prev) => {
         if (!prev.includes(normalizedId)) {
           const newIds = [...prev, normalizedId];
           console.log(
-            `📝 Added to scannedIds after success: ${JSON.stringify(newIds)}`
+            `📝 Added to scannedIds: ${JSON.stringify(newIds)}`
           );
           return newIds;
         }
         return prev;
       });
 
-      // Mark this QR as successfully processed
-      lastProcessedQRRef.current = normalizedId;
-
       await playBeep();
-      setLastScannedProduct({
-        id: rawInventoryItemId,
-        message: "Đã kiểm kho thành công!",
-      });
-
-      // Clear success message after longer duration
-      setTimeout(() => setLastScannedProduct(null), 4000);
-
-      console.log("✅ Stock check scan successful for:", normalizedId);
+      console.log("✅ QR scan successful, showing measurement modal:", normalizedId);
     } catch (err: any) {
       console.log("❌ Stock check scan error:", err);
 
@@ -247,6 +225,8 @@ export default function StockCheckScanQrScreen() {
         displayMessage = "Sản phẩm không nằm trong danh sách kiểm kho";
       } else if (message.includes("không tìm thấy")) {
         displayMessage = "Không tìm thấy sản phẩm tương ứng với mã QR.";
+      } else if (message.includes("đã được kiểm đếm")) {
+        displayMessage = "Sản phẩm này đã được kiểm đếm";
       } else if (message.includes("đã được")) {
         displayMessage = "Sản phẩm này đã được kiểm kho.";
       } else if (message.includes("không thuộc")) {
@@ -265,8 +245,8 @@ export default function StockCheckScanQrScreen() {
       setIsProcessing(false);
       currentlyProcessingRef.current = null;
 
-      // Re-enable scanning after a short delay if no error
-      if (!errorMessage) {
+      // Don't re-enable scanning if modal is showing or there's an error
+      if (!errorMessage && !showMeasurementModal) {
         setTimeout(() => {
           setScanningEnabled(true);
         }, 1500);
@@ -277,6 +257,104 @@ export default function StockCheckScanQrScreen() {
   const handleRetry = () => {
     setErrorMessage(null);
     setLastScannedProduct(null);
+    setScanningEnabled(true);
+    setIsProcessing(false);
+    currentlyProcessingRef.current = null;
+  };
+
+  const handleConfirmMeasurement = async () => {
+    if (!measurementValue.trim()) {
+      Alert.alert("Lỗi", "Vui lòng nhập giá trị đo lường");
+      return;
+    }
+
+    const numericValue = parseFloat(measurementValue);
+    if (isNaN(numericValue)) {
+      Alert.alert("Lỗi", "Giá trị đo lường phải là số");
+      return;
+    }
+
+    try {
+      setIsProcessing(true);
+      console.log("🚀 Calling trackInventoryItem with measurement...");
+      const success = await trackInventoryItem({
+        stockCheckDetailId: parseInt(stockCheckDetailId),
+        inventoryItemId: currentInventoryItemId,
+        actualMeasurementValue: numericValue,
+        status: needsLiquidation ? "NEED_LIQUID" : "AVAILABLE",
+      });
+
+      console.log("📄 trackInventoryItem response:", JSON.stringify(success, null, 2));
+      
+      if (!success) throw new Error("Lỗi cập nhật tracking");
+
+      setLastScannedProduct({
+        id: currentInventoryItemId,
+        message: "Đã kiểm kho thành công!",
+      });
+
+      setShowMeasurementModal(false);
+      
+      // Re-enable scanning after modal closes
+      setScanningEnabled(true);
+      
+      // Clear success message after longer duration
+      setTimeout(() => setLastScannedProduct(null), 4000);
+
+      console.log("✅ Stock check with measurement successful for:", currentInventoryItemId);
+    } catch (err: any) {
+      console.log("❌ Stock check measurement error:", err);
+
+      const message =
+        err?.response?.data?.message || err?.message || "Lỗi không xác định";
+      let displayMessage = "QR không hợp lệ.";
+
+      if (message.includes("Inventory item ID not found in stock check request detail")) {
+        displayMessage = "Sản phẩm không nằm trong danh sách kiểm kho";
+      } else if (message.includes("không tìm thấy")) {
+        displayMessage = "Không tìm thấy sản phẩm tương ứng với mã QR.";
+      } else if (message.includes("đã được kiểm đếm")) {
+        displayMessage = "Sản phẩm này đã được kiểm đếm";
+      } else if (message.includes("đã được")) {
+        displayMessage = "Sản phẩm này đã được kiểm kho.";
+      } else if (message.includes("không thuộc")) {
+        displayMessage = "Sản phẩm không thuộc phiếu kiểm kho này.";
+      }
+
+      setErrorMessage(displayMessage);
+      setShowMeasurementModal(false);
+      
+      // Re-enable scanning when modal closes due to error
+      setScanningEnabled(true);
+
+      // Auto-clear error after 5 seconds
+      setTimeout(() => {
+        setErrorMessage(null);
+      }, 5000);
+    } finally {
+      setIsProcessing(false);
+      currentlyProcessingRef.current = null;
+
+      // Don't re-enable scanning if modal is showing or there's an error
+      if (!errorMessage && !showMeasurementModal) {
+        setTimeout(() => {
+          setScanningEnabled(true);
+        }, 1500);
+      }
+    }
+  };
+
+  const handleCancelMeasurement = () => {
+    setShowMeasurementModal(false);
+    setMeasurementValue("");
+    setCurrentInventoryItemId("");
+    setNeedsLiquidation(false);
+    
+    // Remove from scannedIds since we cancelled
+    const normalizedId = currentInventoryItemId.toLowerCase();
+    setScannedIds((prev) => prev.filter(id => id !== normalizedId));
+    
+    // Re-enable scanning immediately when modal is cancelled
     setScanningEnabled(true);
     setIsProcessing(false);
     currentlyProcessingRef.current = null;
@@ -308,7 +386,7 @@ export default function StockCheckScanQrScreen() {
             key={cameraKey}
             barcodeScannerSettings={{ barcodeTypes: ["qr"] }}
             onBarcodeScanned={
-              scanningEnabled ? handleBarCodeScanned : undefined
+              scanningEnabled && !showMeasurementModal ? handleBarCodeScanned : undefined
             }
             style={StyleSheet.absoluteFillObject}
             zoom={0}
@@ -340,6 +418,58 @@ export default function StockCheckScanQrScreen() {
           </View>
         )}
       </View>
+
+      {/* Measurement Modal */}
+      <Modal
+        visible={showMeasurementModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={handleCancelMeasurement}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Nhập giá trị đo lường</Text>
+            <Text style={styles.modalSubtitle}>ID: {currentInventoryItemId}</Text>
+            
+            <TextInput
+              style={styles.measurementInput}
+              value={measurementValue}
+              onChangeText={setMeasurementValue}
+              placeholder="Nhập giá trị đo lường"
+              keyboardType="numeric"
+              autoFocus={true}
+            />
+            
+            <TouchableOpacity 
+              style={styles.checkboxContainer}
+              onPress={() => setNeedsLiquidation(!needsLiquidation)}
+            >
+              <View style={[styles.checkbox, needsLiquidation && styles.checkboxChecked]}>
+                {needsLiquidation && (
+                  <Ionicons name="checkmark" size={16} color="white" />
+                )}
+              </View>
+              <Text style={styles.checkboxLabel}>Hàng cần thanh lý</Text>
+            </TouchableOpacity>
+            
+            <View style={styles.modalButtons}>
+              <Button 
+                onPress={handleCancelMeasurement}
+                style={styles.cancelButton}
+              >
+                Hủy
+              </Button>
+              <Button 
+                onPress={handleConfirmMeasurement}
+                style={styles.confirmButton}
+                disabled={isProcessing}
+              >
+                {isProcessing ? "Đang xử lý..." : "Xác nhận"}
+              </Button>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -409,5 +539,80 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     color: "white",
     fontWeight: 500,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalContent: {
+    backgroundColor: "white",
+    margin: 20,
+    padding: 24,
+    borderRadius: 12,
+    width: "90%",
+    maxWidth: 400,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    textAlign: "center",
+    marginBottom: 8,
+  },
+  modalSubtitle: {
+    fontSize: 16,
+    color: "#666",
+    textAlign: "center",
+    marginBottom: 20,
+  },
+  measurementInput: {
+    borderWidth: 1,
+    borderColor: "#ddd",
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    marginBottom: 20,
+    textAlign: "center",
+  },
+  modalButtons: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  cancelButton: {
+    flex: 1,
+    backgroundColor: "#f0f0f0",
+    color: "#333",
+  },
+  confirmButton: {
+    flex: 1,
+    backgroundColor: "#1677ff",
+    color: "white",
+  },
+  checkboxContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 20,
+    paddingVertical: 8,
+  },
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderWidth: 2,
+    borderColor: "#ddd",
+    borderRadius: 4,
+    marginRight: 12,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "white",
+  },
+  checkboxChecked: {
+    backgroundColor: "#1677ff",
+    borderColor: "#1677ff",
+  },
+  checkboxLabel: {
+    fontSize: 16,
+    color: "#333",
+    flex: 1,
   },
 });

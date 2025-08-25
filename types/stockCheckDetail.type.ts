@@ -1,4 +1,10 @@
 
+export interface CheckedInventoryItem {
+  inventoryItemId: string;
+  measurementValue: number;
+  status: string;
+}
+
 export interface StockCheckDetailType {
   id: number;
   measurementValue: number;         
@@ -9,7 +15,7 @@ export interface StockCheckDetailType {
   stockCheckRequestId: string;       
   itemId: string;                   
   inventoryItemIds: string[];       
-  checkedInventoryItemIds: string[]; 
+  checkedInventoryItemIds: CheckedInventoryItem[]; 
 }
 
 export enum StockCheckDetailStatus {

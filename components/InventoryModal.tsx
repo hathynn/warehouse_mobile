@@ -15,6 +15,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { InventoryItem, InventoryItemStatus } from "@/types/inventoryItem.type";
+import { CheckedInventoryItem } from "@/types/stockCheckDetail.type";
 import useInventoryService from "@/services/useInventoryService";
 import useItemService from "@/services/useItemService";
 import useExportRequestDetail from "@/services/useExportRequestDetailService";
@@ -51,7 +52,7 @@ interface InventoryModalProps {
 
   // Stock check specific props (optional for export)
   stockCheck?: any;
-  checkedInventoryItemIds?: string[];
+  checkedInventoryItemIds?: CheckedInventoryItem[];
   onResetTracking?: (inventoryItemId: string) => void;
 
   // QR scan navigation callback
@@ -400,7 +401,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
 
     // Calculate how many items in this group are checked
     const checkedCount = items.filter(item => 
-      checkedInventoryItemIds?.includes(item.id)
+      checkedInventoryItemIds?.some(checkedItem => checkedItem.inventoryItemId === item.id)
     ).length;
 
     return (
@@ -433,7 +434,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
               </View>
 
               {/* Show tracking status for both export and stock check */}
-              {(item.isTrackingForExport || (isStockCheckMode && checkedInventoryItemIds?.includes(item.id))) && (
+              {(item.isTrackingForExport || (isStockCheckMode && checkedInventoryItemIds?.some(checkedItem => checkedItem.inventoryItemId === item.id))) && (
                 <View style={styles.trackingStatusContainer}>
                   <Ionicons name="checkmark-circle" size={20} color="#28a745" />
                   <Text style={styles.trackingStatusText}>
@@ -452,7 +453,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                     return null;
                   }
 
-                  const isChecked = checkedInventoryItemIds?.includes(item.id);
+                  const isChecked = checkedInventoryItemIds?.some(checkedItem => checkedItem.inventoryItemId === item.id);
                   const detailedItem = detailedInventoryItems[item.id];
                   const status = detailedItem?.status;
                   const isTracking = isChecked; // isTracking is true when item is checked
