@@ -616,20 +616,32 @@ const ExportRequestScreen: React.FC = () => {
   };
 
   const handleConfirm = async () => {
-    try {
-      const statusUpdate = await updateExportRequestStatus(
-        id,
-        ExportRequestStatus.COUNTED
-      );
-      if (statusUpdate) {
-        console.log("✅ Đã cập nhật status sang COUNTED");
-        router.push("/(tabs)/export");
-      } else {
-        console.warn("⚠️ Cập nhật status thất bại.");
-      }
-    } catch (error) {
-      console.log("❌ Lỗi khi xác nhận:", error);
-    }
+    Alert.alert(
+      "Xác nhận kiểm đếm",
+      "Kiểm đếm đã được ghi nhận và cần được quản lý kho xác nhận. Bạn có chắc chắn muốn xác nhận kết quả kiểm kho bây giờ?",
+      [
+        { text: "Hủy", style: "cancel" },
+        {
+          text: "Xác nhận",
+          onPress: async () => {
+            try {
+              const statusUpdate = await updateExportRequestStatus(
+                id,
+                ExportRequestStatus.COUNTED
+              );
+              if (statusUpdate) {
+                console.log("✅ Đã cập nhật status sang COUNTED");
+                router.push("/(tabs)/export");
+              } else {
+                console.warn("⚠️ Cập nhật status thất bại.");
+              }
+            } catch (error) {
+              console.log("❌ Lỗi khi xác nhận:", error);
+            }
+          },
+        },
+      ]
+    );
   };
 
   // Function to refresh inventory items - removed as unused
