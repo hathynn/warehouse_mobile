@@ -1337,12 +1337,7 @@ const ExportRequestScreen: React.FC = () => {
               </>
             )}
 
-            {[
-              ExportRequestStatus.IN_PROGRESS,
-              ExportRequestStatus.COUNTED,
-            ].includes(exportRequest?.status as ExportRequestStatus) && (
-                <Text style={styles.scanHeader}></Text>
-              )}
+            <Text style={styles.scanHeader}></Text>
           </View>
 
           {/* Loading overlay for main table */}
@@ -1363,7 +1358,10 @@ const ExportRequestScreen: React.FC = () => {
             scrollEnabled={!mainTableLoading}
           >
             {savedExportRequestDetails.map((detail: any, index: number) => {
-              const isDisabled = detail.quantity === detail.actualQuantity;
+              // For INTERNAL exports, check status field instead of quantity comparison
+              const isDisabled = exportRequest?.type === "INTERNAL" 
+                ? (detail.status && detail.status !== "LACK")
+                : (detail.quantity === detail.actualQuantity);
               const isLastItem = index === savedExportRequestDetails.length - 1;
 
               return (
@@ -1386,43 +1384,38 @@ const ExportRequestScreen: React.FC = () => {
                       </Text>
                     )}
 
-                    {[
-                      ExportRequestStatus.IN_PROGRESS,
-                      ExportRequestStatus.COUNTED,
-                    ].includes(
-                      exportRequest?.status as ExportRequestStatus
-                    ) && (
-                        <View style={styles.scanCell}>
-                          <TouchableOpacity
-                            style={[
-                              styles.scanButton,
-                              isDisabled && styles.scanButtonDisabled,
-                            ]}
-                            disabled={isDisabled}
-                            onPress={(e) => {
-                              e.stopPropagation();
-                              // Set pending modal navigation for QR scan from table
-                              dispatch(setPendingModalNavigation({
-                                exportRequestId: id,
-                                itemCode: detail.itemId
-                              }));
-                              router.push(
-                                `/export/scan-qr?id=${exportRequest?.exportRequestId}`
-                              );
-                            }}
-                          >
-                            {isDisabled ? (
-                              <Text style={styles.scanText}>Đã đủ</Text>
-                            ) : (
-                              <Ionicons
-                                name="qr-code-outline"
-                                size={18}
-                                color="white"
-                              />
-                            )}
-                          </TouchableOpacity>
-                        </View>
+                    <View style={styles.scanCell}>
+                      {exportRequest?.status === ExportRequestStatus.IN_PROGRESS && (
+                        <TouchableOpacity
+                          style={[
+                            styles.scanButton,
+                            isDisabled && styles.scanButtonDisabled,
+                          ]}
+                          disabled={isDisabled}
+                          onPress={(e) => {
+                            e.stopPropagation();
+                            // Set pending modal navigation for QR scan from table
+                            dispatch(setPendingModalNavigation({
+                              exportRequestId: id,
+                              itemCode: detail.itemId
+                            }));
+                            router.push(
+                              `/export/scan-qr?id=${exportRequest?.exportRequestId}`
+                            );
+                          }}
+                        >
+                          {isDisabled ? (
+                            <Text style={styles.scanText}>Đã đủ</Text>
+                          ) : (
+                            <Ionicons
+                              name="qr-code-outline"
+                              size={18}
+                              color="white"
+                            />
+                          )}
+                        </TouchableOpacity>
                       )}
+                    </View>
                   </TouchableOpacity>
 
                   {!isLastItem && <View style={styles.divider} />}
