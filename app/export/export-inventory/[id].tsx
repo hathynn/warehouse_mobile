@@ -33,6 +33,8 @@ interface RouteParams extends Record<string, string | undefined> {
   exportRequestType?: string;
   exportRequestStatus?: string;
   scannedNewItem?: string;
+  originalItemId?: string;
+  untrackedItemIds?: string;
 }
 
 type ScreenPage = "main" | "manual_select" | "reason_input";
@@ -52,11 +54,13 @@ const ExportInventoryScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
   const dispatch = useDispatch();
   const params = useLocalSearchParams<RouteParams>();
-  const { id, itemCode, exportRequestDetailId, exportRequestId, exportRequestType, exportRequestStatus, scannedNewItem } = params;
+  const { id, itemCode, exportRequestDetailId, exportRequestId, exportRequestType, exportRequestStatus, scannedNewItem, originalItemId, untrackedItemIds } = params;
 
   // Debug logging for parameters
   console.log(`📋 ExportInventory params:`, {
     id,
+    originalItemId,
+    untrackedItemIds,
     scannedNewItem, // Add this to see if it's being received
     itemCode,
     exportRequestDetailId,
@@ -79,7 +83,7 @@ const ExportInventoryScreen: React.FC = () => {
   );
 
   const [currentPage, setCurrentPage] = useState<ScreenPage>("main");
-  const [originalItemId, setOriginalItemId] = useState<string>("");
+  const [originalItemIdState, setOriginalItemIdState] = useState<string>("");
   const [showMeasurementWarning, setShowMeasurementWarning] = useState(false);
   const [itemData, setItemData] = useState<any | null>(null);
   const [exportRequestDetailData, setExportRequestDetailData] = useState<any | null>(null);
@@ -290,7 +294,55 @@ const ExportInventoryScreen: React.FC = () => {
       try {
         console.log(`🔍 Fetching inventory items for exportRequestDetailId: ${exportRequestDetailId}`);
 
-        const inventoryItems = await fetchInventoryItemsByExportRequestDetailId(parseInt(exportRequestDetailId));
+        let inventoryItems = await fetchInventoryItemsByExportRequestDetailId(parseInt(exportRequestDetailId));
+        
+        // INTERNAL_MULTI_SELECT mode: Filter to only show untracked items if untrackedItemIds is provided
+        if (originalItemId === 'INTERNAL_MULTI_SELECT' && untrackedItemIds) {
+          const untrackedIds = untrackedItemIds.split(',');
+          inventoryItems = inventoryItems.filter((item: any) => untrackedIds.includes(item.id));
+          console.log(`📋 INTERNAL_MULTI_SELECT: Filtered to ${inventoryItems.length} untracked items from ${untrackedIds.length} IDs`);
+          
+          // Trigger the INTERNAL multi-select modal directly with filtered items
+          console.log(`🔄 INTERNAL_MULTI_SELECT: Setting up modal with ${inventoryItems.length} items`);
+          
+          // Convert to InventoryItem format for compatibility
+          const convertedItems = inventoryItems.map((item: any) => ({
+            id: item.id,
+            reasonForDisposal: item.reasonForDisposal,
+            measurementValue: item.measurementValue,
+            status: item.status,
+            expiredDate: item.expiredDate,
+            importedDate: item.importedDate,
+            updatedDate: item.updatedDate,
+            parentId: item.parentId ? Number(item.parentId) : null,
+            childrenIds: item.childrenIds?.map((id: any) => Number(id)) || [],
+            itemId: item.itemId,
+            itemName: item.itemName,
+            itemCode: item.itemCode,
+            exportRequestDetailId: item.exportRequestDetailId,
+            importOrderDetailId: item.importOrderDetailId || 0,
+            storedLocationId: item.storedLocationId,
+            storedLocationName: item.storedLocationName,
+            isTrackingForExport: item.isTrackingForExport,
+          }));
+          
+          // Set up INTERNAL multi-select modal states but keep on main page
+          setSelectedOldItems(convertedItems); // Auto-select all items
+          setSelectedNewItems([]);
+          setInternalManualChangeStep('select_old');
+          setMultiSelectMode('old');
+          setChangeReason("");
+          setCheckAllOldItems(true);
+          setAllInventoryItems(convertedItems);
+          setManualSearchText("");
+          // KEEP on main page: setCurrentPage("main");
+          
+          // Show measurement modal directly on main page
+          setShowMeasurementModal(true);
+          
+          console.log(`✅ INTERNAL_MULTI_SELECT modal setup complete with ${convertedItems.length} items on main page`);
+        }
+        
         setSelectedInventoryItems(inventoryItems);
         console.log(`✅ Loaded ${inventoryItems.length} inventory items`);
 
@@ -377,6 +429,7 @@ const ExportInventoryScreen: React.FC = () => {
   const filteredAllInventoryItems = (allInventoryItems || []).filter((item) =>
     measurementSearch(item, manualSearchText || "")
   );
+  
 
   const handleManualChangePress = async (originalInventoryItemId: string) => {
     try {
@@ -393,7 +446,7 @@ const ExportInventoryScreen: React.FC = () => {
       console.log(`❌ Non-INTERNAL export type (${exportRequestType}) - using single-selection flow`);
 
       // Set the original item ID for tracking
-      setOriginalItemId(originalInventoryItemId);
+      setOriginalItemIdState(originalInventoryItemId);
 
       // Start loading
       setManualDataLoading(true);
@@ -482,10 +535,17 @@ const ExportInventoryScreen: React.FC = () => {
       setManualDataLoading(true);
 
       // Fetch current inventory items in the export request detail
-      const currentInventoryItems = await fetchInventoryItemsByExportRequestDetailId(parseInt(exportRequestDetailId!));
+      let currentInventoryItems = await fetchInventoryItemsByExportRequestDetailId(parseInt(exportRequestDetailId!));
+      
+      // If we have untrackedItemIds, filter to only those items
+      if (originalItemId === 'INTERNAL_MULTI_SELECT' && untrackedItemIds) {
+        const untrackedIds = untrackedItemIds.split(',');
+        currentInventoryItems = currentInventoryItems.filter((item: any) => untrackedIds.includes(item.id));
+        console.log(`📋 INTERNAL_MULTI_SELECT manual change: Filtered to ${currentInventoryItems.length} untracked items`);
+      }
 
       // Convert to InventoryItem format for compatibility
-      const convertedCurrentItems = currentInventoryItems.map(item => ({
+      const convertedCurrentItems = currentInventoryItems.map((item: any) => ({
         id: item.id,
         reasonForDisposal: item.reasonForDisposal,
         measurementValue: item.measurementValue,
@@ -494,7 +554,7 @@ const ExportInventoryScreen: React.FC = () => {
         importedDate: item.importedDate,
         updatedDate: item.updatedDate,
         parentId: item.parentId ? Number(item.parentId) : null,
-        childrenIds: item.childrenIds?.map(id => Number(id)) || [],
+        childrenIds: item.childrenIds?.map((id: any) => Number(id)) || [],
         itemId: item.itemId,
         itemName: item.itemName,
         itemCode: item.itemCode,
@@ -582,7 +642,7 @@ const ExportInventoryScreen: React.FC = () => {
           importedDate: item.importedDate,
           updatedDate: item.updatedDate,
           parentId: item.parentId ? Number(item.parentId) : null,
-          childrenIds: item.childrenIds?.map(id => Number(id)) || [],
+          childrenIds: item.childrenIds?.map((id: any) => Number(id)) || [],
           itemId: item.itemId,
           itemName: item.itemName,
           itemCode: item.itemCode,
@@ -939,7 +999,7 @@ const ExportInventoryScreen: React.FC = () => {
       // Reset manual change states and go back to main screen
       setSelectedManualItem(null);
       setChangeReason("");
-      setOriginalItemId("");
+      setOriginalItemIdState("");
       setManualSearchText("");
       setAllInventoryItems([]);
       setCurrentPage("main");
@@ -1172,6 +1232,16 @@ const ExportInventoryScreen: React.FC = () => {
     setShowMeasurementModal(false);
     setScannedNewItemsForModal([]);
     setMeasurementModalReason('');
+    
+    // Reset INTERNAL states
+    setSelectedOldItems([]);
+    setSelectedNewItems([]);
+    setMultiSelectMode(null);
+    setInternalManualChangeStep('select_old');
+    setAllInventoryItems([]);
+    
+    // Clear Redux state to prevent re-triggering
+    dispatch(setScannedNewItemForMultiSelect(null));
   };
 
   // Handle continue scanning for more new items
@@ -1186,6 +1256,28 @@ const ExportInventoryScreen: React.FC = () => {
     setScannedNewItemsForModal(prevItems => {
       const updatedItems = prevItems.filter(item => item.id !== itemId);
       console.log(`🗑️ Removed item ${itemId} from modal. Remaining: ${updatedItems.length}`);
+      return updatedItems;
+    });
+  };
+
+  // Handle removing an old item from the list
+  const handleRemoveOldItem = (itemId: string) => {
+    // Remove from allInventoryItems and update checkAll state in the same function
+    setAllInventoryItems(prevItems => {
+      const updatedItems = prevItems.filter(item => item.id !== itemId);
+      console.log(`🗑️ Removed old item ${itemId} from list. Remaining: ${updatedItems.length}`);
+      
+      // Update checkAll state based on new counts
+      setSelectedOldItems(prevSelected => {
+        const updatedSelected = prevSelected.filter(item => item.id !== itemId);
+        console.log(`🗑️ Removed old item ${itemId} from selection. Remaining selected: ${updatedSelected.length}`);
+        
+        // Update checkAll state with the new counts
+        setCheckAllOldItems(updatedSelected.length === updatedItems.length && updatedItems.length > 0);
+        
+        return updatedSelected;
+      });
+      
       return updatedItems;
     });
   };
@@ -1490,27 +1582,35 @@ const ExportInventoryScreen: React.FC = () => {
             Giá trị: {item.measurementValue} {itemUnitType || "đơn vị"}
           </Text>
           {/* Show selection status for INTERNAL multi-selection */}
-          {exportRequestType === "INTERNAL" && multiSelectMode && isSelected && (
+          {exportRequestType === "INTERNAL" && multiSelectMode === 'old' && isSelected && (
             <Text style={styles.selectedIndicatorText}>
               {isSelectedOld ? "✓ Đã chọn " : "✓ Đã chọn (mới)"}
             </Text>
           )}
         </View>
 
-        {exportRequestType === "INTERNAL" && multiSelectMode ? (
-          <TouchableOpacity
-            style={styles.checkboxContainer}
-            onPress={() => handleManualItemSelect(item)}
-          >
-            <View style={[
-              styles.checkbox,
-              isSelected && styles.checkboxChecked
-            ]}>
-              {isSelected && (
-                <Ionicons name="checkmark" size={16} color="white" />
-              )}
-            </View>
-          </TouchableOpacity>
+        {exportRequestType === "INTERNAL" && multiSelectMode === 'old' ? (
+          <View style={styles.multiSelectActions}>
+            <TouchableOpacity
+              style={styles.checkboxContainer}
+              onPress={() => handleManualItemSelect(item)}
+            >
+              <View style={[
+                styles.checkbox,
+                isSelected && styles.checkboxChecked
+              ]}>
+                {isSelected && (
+                  <Ionicons name="checkmark" size={16} color="white" />
+                )}
+              </View>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.deleteItemButton}
+              onPress={() => handleRemoveOldItem(item.id)}
+            >
+              <Ionicons name="close-circle" size={20} color="#ff4444" />
+            </TouchableOpacity>
+          </View>
         ) : (
           <TouchableOpacity
             style={[
@@ -1706,7 +1806,7 @@ const ExportInventoryScreen: React.FC = () => {
 
             {/* QR Scan Button for Manual Change - Only for non-INTERNAL or traditional flow */}
             {exportRequestStatus === ExportRequestStatus.IN_PROGRESS &&
-              !(exportRequestType === "INTERNAL" && multiSelectMode) && (
+              !(exportRequestType === "INTERNAL" && multiSelectMode === 'old') && (
                 <View style={styles.scanButtonContainer}>
                   <TouchableOpacity
                     style={styles.manualScanButton}
@@ -1952,7 +2052,7 @@ const ExportInventoryScreen: React.FC = () => {
       )}
 
       {/* Measurement Modal for INTERNAL QR Scan Result */}
-      {showMeasurementModal && scannedNewItemsForModal.length > 0 && (
+      {showMeasurementModal && (selectedOldItems.length > 0 || scannedNewItemsForModal.length > 0) && (
         <View style={styles.warningOverlay}>
           <View style={styles.measurementModal}>
             <Text style={styles.measurementModalTitle}>Xác nhận thay đổi sản phẩm</Text>
@@ -1963,8 +2063,20 @@ const ExportInventoryScreen: React.FC = () => {
                 <Text style={styles.measurementSectionTitle}>Sản phẩm được thay đổi ({selectedOldItems.length}):</Text>
                 {selectedOldItems.map((item, index) => (
                   <View key={item.id} style={styles.measurementItemInfo}>
-                    <Text style={styles.measurementItemId}>{index + 1}. {item.id}</Text>
-                    <Text style={styles.measurementItemValue}>Giá trị: {item.measurementValue} {itemUnitType || "đơn vị"}</Text>
+                    <View style={styles.measurementItemContent}>
+                      <View style={styles.measurementItemDetails}>
+                        <Text style={styles.measurementItemId}>{index + 1}. {item.id}</Text>
+                        <Text style={styles.measurementItemValue}>Giá trị: {item.measurementValue} {itemUnitType || "đơn vị"}</Text>
+                        <Text style={styles.measurementItemLocation}>Vị trí: {formatLocationString(item.storedLocationName)}</Text>
+                      </View>
+                      <TouchableOpacity
+                        style={styles.removeItemButton}
+                        onPress={() => handleRemoveOldItem(item.id)}
+                        disabled={manualChangeLoading}
+                      >
+                        <Ionicons name="close-circle" size={24} color="#ff4444" />
+                      </TouchableOpacity>
+                    </View>
                   </View>
                 ))}
               </View>
@@ -2556,6 +2668,14 @@ const styles = StyleSheet.create({
   checkboxChecked: {
     backgroundColor: "#1677ff",
     borderColor: "#1677ff",
+  },
+  multiSelectActions: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  deleteItemButton: {
+    padding: 4,
+    marginLeft: 8,
   },
 
   // New styles for summary row and buttons
