@@ -5,22 +5,18 @@ import {
   StyleSheet,
   SafeAreaView,
   Alert,
-  Dimensions,
-  TextInput,
-  TouchableOpacity,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
 } from "react-native";
 import { Camera, CameraView } from "expo-camera";
 import { router, useLocalSearchParams } from "expo-router";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import { RootState } from "@/redux/store";
+import { setScannedNewItemForMultiSelect } from "@/redux/exportRequestDetailSlice";
 import { Button } from "tamagui";
 import { useIsFocused } from "@react-navigation/native";
 import { Audio } from "expo-av";
 import useExportRequestDetail from "@/services/useExportRequestDetailService";
 import useExportRequest from "@/services/useExportRequestService";
+import useInventoryService from "@/services/useInventoryService";
 
 
 export default function ScanQrScreen() {
@@ -37,6 +33,7 @@ export default function ScanQrScreen() {
   const isFocused = useIsFocused();
   const { updateActualQuantity } = useExportRequestDetail();
   const { exportRequest, fetchExportRequestById } = useExportRequest();
+  const { fetchInventoryItemById, fetchInventoryItemsByExportRequestDetailId } = useInventoryService();
   const [scanningEnabled, setScanningEnabled] = useState(true);
 
   const [lastScannedProduct, setLastScannedProduct] = useState<any | null>(
@@ -44,13 +41,16 @@ export default function ScanQrScreen() {
   );
   const [scannedItemCode, setScannedItemCode] = useState<string>("");
 
+  // Import Redux actions and dispatch
+  const dispatch = useDispatch();
+
   // Enhanced debounce mechanism and processing tracking
   const lastScanTimeRef = useRef<number>(0);
   const currentlyProcessingRef = useRef<string | null>(null);
   const lastProcessedQRRef = useRef<string | null>(null);
   const SCAN_DEBOUNCE_MS = 2000;
   const SUCCESS_COOLDOWN_MS = 3000;
-  const [itemIdForNavigation, setItemIdForNavigation] = useState<string>("");
+  const [itemIdForNavigation] = useState<string>("");
 
   const scanMappings = useSelector(
     (state: RootState) => state.exportRequestDetail.scanMappings
@@ -205,7 +205,13 @@ export default function ScanQrScreen() {
 
       console.log("🔍 Mapping found:", mapping);
       if (!mapping) {
-        throw new Error("Không tìm thấy sản phẩm tương ứng với mã QR");
+        // NEW: Handle case where inventoryItemId is not in scanMappings (INTERNAL only)
+        if (exportRequest?.type === "INTERNAL") {
+          await handleInternalMultiSelectMode(inventoryItemId);
+          return;
+        } else {
+          throw new Error("Không tìm thấy sản phẩm tương ứng với mã QR");
+        }
       }
 
       const exportRequestDetailId = mapping.exportRequestDetailId;
@@ -348,6 +354,98 @@ export default function ScanQrScreen() {
     }, 300);
   };
 
+  // NEW: Handle INTERNAL multi-select mode with confirmation alert
+  const handleInternalMultiSelectMode = async (inventoryItemId: string) => {
+    try {
+      console.log(`🔍 INTERNAL mode: Item not in mappings, checking itemId validation: ${inventoryItemId}`);
+      
+      // Get inventory item data to check itemId
+      const inventoryItemData = await fetchInventoryItemById(inventoryItemId);
+      if (!inventoryItemData) {
+        throw new Error("Không tìm thấy inventory item với mã đã quét");
+      }
+
+      // Check if any export request detail has the same itemId
+      const matchingExportDetail = exportDetails.find(
+        (detail: any) => detail.itemId === inventoryItemData.itemId
+      );
+
+      if (!matchingExportDetail) {
+        throw new Error("Không thể đổi sản phẩm có khác mã hàng");
+      }
+
+      console.log(`✅ INTERNAL multi-select: Item ${inventoryItemId} validated`);
+      
+      // Get list of untracked inventory items (old IDs) for this export request detail
+      const allInventoryItems = await fetchInventoryItemsByExportRequestDetailId(Number(matchingExportDetail.id));
+      const untrackedItems = allInventoryItems.filter((item: any) => item.isTrackingForExport === false);
+      
+      console.log(`📋 Found ${untrackedItems.length} untracked items for replacement`);
+      
+      // Disable scanning while alert is shown
+      setScanningEnabled(false);
+      
+      // Show confirmation alert
+      Alert.alert(
+        "Xác nhận thay đổi",
+        `Mã hàng tồn kho không có trong phiếu xuất này.\n\nBạn có muốn đổi mã hàng này với mã hàng trong phiếu xuất?\n\nSản phẩm: ${inventoryItemData.inventoryItemId}`,
+        [
+          {
+            text: "Hủy",
+            style: "cancel",
+            onPress: () => {
+              // Re-enable scanning when user cancels
+              setScanningEnabled(true);
+              setIsProcessing(false);
+              currentlyProcessingRef.current = null;
+            }
+          },
+          {
+            text: "Xác nhận",
+            onPress: () => {
+              // Store scanned item in Redux and navigate to export-inventory with multi-select
+              console.log(`🔄 INTERNAL multi-select: Storing scanned item ${inventoryItemId} in Redux`);
+              dispatch(setScannedNewItemForMultiSelect(inventoryItemId));
+              
+              setTimeout(() => {
+                console.log(`🔄 INTERNAL multi-select: Navigating to export-inventory with ${untrackedItems.length} old items`);
+                router.replace({
+                  pathname: '/export/export-inventory/[id]',
+                  params: {
+                    id: matchingExportDetail.id,
+                    itemCode: inventoryItemData.itemId,
+                    exportRequestDetailId: matchingExportDetail.id,
+                    exportRequestId: id,
+                    exportRequestType: exportRequest?.type || "",
+                    exportRequestStatus: exportRequest?.status || "",
+                    originalItemId: 'INTERNAL_MULTI_SELECT', // Special flag for multi-select mode
+                    untrackedItemIds: untrackedItems.map((item: any) => item.id).join(','), // Pass old IDs as comma-separated string
+                  },
+                });
+              }, 500);
+            }
+          }
+        ]
+      );
+      
+      setIsProcessing(false);
+      
+    } catch (error: any) {
+      console.log("❌ Error in handleInternalMultiSelectMode:", error);
+      const message = error?.response?.data?.message || error?.message || "Lỗi không xác định";
+      setErrorMessage(message);
+      
+      // Re-enable scanning after error
+      setTimeout(() => {
+        setErrorMessage(null);
+        setScanningEnabled(true);
+        setIsProcessing(false);
+        currentlyProcessingRef.current = null;
+      }, 3000);
+    }
+  };
+
+
 
   if (hasPermission === null) return <Text>Đang xin quyền camera...</Text>;
   if (hasPermission === false) return <Text>Không có quyền dùng camera</Text>;
@@ -436,6 +534,7 @@ export default function ScanQrScreen() {
             </View>
           </View>
         )}
+
       </View>
     </SafeAreaView>
   );
@@ -596,5 +695,133 @@ const styles = StyleSheet.create({
   scrollViewContent: {
     flexGrow: 1,
     justifyContent: "center",
+  },
+  // NEW: Modal styles
+  modalOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    zIndex: 1000,
+  },
+  modalDialog: {
+    backgroundColor: "white",
+    borderRadius: 12,
+    padding: 20,
+    width: "100%",
+    maxWidth: 400,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#333",
+    textAlign: "center",
+    marginBottom: 12,
+  },
+  modalText: {
+    fontSize: 14,
+    color: "#495057",
+    textAlign: "center",
+    marginBottom: 8,
+    lineHeight: 20,
+  },
+  modalProductInfo: {
+    backgroundColor: "#f8f9fa",
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: "#e9ecef",
+  },
+  modalProductText: {
+    fontSize: 14,
+    color: "#495057",
+    marginBottom: 4,
+    textAlign: "center",
+  },
+  modalButtonRow: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  modalCancelButton: {
+    backgroundColor: "#c1c1c1ff",
+  },
+  modalCancelButtonText: {
+    color: "white",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  modalConfirmButton: {
+    backgroundColor: "#1677ff",
+  },
+  modalConfirmButtonText: {
+    color: "white",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  // Measurement info styles
+  measurementInfo: {
+    backgroundColor: "#f8f9fa",
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "#e9ecef",
+  },
+  measurementLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#495057",
+    marginBottom: 8,
+  },
+  measurementText: {
+    fontSize: 14,
+    color: "#6c757d",
+    marginBottom: 4,
+  },
+  // Warning modal styles
+  warningTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#dc3545",
+    textAlign: "center",
+    marginBottom: 12,
+  },
+  warningText: {
+    fontSize: 14,
+    color: "#495057",
+    textAlign: "center",
+    marginBottom: 16,
+    lineHeight: 20,
+  },
+  warningMeasurementInfo: {
+    backgroundColor: "#fff3cd",
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: "#ffeaa7",
+  },
+  warningMeasurementText: {
+    fontSize: 14,
+    color: "#856404",
+    marginBottom: 4,
+    textAlign: "center",
   },
 });
