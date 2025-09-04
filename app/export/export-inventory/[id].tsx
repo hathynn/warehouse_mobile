@@ -23,7 +23,7 @@ import useInventoryService from "@/services/useInventoryService";
 import useItemService from "@/services/useItemService";
 import useExportRequestDetail from "@/services/useExportRequestDetailService";
 import { ExportRequestStatus, ExportRequestTypeEnum } from "@/types/exportRequest.type";
-import { updateInventoryItemId, setScanMappings, setScannedNewItemForMultiSelect } from "@/redux/exportRequestDetailSlice";
+import { updateInventoryItemId, setScanMappings, setScannedNewItemForMultiSelect, setMeasurementModalVisible } from "@/redux/exportRequestDetailSlice";
 
 interface RouteParams extends Record<string, string | undefined> {
   id: string;
@@ -253,7 +253,9 @@ const ExportInventoryScreen: React.FC = () => {
               }
             });
 
+            console.log(`📱 Opening measurement modal after QR scan`);
             setShowMeasurementModal(true);
+            dispatch(setMeasurementModalVisible(true));
             
             // Play success haptic feedback
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -296,11 +298,11 @@ const ExportInventoryScreen: React.FC = () => {
 
         let inventoryItems = await fetchInventoryItemsByExportRequestDetailId(parseInt(exportRequestDetailId));
         
-        // INTERNAL_MULTI_SELECT mode: Filter to only show untracked items if untrackedItemIds is provided
+        // INTERNAL_MULTI_SELECT mode: Show all items if untrackedItemIds is provided 
         if (originalItemId === 'INTERNAL_MULTI_SELECT' && untrackedItemIds) {
-          const untrackedIds = untrackedItemIds.split(',');
-          inventoryItems = inventoryItems.filter((item: any) => untrackedIds.includes(item.id));
-          console.log(`📋 INTERNAL_MULTI_SELECT: Filtered to ${inventoryItems.length} untracked items from ${untrackedIds.length} IDs`);
+          const allIds = untrackedItemIds.split(',');
+          inventoryItems = inventoryItems.filter((item: any) => allIds.includes(item.id));
+          console.log(`📋 INTERNAL_MULTI_SELECT: Filtered to ${inventoryItems.length} items from ${allIds.length} IDs`);
           
           // Trigger the INTERNAL multi-select modal directly with filtered items
           console.log(`🔄 INTERNAL_MULTI_SELECT: Setting up modal with ${inventoryItems.length} items`);
@@ -339,6 +341,7 @@ const ExportInventoryScreen: React.FC = () => {
           
           // Show measurement modal directly on main page
           setShowMeasurementModal(true);
+          dispatch(setMeasurementModalVisible(true));
           
           console.log(`✅ INTERNAL_MULTI_SELECT modal setup complete with ${convertedItems.length} items on main page`);
         }
@@ -537,11 +540,11 @@ const ExportInventoryScreen: React.FC = () => {
       // Fetch current inventory items in the export request detail
       let currentInventoryItems = await fetchInventoryItemsByExportRequestDetailId(parseInt(exportRequestDetailId!));
       
-      // If we have untrackedItemIds, filter to only those items
+      // If we have untrackedItemIds, filter to all those items
       if (originalItemId === 'INTERNAL_MULTI_SELECT' && untrackedItemIds) {
-        const untrackedIds = untrackedItemIds.split(',');
-        currentInventoryItems = currentInventoryItems.filter((item: any) => untrackedIds.includes(item.id));
-        console.log(`📋 INTERNAL_MULTI_SELECT manual change: Filtered to ${currentInventoryItems.length} untracked items`);
+        const allIds = untrackedItemIds.split(',');
+        currentInventoryItems = currentInventoryItems.filter((item: any) => allIds.includes(item.id));
+        console.log(`📋 INTERNAL_MULTI_SELECT manual change: Filtered to ${currentInventoryItems.length} items`);
       }
 
       // Convert to InventoryItem format for compatibility
@@ -1202,6 +1205,7 @@ const ExportInventoryScreen: React.FC = () => {
 
       // Reset states and return to main screen
       setShowMeasurementModal(false);
+      dispatch(setMeasurementModalVisible(false));
       setScannedNewItemsForModal([]);
       setMeasurementModalReason('');
       setSelectedOldItems([]);
@@ -1230,6 +1234,7 @@ const ExportInventoryScreen: React.FC = () => {
   // Handle measurement modal cancel
   const handleMeasurementModalCancel = () => {
     setShowMeasurementModal(false);
+    dispatch(setMeasurementModalVisible(false));
     setScannedNewItemsForModal([]);
     setMeasurementModalReason('');
     
@@ -1247,8 +1252,17 @@ const ExportInventoryScreen: React.FC = () => {
   // Handle continue scanning for more new items
   const handleContinueScanning = () => {
     console.log(`🔄 Continue scanning - keeping modal with ${scannedNewItemsForModal.length} items`);
-    // Keep modal open but trigger QR scan again
-    handleQRScanForInternalReplacement();
+    
+    // Temporarily close modal to reset Redux state, then navigate to QR scan
+    console.log(`📱 Closing measurement modal to enable QR scanning`);
+    setShowMeasurementModal(false);
+    dispatch(setMeasurementModalVisible(false));
+    
+    // Small delay to ensure Redux state is updated, then navigate
+    setTimeout(() => {
+      console.log(`📱 Navigating to QR scan after modal closed`);
+      handleQRScanForInternalReplacement();
+    }, 300);
   };
 
   // Handle removing a scanned item from the modal
@@ -1416,6 +1430,9 @@ const ExportInventoryScreen: React.FC = () => {
     // Use exportRequestId if available, otherwise fallback to id
     const qrScanId = exportRequestId || id;
     console.log(`📱 INTERNAL - Using QR scan ID: ${qrScanId} (exportRequestId: ${exportRequestId}, id: ${id})`);
+
+    // Ensure modal state is false before navigation
+    dispatch(setMeasurementModalVisible(false));
 
     // Navigate to QR scan for INTERNAL multi-select mode
     router.push({
@@ -2065,7 +2082,9 @@ const ExportInventoryScreen: React.FC = () => {
                   <View key={item.id} style={styles.measurementItemInfo}>
                     <View style={styles.measurementItemContent}>
                       <View style={styles.measurementItemDetails}>
-                        <Text style={styles.measurementItemId}>{index + 1}. {item.id}</Text>
+                        <Text style={styles.measurementItemId}>
+                          {index + 1}. {item.id}{item.isTrackingForExport ? ' (Sản phẩm này đã quét)' : ''}
+                        </Text>
                         <Text style={styles.measurementItemValue}>Giá trị: {item.measurementValue} {itemUnitType || "đơn vị"}</Text>
                         <Text style={styles.measurementItemLocation}>Vị trí: {formatLocationString(item.storedLocationName)}</Text>
                       </View>

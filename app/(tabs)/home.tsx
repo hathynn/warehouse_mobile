@@ -1,6 +1,8 @@
 import { RootState } from "@/redux/store";
 import useAccountService from "@/services/useAccountService";
 import useStaffTaskService from "@/services/useStaffTaskService";
+import useImportOrder from "@/services/useImportOrderService";
+import useExportRequest from "@/services/useExportRequestService";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useState, useEffect } from "react";
@@ -38,6 +40,9 @@ const MainDashboard = () => {
     fetchTaskOfStaffToday, 
     loading: staffTaskLoading 
   } = useStaffTaskService();
+  
+  const { fetchImportOrderById } = useImportOrder();
+  const { fetchExportRequestById } = useExportRequest();
 
   const authState = useSelector((state: RootState) => state.auth);
   const { user: authUser, isLoggedIn, isLoggingOut, isRestoring } = authState;
@@ -135,48 +140,109 @@ const MainDashboard = () => {
     router.push("/export"); // Điều hướng đến (tabs)/export.tsx
   };
 
-  const importCount = taskOfStaffPerDate?.importOrderIds?.length || 0;
-  const exportCount = taskOfStaffPerDate?.exportRequestIds?.length || 0;
-  const stockCheckCount = taskOfStaffPerDate?.stockCheckIds?.length || 0;
+  const [filteredOrderItems, setFilteredOrderItems] = useState([]);
+  const [importCount, setImportCount] = useState(0);
+  const [exportCount, setExportCount] = useState(0);
+  const [stockCheckCount, setStockCheckCount] = useState(0);
 
-  const tasks = [
-    {
-      id: 1,
-      title: "Đơn Nhập Hàng",
-      subtitle: "Kiểm đếm và xử lý đơn nhập kho",
-      icon: "download" as const,
-      gradient: ["#1677ff", "#0ea5e9"],
-      pending: importCount,
-      description: `${importCount} đơn nhập chờ xử lý`,
-      screen: "/import" as const,
-    },
-    {
-      id: 2,
-      title: "Phiếu Xuất Hàng",
-      subtitle: "Kiểm đếm và xử lý yêu cầu xuất kho",
-      icon: "cloud-upload" as const,
-      gradient: ["#1677ff", "#0ea5e9"],
-      pending: exportCount,
-      description: `${exportCount} phiếu xuất chờ xử lý`,
-      screen: "/export" as const,
-    },
-    {
-      id: 3,
-      title: "Phiếu Kiểm Kho",
-      subtitle: "Thực hiện kiểm tra tồn kho",
-      icon: "clipboard" as const,
-      gradient: ["#1677ff", "#0ea5e9"],
-      pending: stockCheckCount,
-      description: `${stockCheckCount} yêu cầu kiểm kho mới`,
-      screen: "/stock-check" as const,
-    },
-  ];
+  // Filter orders by status and create order items
+  useEffect(() => {
+    const filterOrders = async () => {
+      if (!taskOfStaffPerDate) return;
+      
+      const orderItems = [];
+      let importFilteredCount = 0;
+      let exportFilteredCount = 0;
+      let stockFilteredCount = 0;
+      
+      // Filter import orders
+      if (taskOfStaffPerDate.importOrderIds) {
+        for (const orderId of taskOfStaffPerDate.importOrderIds) {
+          try {
+            const order = await fetchImportOrderById(orderId);
+            // Skip COMPLETED and STORED orders
+            if (order && order.status !== 'COMPLETED' && order.status !== 'STORED') {
+              orderItems.push({
+                id: `import_${orderId}`,
+                type: "import",
+                title: `Đơn Nhập Hàng #${orderId}`,
+                subtitle: "Kiểm đếm và xử lý đơn nhập kho",
+                icon: "download" as const,
+                gradient: ["#1677ff", "#0ea5e9"],
+                priority: "high",
+                screen: `/import/detail/${orderId}`,
+                orderId: orderId,
+                status: order.status,
+              });
+              importFilteredCount++;
+            }
+          } catch (error) {
+            console.log(`Error fetching import order ${orderId}:`, error);
+          }
+        }
+      }
 
-  type ValidScreen = "/import" | "/export" | "/stock-check";
+      // Filter export requests  
+      if (taskOfStaffPerDate.exportRequestIds) {
+        for (const requestId of taskOfStaffPerDate.exportRequestIds) {
+          try {
+            const request = await fetchExportRequestById(requestId);
+            // Skip COMPLETED orders
+            if (request && request.status !== 'COMPLETED') {
+              orderItems.push({
+                id: `export_${requestId}`,
+                type: "export",
+                title: `Phiếu Xuất Hàng #${requestId}`,
+                subtitle: "Kiểm đếm và xử lý yêu cầu xuất kho",
+                icon: "arrow-up-circle" as const,
+                gradient: ["#1677ff", "#0ea5e9"],
+                priority: "high",
+                screen: `/export/export-detail/${requestId}`,
+                orderId: requestId,
+                status: request.status,
+              });
+              exportFilteredCount++;
+            }
+          } catch (error) {
+            console.log(`Error fetching export request ${requestId}:`, error);
+          }
+        }
+      }
 
-  const handleTaskPress = (screen: ValidScreen) => {
+      // Add stock check requests (assuming no status filtering needed for now)
+      if (taskOfStaffPerDate.stockCheckIds) {
+        taskOfStaffPerDate.stockCheckIds.forEach((stockCheckId, index) => {
+          orderItems.push({
+            id: `stock_${stockCheckId}`,
+            type: "stock_check",
+            title: `Phiếu Kiểm Kho #${stockCheckId}`,
+            subtitle: "Thực hiện kiểm tra tồn kho",
+            icon: "clipboard" as const,
+            gradient: ["#1677ff", "#0ea5e9"],
+            priority: "medium",
+            screen: `/stock-check/detail/${stockCheckId}`,
+            orderId: stockCheckId,
+          });
+          stockFilteredCount++;
+        });
+      }
+
+      setFilteredOrderItems(orderItems);
+      setImportCount(importFilteredCount);
+      setExportCount(exportFilteredCount);
+      setStockCheckCount(stockFilteredCount);
+    };
+
+    filterOrders();
+  }, [taskOfStaffPerDate, fetchImportOrderById, fetchExportRequestById]);
+
+  const handleOrderPress = (screen: string) => {
     router.push(screen);
   };
+
+  // Separate filtered orders by priority
+  const highPriorityOrders = filteredOrderItems.filter(item => item.priority === "high");
+  const mediumPriorityOrders = filteredOrderItems.filter(item => item.priority === "medium");
 
   return (
     <View style={styles.container}>
@@ -212,123 +278,160 @@ const MainDashboard = () => {
         {/* Main Content */}
         <View style={styles.mainContent}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Công việc hôm nay</Text>
+            <View style={styles.titleContainer}>
+              <Ionicons name="list" size={24} color="#1e293b" />
+              <Text style={styles.sectionTitle}>Danh sách công việc hôm nay</Text>
+            </View>
             <Text style={styles.sectionSubtitle}>
-              Bạn có {tasks.reduce((total, task) => total + task.pending, 0)}{" "}
-              công việc cần hoàn thành
+              {filteredOrderItems.length > 0 
+                ? `Bạn có ${filteredOrderItems.length} đơn hàng cần xử lý hôm nay`
+                : "Tuyệt vời! Bạn đã hoàn thành tất cả công việc hôm nay"}
             </Text>
           </View>
 
-          {/* Task Cards */}
-          <View style={styles.taskContainer}>
-            {tasks.map((task) => (
-              <TouchableOpacity
-                key={task.id}
-                style={styles.taskCard}
-                onPress={() => handleTaskPress(task.screen)}
-                activeOpacity={0.8}
-              >
-                <LinearGradient
-                  colors={['#ffffff', '#f8fafc']}
-                  style={styles.taskCardGradient}
+          {/* High Priority Orders */}
+          {highPriorityOrders.length > 0 && (
+            <View style={styles.prioritySection}>
+              <View style={styles.priorityHeader}>
+                <Ionicons name="alert-circle" size={20} color="#ef4444" />
+                <Text style={styles.priorityTitle}>Ưu tiên cao - Nhập/Xuất hàng</Text>
+                <Text style={styles.priorityCount}>({highPriorityOrders.length})</Text>
+              </View>
+              {highPriorityOrders.map((order) => (
+                <TouchableOpacity
+                  key={order.id}
+                  style={[styles.orderCard, styles.urgentCard]}
+                  onPress={() => handleOrderPress(order.screen)}
+                  activeOpacity={0.8}
                 >
-                  <View style={styles.taskContent}>
-                    <View style={styles.taskLeft}>
+                  <View style={styles.orderContent}>
+                    <View style={styles.orderLeft}>
                       <LinearGradient
-                        colors={task.gradient} 
-                        style={styles.taskIcon}
-                        start={{x: 0, y: 0}}
-                        end={{x: 1, y: 1}}
+                        colors={order.gradient}
+                        style={styles.orderIcon}
                       >
-                        <Ionicons 
-                          name={task.icon} 
-                          size={28} 
-                          color="white" 
-                        />
+                        <Ionicons name={order.icon} size={20} color="white" />
                       </LinearGradient>
-                      <View style={styles.taskInfo}>
-                        <Text style={styles.taskTitle}>{task.title}</Text>
-                        <Text style={styles.taskSubtitle}>{task.subtitle}</Text>
-                        <LinearGradient
-                          colors={task.gradient}
-                          style={styles.taskStatus}
-                          start={{x: 0, y: 0}}
-                          end={{x: 1, y: 0}}
-                        >
-                          <Text style={styles.taskStatusText}>
-                            {task.description}
-                          </Text>
-                        </LinearGradient>
+                      <View style={styles.orderInfo}>
+                        <Text style={styles.orderTitle}>{order.title}</Text>
+                        <Text style={styles.orderSubtitle}>{order.subtitle}</Text>
+                        <View style={styles.orderMeta}>
+                          <Ionicons name="time-outline" size={14} color="#64748b" />
+                          <Text style={styles.orderTime}>Cần xử lý ngay</Text>
+                        </View>
                       </View>
                     </View>
-                    <View style={styles.taskRight}>
-                      <LinearGradient
-                        colors={task.gradient}
-                        style={styles.taskPendingBadge}
-                      >
-                        <Text style={styles.taskPending}>{task.pending}</Text>
-                      </LinearGradient>
-                      <Text style={styles.taskPendingLabel}>Chờ xử lý</Text>
-                      <Ionicons 
-                        name="chevron-forward" 
-                        size={20} 
-                        color="#9CA3AF" 
-                      />
+                    <View style={styles.orderRight}>
+                      <View style={styles.urgentBadge}>
+                        <Text style={styles.urgentText}>Cần xử lý</Text>
+                      </View>
+                      <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
                     </View>
                   </View>
-                </LinearGradient>
-              </TouchableOpacity>
-            ))}
-          </View>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
 
-          {/* Quick Stats */}
-          {/* <LinearGradient
-            colors={['#ffffff', '#f8fafc']}
-            style={styles.statsCard}
-          >
-            <View style={styles.statsHeader}>
-              <Ionicons name="analytics-outline" size={24} color="#1677ff" />
-              <Text style={styles.statsTitle}>Thống kê nhanh</Text>
+          {/* Medium Priority Orders */}
+          {mediumPriorityOrders.length > 0 && (
+            <View style={styles.prioritySection}>
+              <View style={styles.priorityHeader}>
+                <Ionicons name="time" size={20} color="#f59e0b" />
+                <Text style={styles.priorityTitle}>Ưu tiên vừa - Kiểm kho</Text>
+                <Text style={styles.priorityCount}>({mediumPriorityOrders.length})</Text>
+              </View>
+              {mediumPriorityOrders.map((order) => (
+                <TouchableOpacity
+                  key={order.id}
+                  style={styles.orderCard}
+                  onPress={() => handleOrderPress(order.screen)}
+                  activeOpacity={0.8}
+                >
+                  <View style={styles.orderContent}>
+                    <View style={styles.orderLeft}>
+                      <LinearGradient
+                        colors={order.gradient}
+                        style={styles.orderIcon}
+                      >
+                        <Ionicons name={order.icon} size={20} color="white" />
+                      </LinearGradient>
+                      <View style={styles.orderInfo}>
+                        <Text style={styles.orderTitle}>{order.title}</Text>
+                        <Text style={styles.orderSubtitle}>{order.subtitle}</Text>
+                        <View style={styles.orderMeta}>
+                          <Ionicons name="calendar-outline" size={14} color="#64748b" />
+                          <Text style={styles.orderTime}>Trong ngày hôm nay</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.orderRight}>
+                      <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              ))}
             </View>
-            <View style={styles.statsContainer}>
-              <View style={styles.statItem}>
+          )}
+
+          {/* Empty State */}
+          {filteredOrderItems.length === 0 && (
+            <View style={styles.emptyState}>
+              <Ionicons name="checkmark-circle" size={64} color="#10b981" />
+              <Text style={styles.emptyTitle}>Hoàn thành!</Text>
+              <Text style={styles.emptySubtitle}>
+                Bạn đã xử lý xong tất cả công việc hôm nay
+              </Text>
+            </View>
+          )}
+
+          {/* Compact Count Overview */}
+          <View style={styles.countOverview}>
+            <View style={styles.overviewHeader}>
+              <Ionicons name="bar-chart-outline" size={20} color="#1e293b" />
+              <Text style={styles.overviewTitle}>Tổng quan nhanh</Text>
+            </View>
+            <View style={styles.countGrid}>
+              <View style={styles.countItem}>
                 <LinearGradient
-                  colors={['#1677ff', '#0ea5e9']}
-                  style={styles.statCircle}
+                  colors={["#1677ff", "#0ea5e9"]}
+                  style={styles.countCircle}
                 >
-                  <Ionicons name="checkmark" size={20} color="white" />
+                  <Text style={styles.countNumber}>{importCount}</Text>
                 </LinearGradient>
-                <Text style={styles.statNumber}>
-                  {importCount + exportCount + stockCheckCount}
-                </Text>
-                <Text style={styles.statLabel}>Hôm nay</Text>
+                <Text style={styles.countLabel}>Nhập hàng</Text>
               </View>
-              <View style={styles.statItem}>
+              <View style={styles.countItem}>
                 <LinearGradient
-                  colors={['#0ea5e9', '#0284c7']}
-                  style={styles.statCircle}
+                  colors={["#1677ff", "#0ea5e9"]}
+                  style={styles.countCircle}
                 >
-                  <Ionicons name="time" size={20} color="white" />
+                  <Text style={styles.countNumber}>{exportCount}</Text>
                 </LinearGradient>
-                <Text style={styles.statNumber}>
-                  {Math.max(importCount, exportCount, stockCheckCount)}
-                </Text>
-                <Text style={styles.statLabel}>Ưu tiên</Text>
+                <Text style={styles.countLabel}>Xuất hàng</Text>
               </View>
-              <View style={styles.statItem}>
+              <View style={styles.countItem}>
                 <LinearGradient
-                  colors={['#0284c7', '#1d4ed8']}
-                  style={styles.statCircle}
+                  colors={["#1677ff", "#0ea5e9"]}
+                  style={styles.countCircle}
                 >
-                  <Ionicons name="trending-up" size={20} color="white" />
+                  <Text style={styles.countNumber}>{stockCheckCount}</Text>
                 </LinearGradient>
-                <Text style={styles.statNumber}>
-                  {staffTaskLoading ? '...' : '98%'}
-                </Text>
-                <Text style={styles.statLabel}>Hiệu suất</Text>
+                <Text style={styles.countLabel}>Kiểm kho</Text>
+              </View>
+              <View style={styles.countItem}>
+                <LinearGradient
+                  colors={["#1677ff", "#0ea5e9"]}
+                  style={styles.countCircle}
+                >
+                  <Text style={styles.countNumber}>
+                    {importCount + exportCount + stockCheckCount}
+                  </Text>
+                </LinearGradient>
+                <Text style={styles.countLabel}>Tổng cộng</Text>
               </View>
             </View>
-          </LinearGradient> */}
+          </View>
         </View>
       </ScrollView>
     </View>
@@ -403,167 +506,192 @@ const styles = StyleSheet.create({
   sectionHeader: {
     marginBottom: 24,
   },
-  sectionTitle: {
-    fontSize: 28,
-    fontWeight: "800",
-    color: "#1e293b",
+  titleContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
     marginBottom: 8,
   },
+  sectionTitle: {
+    fontSize: 24,
+    fontWeight: "700",
+    color: "#1e293b",
+  },
   sectionSubtitle: {
-    fontSize: 16,
+    fontSize: 15,
     color: "#64748b",
-    lineHeight: 24,
+    lineHeight: 22,
   },
-  taskContainer: {
-    gap: 16,
+  prioritySection: {
+    marginBottom: 24,
   },
-  taskCard: {
-    borderRadius: 20,
-    marginBottom: 16,
+  priorityHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 12,
+    paddingHorizontal: 4,
+  },
+  priorityTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#374151",
+    flex: 1,
+  },
+  priorityCount: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#6b7280",
+  },
+  orderCard: {
+    backgroundColor: "#ffffff",
+    borderRadius: 12,
+    marginBottom: 8,
+    padding: 16,
     shadowColor: "#000",
     shadowOffset: {
       width: 0,
-      height: 4,
+      height: 2,
     },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 8,
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 4,
+    borderLeftWidth: 4,
+    borderLeftColor: "#e5e7eb",
   },
-  taskCardGradient: {
-    borderRadius: 20,
-    padding: 20,
+  urgentCard: {
+    borderLeftColor: "#ef4444",
+    backgroundColor: "#fefefe",
   },
-  taskContent: {
+  orderContent: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
   },
-  taskLeft: {
+  orderLeft: {
     flexDirection: "row",
     alignItems: "center",
     flex: 1,
   },
-  taskIcon: {
-    width: 60,
-    height: 60,
-    borderRadius: 16,
+  orderIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 16,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 4,
+    marginRight: 12,
   },
-  taskInfo: {
+  orderInfo: {
     flex: 1,
   },
-  taskTitle: {
-    fontSize: 18,
-    fontWeight: "700",
+  orderTitle: {
+    fontSize: 16,
+    fontWeight: "600",
     color: "#1e293b",
     marginBottom: 4,
   },
-  taskSubtitle: {
-    fontSize: 14,
+  orderSubtitle: {
+    fontSize: 13,
     color: "#64748b",
-    marginBottom: 10,
-    lineHeight: 20,
+    marginBottom: 4,
   },
-  taskStatus: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    alignSelf: "flex-start",
-  },
-  taskStatusText: {
-    fontSize: 12,
-    color: "#FFFFFF",
-    fontWeight: "600",
-  },
-  taskRight: {
+  orderMeta: {
+    flexDirection: "row",
     alignItems: "center",
     gap: 4,
   },
-  taskPendingBadge: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 4,
-  },
-  taskPending: {
-    fontSize: 20,
-    fontWeight: "800",
-    color: "#FFFFFF",
-  },
-  taskPendingLabel: {
-    fontSize: 11,
+  orderTime: {
+    fontSize: 12,
     color: "#64748b",
-    marginBottom: 8,
-    fontWeight: "500",
   },
-  statsCard: {
-    borderRadius: 20,
-    padding: 20,
-    marginTop: 24,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  statsHeader: {
-    flexDirection: "row",
+  orderRight: {
     alignItems: "center",
-    marginBottom: 20,
+    flexDirection: "row",
     gap: 8,
   },
-  statsTitle: {
+  urgentBadge: {
+    backgroundColor: "#fef2f2",
+    borderWidth: 1,
+    borderColor: "#fecaca",
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
+  },
+  urgentText: {
+    fontSize: 10,
+    color: "#dc2626",
+    fontWeight: "600",
+    textTransform: "uppercase",
+  },
+  emptyState: {
+    alignItems: "center",
+    paddingVertical: 40,
+    paddingHorizontal: 20,
+  },
+  emptyTitle: {
     fontSize: 20,
-    fontWeight: "700",
+    fontWeight: "600",
     color: "#1e293b",
+    marginTop: 16,
+    marginBottom: 8,
   },
-  statsContainer: {
-    flexDirection: "row",
-    justifyContent: "space-around",
+  emptySubtitle: {
+    fontSize: 15,
+    color: "#64748b",
+    textAlign: "center",
+    lineHeight: 22,
   },
-  statItem: {
-    alignItems: "center",
-    gap: 8,
-  },
-  statCircle: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    alignItems: "center",
-    justifyContent: "center",
+  countOverview: {
+    backgroundColor: "#ffffff",
+    borderRadius: 16,
+    padding: 20,
+    marginTop: 16,
     shadowColor: "#000",
     shadowOffset: {
       width: 0,
       height: 2,
     },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
     elevation: 4,
   },
-  statNumber: {
-    fontSize: 20,
-    fontWeight: "800",
+  overviewHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 16,
+  },
+  overviewTitle: {
+    fontSize: 16,
+    fontWeight: "600",
     color: "#1e293b",
   },
-  statLabel: {
-    fontSize: 13,
+  countGrid: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  countItem: {
+    alignItems: "center",
+    flex: 1,
+  },
+  countCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 8,
+  },
+  countNumber: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#ffffff",
+  },
+  countLabel: {
+    fontSize: 12,
     color: "#64748b",
     fontWeight: "500",
+    textAlign: "center",
   },
 });
 

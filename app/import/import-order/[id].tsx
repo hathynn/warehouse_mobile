@@ -14,7 +14,7 @@ import useImportOrder from "@/services/useImportOrderService";
 import { Button } from "tamagui";
 import { useDispatch, useSelector } from "react-redux";
 import { setPaperData } from "@/redux/paperSlice";
-import { usePaperService } from "@/services/usePaperService";
+import usePaperService from "@/services/usePaperService";
 import useImportOrderDetail from "@/services/useImportOrderDetailService";
 import { setProducts } from "@/redux/productSlice";
 import { RootState } from "@/redux/store";

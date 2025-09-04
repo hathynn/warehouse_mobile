@@ -233,7 +233,7 @@ export default function ScanQrScreen() {
 
       if (!foundProduct) {
         const message = scanMethod === "inventoryItemId"
-          ? "Inventory item này không thuộc đơn nhập hiện tại."
+          ? "Mã hàng tồn kho này không thuộc đơn nhập hiện tại."
           : "Sản phẩm không có trong đơn nhập này.";
         showAlert(message, "⚠️");
         return;
@@ -365,7 +365,7 @@ export default function ScanQrScreen() {
                         },
                       ]}
                     >
-                      Mã inventory: {lastScannedProduct.inventoryItemId}
+                      Mã hàng tồn kho: {lastScannedProduct.inventoryItemId}
                     </Text>
                   )}
 

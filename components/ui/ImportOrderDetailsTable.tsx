@@ -346,13 +346,13 @@ const ImportOrderDetailsTable: React.FC<ImportOrderDetailsTableProps> = ({
             {/* Show measurement values for return imports */}
             {importType === ImportType.RETURN && (
               <View style={styles.quantityRow}>
-                <View style={styles.quantityItem}>
+                {/* <View style={styles.quantityItem}>
                   <Text style={styles.quantityLabel}>Giá trị đo lường mong đợi:</Text>
                   <Text style={styles.quantityValue}>
                     {item.expectedMeasurementValue || 0}
                     {item.measurementUnit && ` ${item.measurementUnit}`}
                   </Text>
-                </View>
+                </View> */}
                 <View style={styles.quantityItem}>
                   <Text style={styles.quantityLabel}>Giá trị đo lường kiểm đếm:</Text>
                   <Text
