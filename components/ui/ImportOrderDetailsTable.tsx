@@ -8,7 +8,9 @@ import {
   Modal,
   ScrollView,
   ActivityIndicator,
+  Alert,
 } from "react-native";
+import { Camera, CameraView } from "expo-camera";
 
 import { Ionicons } from "@expo/vector-icons";
 import { ImportOrderStatus, ImportType } from "@/types/importOrder.type";
@@ -62,6 +64,19 @@ const ImportOrderDetailsTable: React.FC<ImportOrderDetailsTableProps> = ({
     row: null,
   });
   const [showFilterModal, setShowFilterModal] = useState(false);
+  const [checkedItems, setCheckedItems] = useState<Set<string>>(new Set());
+  const [showScanModal, setShowScanModal] = useState(false);
+  const [currentScanItem, setCurrentScanItem] = useState<string | null>(null);
+  const [hasPermission, setHasPermission] = useState<boolean | null>(null);
+  const [isScanning, setIsScanning] = useState(true);
+
+  // Request camera permission
+  useEffect(() => {
+    (async () => {
+      const { status } = await Camera.requestCameraPermissionsAsync();
+      setHasPermission(status === "granted");
+    })();
+  }, []);
 
 
   // Kiểm tra xem có phải trạng thái READY_TO_STORE không
@@ -69,10 +84,68 @@ const ImportOrderDetailsTable: React.FC<ImportOrderDetailsTableProps> = ({
     importOrderDetails.length > 0 &&
     importOrderDetails[0]?.status === ImportOrderStatus.READY_TO_STORE;
 
+  // Kiểm tra xem đã check đủ tất cả items chưa
+  const allItemsChecked = isReadyToStore ? 
+    importOrderDetails.every(item => checkedItems.has(item.inventoryItemId)) : 
+    false;
+
   // Handler để hoàn thành quy trình nhập kho
   const handleCompleteStorage = () => {
-    if (onStorageComplete) {
+    if (onStorageComplete && (!isReadyToStore || allItemsChecked)) {
       onStorageComplete();
+    }
+  };
+
+  // Handler cho việc scan QR
+  const handleScanItem = (inventoryItemId: string) => {
+    if (hasPermission === null) {
+      Alert.alert("Đang kiểm tra quyền camera...");
+      return;
+    }
+    
+    if (hasPermission === false) {
+      Alert.alert(
+        "Không có quyền camera",
+        "Vui lòng cấp quyền camera để sử dụng tính năng scan QR.",
+        [{ text: "OK", style: "default" }]
+      );
+      return;
+    }
+    
+    setCurrentScanItem(inventoryItemId);
+    setIsScanning(true);
+    setShowScanModal(true);
+  };
+
+  // Handler khi scan QR thành công
+  const handleScanSuccess = (scannedData: string) => {
+    if (!isScanning) return; // Tránh scan nhiều lần
+    
+    setIsScanning(false); // Dừng scan ngay lập tức
+    const cleanData = scannedData.trim();
+    
+    // Kiểm tra xem mã scan có trùng với inventoryItemId hiện tại không
+    if (cleanData === currentScanItem) {
+      setCheckedItems(prev => new Set([...prev, currentScanItem!]));
+      setShowScanModal(false);
+      setCurrentScanItem(null);
+      
+      Alert.alert(
+        "Thành công",
+        "Đã xác nhận sản phẩm thành công!",
+        [{ text: "OK", style: "default" }]
+      );
+    } else {
+      // Hiển thị lỗi nếu mã không khớp
+      Alert.alert(
+        "Mã QR không khớp",
+        `Mã QR được quét (${cleanData}) không khớp với sản phẩm này (${currentScanItem})!`,
+        [{ 
+          text: "Thử lại", 
+          style: "default",
+          onPress: () => setIsScanning(true) // Cho phép scan lại
+        }]
+      );
     }
   };
 
@@ -293,27 +366,45 @@ const ImportOrderDetailsTable: React.FC<ImportOrderDetailsTableProps> = ({
     return (
       <View style={styles.detailCard}>
         <View style={styles.detailHeader}>
-          <View style={styles.detailHeaderLeft}>
-            <View style={styles.detailIdContainer}>
-              <Text style={styles.detailId}>
-                {importType === ImportType.RETURN ? item.inventoryItemId || item.id : item.id}
-              </Text>
-            </View>
-            <View style={styles.detailInfo}>
-              <Text
-                style={styles.detailName}
-                numberOfLines={1}
-                ellipsizeMode="tail"
-              >
-                {item.productName}
-              </Text>
-              <Text style={styles.detailSku}>
-                {importType === ImportType.RETURN 
-                  ? `Mã sản phẩm ${item.inventoryItemId || item.itemId}` 
-                  : `Mã sản phẩm ${item.itemId}`}
-              </Text>
-            </View>
+          <View style={styles.detailIdContainer}>
+            <Text style={styles.detailId}>
+              {importType === ImportType.RETURN ? item.inventoryItemId || item.id : item.id}
+            </Text>
           </View>
+          
+          {/* Show scan button and checkbox for READY_TO_STORE status */}
+          {isReadyToStore && (
+            <View style={styles.actionButtons}>
+              {checkedItems.has(item.inventoryItemId) ? (
+                <View style={styles.checkedContainer}>
+                  <Ionicons name="checkmark-circle" size={24} color="#10b981" />
+                  <Text style={styles.checkedText}>Đã kiểm tra</Text>
+                </View>
+              ) : (
+                <TouchableOpacity
+                  style={styles.scanButton}
+                  onPress={() => handleScanItem(item.inventoryItemId)}
+                >
+                  <Ionicons name="scan" size={20} color="#1677ff" />
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
+        </View>
+        
+        <View style={styles.detailInfoSection}>
+          <Text
+            style={styles.detailName}
+            numberOfLines={2}
+            ellipsizeMode="tail"
+          >
+            {item.productName}
+          </Text>
+          <Text style={styles.detailSku}>
+            {importType === ImportType.RETURN 
+              ? `Mã sản phẩm ${item.inventoryItemId || item.itemId}` 
+              : `Mã sản phẩm ${item.itemId}`}
+          </Text>
         </View>
 
         {/* Show quantity and progress only when not completed */}
@@ -421,6 +512,54 @@ const ImportOrderDetailsTable: React.FC<ImportOrderDetailsTableProps> = ({
       </View>
     );
   };
+
+  // Render scan QR modal
+  const renderScanModal = () => (
+    <Modal
+      visible={showScanModal}
+      transparent={true}
+      animationType="slide"
+      onRequestClose={() => {
+        setShowScanModal(false);
+        setCurrentScanItem(null);
+      }}
+    >
+      <View style={styles.scanModalOverlay}>
+        <View style={styles.scanModalContent}>
+          <View style={styles.scanModalHeader}>
+            <Text style={styles.scanModalTitle}>
+              Scan mã QR: {currentScanItem}
+            </Text>
+            <TouchableOpacity
+              onPress={() => {
+                setShowScanModal(false);
+                setCurrentScanItem(null);
+              }}
+              style={styles.closeButton}
+            >
+              <Ionicons name="close" size={24} color="white" />
+            </TouchableOpacity>
+          </View>
+          
+          <View style={styles.cameraContainer}>
+            <CameraView
+              barcodeScannerSettings={{
+                barcodeTypes: ["qr", "ean13", "code128"],
+              }}
+              onBarcodeScanned={isScanning ? ({ data }) => handleScanSuccess(data) : undefined}
+              style={styles.camera}
+            />
+          </View>
+          
+          <View style={styles.scanInstructions}>
+            <Text style={styles.scanInstructionText}>
+              Quét mã QR trên sản phẩm để xác nhận
+            </Text>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
 
   // Render filter modal
   const renderFilterModal = () => (
@@ -719,22 +858,33 @@ const ImportOrderDetailsTable: React.FC<ImportOrderDetailsTableProps> = ({
       {isReadyToStore && (
         <View style={styles.actionContainer}>
           <TouchableOpacity
-            style={styles.completeButton}
+            style={[
+              styles.completeButton,
+              !allItemsChecked && styles.disabledButton
+            ]}
             onPress={handleCompleteStorage}
+            disabled={!allItemsChecked}
           >
             <Ionicons
               name="checkmark-circle-outline"
               size={20}
-              color="white"
+              color={allItemsChecked ? "white" : "#999"}
             />
-            <Text style={styles.completeButtonText}>
-              Xác nhận hoàn thành nhập kho
+            <Text style={[
+              styles.completeButtonText,
+              !allItemsChecked && styles.disabledButtonText
+            ]}>
+              {allItemsChecked 
+                ? "Xác nhận hoàn thành nhập kho" 
+                : `Kiểm tra sản phẩm (${checkedItems.size}/${importOrderDetails.length})`
+              }
             </Text>
           </TouchableOpacity>
         </View>
       )}
 
       {renderFilterModal()}
+      {renderScanModal()}
     </View>
   );
 };
@@ -912,14 +1062,14 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   modalFooter: {
-    flexDirection: "row",
+    flexDirection: "column",
     padding: 20,
     borderTopWidth: 1,
     borderTopColor: "#eee",
     gap: 12,
   },
   clearButton: {
-    flex: 1,
+    width: "100%",
     paddingVertical: 12,
     borderRadius: 8,
     borderWidth: 1,
@@ -931,7 +1081,7 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   applyButton: {
-    flex: 1,
+    width: "100%",
     paddingVertical: 12,
     borderRadius: 8,
     backgroundColor: "#1677ff",
@@ -989,27 +1139,22 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 12,
-  },
-  detailHeaderLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    flex: 1,
+    marginBottom: 8,
   },
   detailIdContainer: {
     backgroundColor: "#e6f7ff",
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 6,
-    marginRight: 10,
+    alignSelf: "flex-start",
   },
   detailId: {
     fontSize: 14,
     fontWeight: "bold",
     color: "#1677ff",
   },
-  detailInfo: {
-    flex: 1,
+  detailInfoSection: {
+    marginBottom: 12,
   },
   detailName: {
     fontSize: 16,
@@ -1157,6 +1302,91 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "600",
     marginLeft: 8,
+  },
+
+  // Action buttons styles
+  actionButtons: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  scanButton: {
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#e6f7ff",
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#1677ff",
+  },
+  scanButtonText: {
+    color: "#1677ff",
+    fontSize: 12,
+    fontWeight: "500",
+    marginLeft: 4,
+  },
+  checkedContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#f0f9ff",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  checkedText: {
+    color: "#10b981",
+    fontSize: 12,
+    fontWeight: "500",
+    marginLeft: 4,
+  },
+
+  // Scan modal styles
+  scanModalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.9)",
+  },
+  scanModalContent: {
+    flex: 1,
+  },
+  scanModalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 20,
+    paddingTop: 60,
+  },
+  scanModalTitle: {
+    color: "white",
+    fontSize: 18,
+    fontWeight: "600",
+  },
+  cameraContainer: {
+    flex: 1,
+    margin: 20,
+    borderRadius: 12,
+    overflow: "hidden",
+  },
+  camera: {
+    flex: 1,
+  },
+  scanInstructions: {
+    padding: 20,
+    alignItems: "center",
+  },
+  scanInstructionText: {
+    color: "white",
+    fontSize: 16,
+    textAlign: "center",
+  },
+
+  // Disabled button styles
+  disabledButton: {
+    backgroundColor: "#f5f5f5",
+    borderWidth: 1,
+    borderColor: "#ddd",
+  },
+  disabledButtonText: {
+    color: "#999",
   },
 });
 
