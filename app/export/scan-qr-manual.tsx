@@ -135,6 +135,10 @@ export default function ScanQrManualScreen() {
     (state: RootState) => state.exportRequestDetail.details
   );
 
+  const measurementModalVisible = useSelector(
+    (state: RootState) => state.exportRequestDetail.measurementModalVisible
+  );
+
   const [audioPlayer, setAudioPlayer] = useState<any>(null);
 
   useEffect(() => {
@@ -196,6 +200,22 @@ export default function ScanQrManualScreen() {
     }
   }, [isFocused]);
 
+  // Handle measurement modal visibility changes
+  useEffect(() => {
+    if (measurementModalVisible) {
+      console.log("📱 Measurement modal opened - disabling QR scanning");
+      setScanningEnabled(false);
+      setIsProcessing(false);
+      currentlyProcessingRef.current = null;
+    } else {
+      console.log("📱 Measurement modal closed - enabling QR scanning");
+      // Re-enable scanning after modal closes, but not immediately to prevent accidental scans
+      setTimeout(() => {
+        setScanningEnabled(true);
+      }, 500);
+    }
+  }, [measurementModalVisible]);
+
   const handleBarCodeScanned = async ({ data }: { data: string }) => {
     // Removed console.log disabling in development mode to allow debugging
 
@@ -236,8 +256,8 @@ export default function ScanQrManualScreen() {
     }
 
     // Check scanning state
-    if (!scanningEnabled || isProcessing) {
-      console.log("🚫 Scan disabled or processing, ignoring scan");
+    if (!scanningEnabled || isProcessing || measurementModalVisible) {
+      console.log("🚫 Scan disabled, processing, or modal visible, ignoring scan");
       return;
     }
 
@@ -693,7 +713,7 @@ export default function ScanQrManualScreen() {
 
       {/* Camera */}
       <View style={styles.cameraWrapper}>
-        {isFocused && !showReasonInput && !showMeasurementWarning && (
+        {isFocused && !showReasonInput && !showMeasurementWarning && !measurementModalVisible && scanningEnabled && (
           <CameraView
             key={cameraKey}
             barcodeScannerSettings={{ barcodeTypes: ["qr"] }}

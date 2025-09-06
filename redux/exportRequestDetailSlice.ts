@@ -14,6 +14,7 @@ interface ExportRequestDetailState {
     itemCode: string;
   } | null;
   scannedNewItemForMultiSelect: string | null;
+  measurementModalVisible: boolean;
 }
 
 const initialState: ExportRequestDetailState = {
@@ -21,6 +22,7 @@ const initialState: ExportRequestDetailState = {
   scanMappings: [],
   pendingModalNavigation: null,
   scannedNewItemForMultiSelect: null,
+  measurementModalVisible: false,
 };
 
 const exportRequestDetailSlice = createSlice({
@@ -106,6 +108,10 @@ const exportRequestDetailSlice = createSlice({
     setScannedNewItemForMultiSelect: (state, action: PayloadAction<string | null>) => {
       state.scannedNewItemForMultiSelect = action.payload;
     },
+
+    setMeasurementModalVisible: (state, action: PayloadAction<boolean>) => {
+      state.measurementModalVisible = action.payload;
+    },
   },
 });
 
@@ -116,7 +122,8 @@ export const {
   updateInventoryItemId,
   setPendingModalNavigation,
   clearPendingModalNavigation,
-  setScannedNewItemForMultiSelect
+  setScannedNewItemForMultiSelect,
+  setMeasurementModalVisible
 } = exportRequestDetailSlice.actions;
 
 export default exportRequestDetailSlice.reducer;

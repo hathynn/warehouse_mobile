@@ -37,6 +37,22 @@ export default function SuccessPage() {
     (state: RootState) => state.paper.importOrderId
   );
 
+  const importType = useSelector(
+    (state: RootState) => state.paper.importType
+  );
+
+  // Lấy tất cả products của đơn nhập để kiểm tra trạng thái
+  const allProducts = useSelector((state: RootState) =>
+    state.product.products.filter(
+      (p) => String(p.importOrderId) === importOrderId
+    )
+  );
+
+  // Kiểm tra xem đã quét đủ sản phẩm chưa (cho RETURN type)
+  const isAllProductsScanned = importType === "RETURN" && isInventoryItemScan
+    ? allProducts.filter(p => p.inventoryItemId).every(p => (p.actualMeasurementValue || 0) > 0)
+    : false;
+
   const product = useSelector((state: RootState) => {
     // Nếu có inventoryItemId và đang scan inventory item, tìm theo inventoryItemId
     if (inventoryItemId && isInventoryItemScan) {
@@ -172,6 +188,19 @@ export default function SuccessPage() {
   };
 
   const handleBackToScan = () => {
+    // Validation cho RETURN type với inventory item: không cho quét tiếp nếu measurement = 0
+    if (importType === "RETURN" && isInventoryItemScan) {
+      const currentMeasurement = parseFloat(measurementValue) || product?.actualMeasurementValue || 0;
+      if (currentMeasurement === 0) {
+        Alert.alert(
+          "Giá trị đo lường đang chưa được nhập", 
+          "Vui lòng thực hiện nhập số giá trị đo lường của sản phẩm để thực hiện hành động tiếp theo!",
+          [{ text: "Xác nhận", style: "default" }]
+        );
+        return;
+      }
+    }
+
     // Update measurement value immediately for inventory item scans before going back
     if (isInventoryItemScan && product?.inventoryItemId) {
       const newMeasurementValue = parseFloat(measurementValue) || 0;
@@ -400,7 +429,7 @@ export default function SuccessPage() {
 
                 <View style={styles.buttonGroup}>
                   <TouchableOpacity
-                    style={[styles.button, styles.outline]}
+                    style={[styles.button, styles.outline, styles.fullWidthButton]}
                     onPress={handleBackToScan}
                   >
                     <View style={styles.buttonContent}>
@@ -409,19 +438,27 @@ export default function SuccessPage() {
                     </View>
                   </TouchableOpacity>
 
-                  <TouchableOpacity
-                    style={styles.button}
-                    onPress={handleSubmit}
-                  >
-                    <View style={styles.buttonContent}>
-                      <Ionicons
-                        name="checkmark-circle-outline"
-                        size={18}
-                        color="white"
-                      />
-                      <Text style={styles.buttonText}>Xác nhận</Text>
-                    </View>
-                  </TouchableOpacity>
+                  {/* Button Xác nhận chỉ hiện với RETURN type khi đã quét đủ sản phẩm */}
+                  {(importType !== "RETURN" || !isInventoryItemScan || isAllProductsScanned) && (
+                    <TouchableOpacity
+                      style={[styles.button, styles.fullWidthButton, { marginTop: 12 }]}
+                      onPress={handleSubmit}
+                    >
+                      <View style={styles.buttonContent}>
+                        <Ionicons
+                          name="checkmark-circle-outline"
+                          size={18}
+                          color="white"
+                        />
+                        <Text style={styles.buttonText}>
+                          {importType === "RETURN" && isInventoryItemScan 
+                            ? "Xác nhận các giá trị đo vừa kiểm đếm"
+                            : "Xác nhận"
+                          }
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  )}
                 </View>
               </View>
             </Animated.View>
@@ -574,8 +611,7 @@ const styles = StyleSheet.create({
     marginVertical: 15,
   },
   buttonGroup: {
-    flexDirection: "row",
-    justifyContent: "space-between",
+    flexDirection: "column",
     marginTop: 24,
   },
   button: {
@@ -586,6 +622,11 @@ const styles = StyleSheet.create({
     flex: 1,
     marginHorizontal: 6,
     elevation: 2,
+  },
+  fullWidthButton: {
+    flex: 0,
+    width: "100%",
+    marginHorizontal: 0,
   },
   buttonContent: {
     flexDirection: "row",

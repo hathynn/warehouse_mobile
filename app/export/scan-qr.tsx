@@ -35,6 +35,7 @@ export default function ScanQrScreen() {
   const { exportRequest, fetchExportRequestById } = useExportRequest();
   const { fetchInventoryItemById, fetchInventoryItemsByExportRequestDetailId } = useInventoryService();
   const [scanningEnabled, setScanningEnabled] = useState(true);
+  const [alertShowing, setAlertShowing] = useState(false);
 
   const [lastScannedProduct, setLastScannedProduct] = useState<any | null>(
     null
@@ -113,6 +114,7 @@ export default function ScanQrScreen() {
       setScanningEnabled(true);
       setErrorMessage(null);
       setLastScannedProduct(null);
+      setAlertShowing(false);
       lastScanTimeRef.current = 0;
       currentlyProcessingRef.current = null;
       lastProcessedQRRef.current = null;
@@ -160,8 +162,8 @@ export default function ScanQrScreen() {
     }
 
     // Check scanning state
-    if (!scanningEnabled || isProcessing) {
-      console.log("🚫 Scan disabled or processing, ignoring scan");
+    if (!scanningEnabled || isProcessing || alertShowing) {
+      console.log("🚫 Scan disabled, processing, or alert showing, ignoring scan");
       return;
     }
 
@@ -354,6 +356,7 @@ export default function ScanQrScreen() {
     }, 300);
   };
 
+
   // NEW: Handle INTERNAL multi-select mode with confirmation alert
   const handleInternalMultiSelectMode = async (inventoryItemId: string) => {
     try {
@@ -376,25 +379,26 @@ export default function ScanQrScreen() {
 
       console.log(`✅ INTERNAL multi-select: Item ${inventoryItemId} validated`);
       
-      // Get list of untracked inventory items (old IDs) for this export request detail
+      // Get list of all inventory items for this export request detail
       const allInventoryItems = await fetchInventoryItemsByExportRequestDetailId(Number(matchingExportDetail.id));
-      const untrackedItems = allInventoryItems.filter((item: any) => item.isTrackingForExport === false);
       
-      console.log(`📋 Found ${untrackedItems.length} untracked items for replacement`);
+      console.log(`📋 Found ${allInventoryItems.length} items for replacement`);
       
       // Disable scanning while alert is shown
       setScanningEnabled(false);
+      setAlertShowing(true);
       
       // Show confirmation alert
       Alert.alert(
         "Xác nhận thay đổi",
-        `Mã hàng tồn kho không có trong phiếu xuất này.\n\nBạn có muốn đổi mã hàng này với mã hàng trong phiếu xuất?\n\nSản phẩm: ${inventoryItemData.inventoryItemId}`,
+        `Mã hàng tồn kho ${inventoryItemId} không có trong phiếu xuất này.\n\nBạn có muốn đổi mã hàng này với mã hàng trong phiếu xuất?`,
         [
           {
             text: "Hủy",
             style: "cancel",
             onPress: () => {
               // Re-enable scanning when user cancels
+              setAlertShowing(false);
               setScanningEnabled(true);
               setIsProcessing(false);
               currentlyProcessingRef.current = null;
@@ -407,8 +411,14 @@ export default function ScanQrScreen() {
               console.log(`🔄 INTERNAL multi-select: Storing scanned item ${inventoryItemId} in Redux`);
               dispatch(setScannedNewItemForMultiSelect(inventoryItemId));
               
+              // Re-enable scanning before navigation in case user comes back
+              setAlertShowing(false);
+              setScanningEnabled(true);
+              setIsProcessing(false);
+              currentlyProcessingRef.current = null;
+              
               setTimeout(() => {
-                console.log(`🔄 INTERNAL multi-select: Navigating to export-inventory with ${untrackedItems.length} old items`);
+                console.log(`🔄 INTERNAL multi-select: Navigating to export-inventory with ${allInventoryItems.length} items`);
                 router.replace({
                   pathname: '/export/export-inventory/[id]',
                   params: {
@@ -419,7 +429,7 @@ export default function ScanQrScreen() {
                     exportRequestType: exportRequest?.type || "",
                     exportRequestStatus: exportRequest?.status || "",
                     originalItemId: 'INTERNAL_MULTI_SELECT', // Special flag for multi-select mode
-                    untrackedItemIds: untrackedItems.map((item: any) => item.id).join(','), // Pass old IDs as comma-separated string
+                    untrackedItemIds: allInventoryItems.map((item: any) => item.id).join(','), // Pass all IDs as comma-separated string
                   },
                 });
               }, 500);
@@ -494,7 +504,7 @@ export default function ScanQrScreen() {
 
       {/* Camera */}
       <View style={styles.cameraWrapper}>
-        {isFocused && (
+        {isFocused && !alertShowing && (
           <CameraView
             key={cameraKey}
             barcodeScannerSettings={{ barcodeTypes: ["qr"] }}

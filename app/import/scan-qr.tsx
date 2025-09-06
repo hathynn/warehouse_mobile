@@ -233,10 +233,18 @@ export default function ScanQrScreen() {
 
       if (!foundProduct) {
         const message = scanMethod === "inventoryItemId"
-          ? "Inventory item này không thuộc đơn nhập hiện tại."
+          ? "Mã hàng tồn kho này không thuộc đơn nhập hiện tại."
           : "Sản phẩm không có trong đơn nhập này.";
         showAlert(message, "⚠️");
         return;
+      }
+
+      // Kiểm tra không cho scan lại ID đã quét (chỉ cho RETURN type với inventoryItemId)
+      if (importType === "RETURN" && scanMethod === "inventoryItemId") {
+        if ((foundProduct.actualMeasurementValue || 0) > 0) {
+          showAlert("Sản phẩm này đã được kiểm đếm trước đó", "Sản phẩm này đã được kiểm đếm trước đó vui lòng kiểm đếm sản phẩm khác của đơn nhập");
+          return;
+        }
       }
 
       await playBeep();
@@ -264,6 +272,20 @@ export default function ScanQrScreen() {
             actual: foundProduct.actual + 1,
           })
         );
+      }
+
+      // Với RETURN type và inventoryItemId: chuyển thẳng sang detail product screen
+      if (importType === "RETURN" && scanMethod === "inventoryItemId") {
+        console.log("📦 RETURN + inventory item: redirecting directly to detail product screen");
+        router.push({
+          pathname: "/import/detail-product/[id]",
+          params: {
+            id: foundProduct.id.toString(),
+            scanMethod: scanMethod,
+            inventoryItemId: foundProduct.inventoryItemId || "",
+          },
+        });
+        return;
       }
 
       setLastScannedProduct({
@@ -365,7 +387,7 @@ export default function ScanQrScreen() {
                         },
                       ]}
                     >
-                      Mã inventory: {lastScannedProduct.inventoryItemId}
+                      Mã hàng tồn kho: {lastScannedProduct.inventoryItemId}
                     </Text>
                   )}
 
