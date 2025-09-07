@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import {
   ScrollView,
   View,
@@ -6,8 +6,9 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
+  Alert,
 } from "react-native";
-import { useRoute } from "@react-navigation/native";
+import { useRoute, useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -38,6 +39,7 @@ const ImportOrderScreen: React.FC = () => {
   const { updateImportOrderToStored } = useImportOrder();
   const [importOrderDetails, setImportOrderDetails] = useState<any[]>([]);
   const [loadingDetails, setLoadingDetails] = useState(true);
+  const [confirmedStorageItems, setConfirmedStorageItems] = useState<Set<string>>(new Set());
   const { resetPaperById } = usePaperService();
 
   const { fetchInventoryItemsByImportOrderDetailId } = useInventoryService();
@@ -182,6 +184,33 @@ const ImportOrderScreen: React.FC = () => {
   useEffect(() => {
     loadData();
   }, [id]);
+
+  // Check for scanned items when screen focuses
+  useFocusEffect(
+    useCallback(() => {
+      const scannedItem = (global as any).__SCANNED_ITEM__;
+      if (scannedItem) {
+        handleStorageConfirmed(scannedItem);
+        // Clear the global flag
+        (global as any).__SCANNED_ITEM__ = null;
+      }
+    }, [])
+  );
+
+  // Handler for storage confirmation success
+  const handleStorageConfirmed = (inventoryItemId: string) => {
+    setConfirmedStorageItems(prev => {
+      const newSet = new Set([...prev, inventoryItemId]);
+      console.log("Updated confirmed storage items:", Array.from(newSet));
+      return newSet;
+    });
+    
+    // Show success alert
+    Alert.alert(
+      "Xác nhận thành công", 
+      `Đã xác nhận lưu kho cho mã: ${inventoryItemId}`
+    );
+  };
 
   // Handler cho việc hoàn thành quy trình nhập kho
   const handleStorageComplete = async () => {
@@ -504,6 +533,9 @@ const ImportOrderScreen: React.FC = () => {
           onStorageComplete={handleStorageComplete}
           importType={importOrder?.importType}
           isLoading={loadingDetails}
+          importOrderId={importOrder?.importOrderId}
+          confirmedStorageItems={confirmedStorageItems}
+          onStorageConfirmed={handleStorageConfirmed}
         />
       </ScrollView>
     </View>
