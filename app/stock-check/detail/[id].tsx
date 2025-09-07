@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import {
   ScrollView,
   View,
@@ -8,7 +8,9 @@ import {
   ActivityIndicator,
   Image,
   Alert,
+  TextInput,
 } from "react-native";
+import { Camera } from "expo-camera";
 import { useFocusEffect, useRoute } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import useStockCheck from "@/services/useStockCheckService";
@@ -61,6 +63,11 @@ const StockCheckDetailScreen: React.FC = () => {
   // Paper state
   const [paper, setPaper] = useState<any>(null);
   const [paperLoading, setPaperLoading] = useState(false);
+  
+  // Search states
+  const [searchText, setSearchText] = useState("");
+  const [filteredDetails, setFilteredDetails] = useState<any[]>([]);
+  const [hasPermission, setHasPermission] = useState<boolean | null>(null);
 
   // Modal states
   // const [inventoryModalVisible, setInventoryModalVisible] = useState(false);
@@ -111,6 +118,59 @@ const StockCheckDetailScreen: React.FC = () => {
         fetchStockCheckDetails(id);
       }
     }, [id])
+  );
+
+  const handleSearchByText = useCallback((text: string) => {
+    setSearchText(text);
+    if (!text.trim()) {
+      setFilteredDetails([]);
+      return;
+    }
+    
+    // Debug: Log search data
+    console.log("🔍 Search text:", text);
+    console.log("🔍 Available items:", stockCheckDetails.map(d => d.itemId));
+    
+    // Filter stockCheckDetails by itemId (case insensitive)
+    const filtered = stockCheckDetails.filter((detail) => 
+      detail.itemId?.toLowerCase().includes(text.toLowerCase())
+    );
+    
+    console.log("🔍 Filtered results:", filtered.map(d => d.itemId));
+    setFilteredDetails(filtered);
+  }, [stockCheckDetails]);
+
+  // Handle QR search result when screen focuses
+  useFocusEffect(
+    React.useCallback(() => {
+      // Check for search result from QR scanning
+      const qrSearchResult = (global as any).__QR_SEARCH_RESULT__;
+      if (qrSearchResult) {
+        console.log("🔍 QR Search result received:", qrSearchResult);
+        const itemId = extractItemIdFromQR(qrSearchResult);
+        if (itemId) {
+          console.log("📱 Extracted itemId:", itemId);
+          console.log("📱 stockCheckDetails length:", stockCheckDetails.length);
+          
+          // Wait for data to load if needed
+          if (stockCheckDetails.length === 0) {
+            console.log("⏳ Waiting for stockCheckDetails to load...");
+            setTimeout(() => {
+              console.log("📱 Retry search after delay");
+              setSearchText(itemId);
+              handleSearchByText(itemId);
+            }, 1000);
+          } else {
+            setSearchText(itemId);
+            handleSearchByText(itemId);
+          }
+        } else {
+          Alert.alert("Lỗi", "Không thể trích xuất mã hàng từ QR code");
+        }
+        // Clear the global flag
+        (global as any).__QR_SEARCH_RESULT__ = null;
+      }
+    }, [stockCheckDetails, handleSearchByText])
   );
 
   // Comment out paper fetching as signing is no longer needed
@@ -510,7 +570,36 @@ const StockCheckDetailScreen: React.FC = () => {
     }
   };
 
-  // Removed signing-related functions as they are no longer needed
+  // Search and scan functions
+  const extractItemIdFromQR = (qrData: string): string | null => {
+    // Extract itemId from QR format: ITM-VAI-KK-001-DN-PN-20250907-001-P1-1-3
+    // ItemId is the part after ITM- and before the next dash sequence
+    const match = qrData.match(/^ITM-([^-]+-[^-]+-[^-]+)/);
+    if (match && match[1]) {
+      return match[1]; // Returns VAI-KK-001
+    }
+    return null;
+  };
+
+  const handleScanQR = async () => {
+    const { status } = await Camera.requestCameraPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert("Lỗi", "Cần cấp quyền camera để quét QR");
+      return;
+    }
+
+    // Navigate to existing scan QR screen with search mode
+    router.push({
+      pathname: "/stock-check/scan-qr",
+      params: {
+        stockCheckId: id,
+        stockCheckDetailId: "search", // Special flag for search mode
+        mode: "search"
+      }
+    });
+  };
+
+  // Removed handleQRSearchResult - now using global state and useFocusEffect
 
   // Function to refresh inventory items
   // const refreshInventoryItems = async () => {
@@ -981,6 +1070,37 @@ const renderActionButton = () => {
           </View>
         </View>
 
+        {/* Search Section */}
+        <View style={styles.searchContainer}>
+          <Text style={styles.searchTitle}>Tìm kiếm sản phẩm</Text>
+          <View style={styles.searchInputContainer}>
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Nhập mã hàng (ItemId) để tìm kiếm..."
+              value={searchText}
+              onChangeText={handleSearchByText}
+              autoCapitalize="none"
+            />
+            <TouchableOpacity 
+              style={styles.scanQRButton}
+              onPress={handleScanQR}
+            >
+              <Ionicons name="qr-code" size={20} color="#1677ff" />
+              <Text style={styles.scanQRButtonText}>Quét QR</Text>
+            </TouchableOpacity>
+          </View>
+          {searchText && filteredDetails.length > 0 && (
+            <Text style={styles.searchResultText}>
+              Tìm thấy {filteredDetails.length} sản phẩm
+            </Text>
+          )}
+          {searchText && filteredDetails.length === 0 && (
+            <Text style={styles.searchResultText}>
+              Không tìm thấy sản phẩm nào
+            </Text>
+          )}
+        </View>
+
         <View style={styles.tableContainer}>
           <View style={[styles.tableRow, styles.tableHeader]}>
             <Text style={[styles.cellCode]}>Mã hàng</Text>
@@ -999,13 +1119,12 @@ const renderActionButton = () => {
             showsVerticalScrollIndicator={true}
             nestedScrollEnabled={true}
           >
-            {stockCheckDetails.map(
+            {(filteredDetails.length > 0 ? filteredDetails : stockCheckDetails).map(
               (detail: StockCheckDetailType, index: number) => {
                 const isCompleted =
                   detail.status === StockCheckDetailStatus.COMPLETED || 
                   detail.quantity === detail.actualQuantity;
                 const isLastItem = index === stockCheckDetails.length - 1;
-                const difference = detail.actualQuantity - detail.quantity;
 
                 return (
                   <View key={detail.id}>
@@ -1319,6 +1438,62 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontWeight: '600',
     marginLeft: 8,
+  },
+  
+  // Search styles
+  searchContainer: {
+    backgroundColor: "white",
+    margin: 16,
+    borderRadius: 12,
+    padding: 16,
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+  searchTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#333",
+    marginBottom: 12,
+  },
+  searchInputContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  searchInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: "#ddd",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+    backgroundColor: "#f9f9f9",
+  },
+  scanQRButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#e6f7ff",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#1677ff",
+    gap: 6,
+  },
+  scanQRButtonText: {
+    color: "#1677ff",
+    fontSize: 14,
+    fontWeight: "500",
+  },
+  searchResultText: {
+    marginTop: 8,
+    fontSize: 12,
+    color: "#666",
+    fontStyle: "italic",
   },
 
 });

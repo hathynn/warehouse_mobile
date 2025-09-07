@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Text, View, StyleSheet, SafeAreaView, Modal, TextInput, Alert, TouchableOpacity } from "react-native";
+import { Text, View, StyleSheet, SafeAreaView, Modal, TextInput, Alert, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Camera, CameraView } from "expo-camera";
 import { router, useLocalSearchParams } from "expo-router";
@@ -7,16 +7,26 @@ import { Button } from "tamagui";
 import { useIsFocused } from "@react-navigation/native";
 import { Audio } from "expo-av";
 import useStockCheckDetail from "@/services/useStockCheckDetailService";
+import useInventoryService from "@/services/useInventoryService";
 
 // const { width } = Dimensions.get("window");
 
+const liquidationReasons = [
+  "Hàng bị lỗi do thiên tai",
+  "Hàng bị lỗi do động vật", 
+  "Hàng hết hạn sử dụng",
+  "Hàng bị hư hỏng trong quá trình vận chuyển",
+  "Hàng không đạt tiêu chuẩn chất lượng",
+];
+
 export default function StockCheckScanQrScreen() {
-  const { stockCheckId, stockCheckDetailId, returnToModal, itemCode } =
+  const { stockCheckId, stockCheckDetailId, returnToModal, itemCode, mode } =
     useLocalSearchParams<{
       stockCheckId: string;
       stockCheckDetailId: string;
       returnToModal?: string;
       itemCode?: string;
+      mode?: string; // "search" for search mode
     }>();
 
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
@@ -27,6 +37,7 @@ export default function StockCheckScanQrScreen() {
   const [cameraKey, setCameraKey] = useState(0);
   const isFocused = useIsFocused();
   const { trackInventoryItem, getStockCheckDetailById } = useStockCheckDetail();
+  const { fetchInventoryItemById } = useInventoryService();
   const [scanningEnabled, setScanningEnabled] = useState(true);
 
   const [lastScannedProduct, setLastScannedProduct] = useState<any | null>(
@@ -37,6 +48,7 @@ export default function StockCheckScanQrScreen() {
   const [currentInventoryItemId, setCurrentInventoryItemId] = useState("");
   const [audioPlayer, setAudioPlayer] = useState<any>(null);
   const [needsLiquidation, setNeedsLiquidation] = useState(false);
+  const [selectedNote, setSelectedNote] = useState<string>("");
 
   // Refs for preventing duplicate processing
   const currentlyProcessingRef = useRef<string | null>(null);
@@ -174,6 +186,26 @@ export default function StockCheckScanQrScreen() {
       console.log("📦 Raw QR data:", data);
       console.log("🔍 inventoryItemId:", normalizedId);
 
+      // Handle search mode
+      if (mode === "search") {
+        console.log("🔍 Search mode: Processing QR for search");
+        // Store search result in global and go back
+        (global as any).__QR_SEARCH_RESULT__ = rawInventoryItemId;
+        
+        await playBeep();
+        setLastScannedProduct({
+          id: rawInventoryItemId,
+          message: "QR đã được quét để tìm kiếm!"
+        });
+        
+        // Go back after a short delay
+        setTimeout(() => {
+          router.back();
+        }, 1500);
+        
+        return;
+      }
+
       if (!stockCheckDetailId) {
         throw new Error("Không tìm thấy thông tin stock check detail");
       }
@@ -191,11 +223,28 @@ export default function StockCheckScanQrScreen() {
         inventoryItemId: rawInventoryItemId.toUpperCase(),
       });
 
+      // Fetch current measurement value from inventory item
+      console.log("🔍 Fetching inventory item details for measurement value...");
+      let defaultMeasurementValue = "";
+      
+      try {
+        const inventoryItemData = await fetchInventoryItemById(rawInventoryItemId.toUpperCase());
+        if (inventoryItemData && inventoryItemData.measurementValue) {
+          defaultMeasurementValue = inventoryItemData.measurementValue.toString();
+          console.log("✅ Found measurement value:", defaultMeasurementValue);
+        } else {
+          console.log("⚠️ No measurement value found, using empty default");
+        }
+      } catch (error) {
+        console.log("❌ Error fetching measurement value:", error);
+      }
+
       // Show modal for entering measurement value
       setCurrentInventoryItemId(rawInventoryItemId.toUpperCase());
       setShowMeasurementModal(true);
-      setMeasurementValue("");
+      setMeasurementValue(defaultMeasurementValue);
       setNeedsLiquidation(false);
+      setSelectedNote("");
       
       // Disable scanning while modal is open
       setScanningEnabled(false);
@@ -274,6 +323,11 @@ export default function StockCheckScanQrScreen() {
       return;
     }
 
+    if (needsLiquidation && !selectedNote.trim()) {
+      Alert.alert("Lỗi", "Vui lòng chọn lý do thanh lý");
+      return;
+    }
+
     try {
       setIsProcessing(true);
       console.log("🚀 Calling trackInventoryItem with measurement...");
@@ -282,6 +336,7 @@ export default function StockCheckScanQrScreen() {
         inventoryItemId: currentInventoryItemId,
         actualMeasurementValue: numericValue,
         status: needsLiquidation ? "NEED_LIQUID" : "AVAILABLE",
+        note: needsLiquidation ? selectedNote : undefined,
       });
 
       console.log("📄 trackInventoryItem response:", JSON.stringify(success, null, 2));
@@ -349,6 +404,7 @@ export default function StockCheckScanQrScreen() {
     setMeasurementValue("");
     setCurrentInventoryItemId("");
     setNeedsLiquidation(false);
+    setSelectedNote("");
     
     // Remove from scannedIds since we cancelled
     const normalizedId = currentInventoryItemId.toLowerCase();
@@ -376,7 +432,9 @@ export default function StockCheckScanQrScreen() {
       {/* Header */}
       <View style={styles.header}>
         <Button onPress={handleGoBack}>←</Button>
-        <Text style={styles.headerTitle}>Quét QR Kiểm Kho</Text>
+        <Text style={styles.headerTitle}>
+          {mode === "search" ? "Quét QR Tìm Kiếm" : "Quét QR Kiểm Kho"}
+        </Text>
       </View>
 
       {/* Camera */}
@@ -426,8 +484,15 @@ export default function StockCheckScanQrScreen() {
         transparent={true}
         onRequestClose={handleCancelMeasurement}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={styles.modalOverlay}
+        >
+          <ScrollView 
+            contentContainerStyle={styles.scrollViewContent}
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Nhập giá trị đo lường</Text>
             <Text style={styles.modalSubtitle}>ID: {currentInventoryItemId}</Text>
             
@@ -442,7 +507,12 @@ export default function StockCheckScanQrScreen() {
             
             <TouchableOpacity 
               style={styles.checkboxContainer}
-              onPress={() => setNeedsLiquidation(!needsLiquidation)}
+              onPress={() => {
+                setNeedsLiquidation(!needsLiquidation);
+                if (!needsLiquidation) {
+                  setSelectedNote(""); // Reset note when unchecking
+                }
+              }}
             >
               <View style={[styles.checkbox, needsLiquidation && styles.checkboxChecked]}>
                 {needsLiquidation && (
@@ -451,6 +521,30 @@ export default function StockCheckScanQrScreen() {
               </View>
               <Text style={styles.checkboxLabel}>Hàng cần thanh lý</Text>
             </TouchableOpacity>
+
+            {/* Liquidation reasons - only show when liquidation is checked */}
+            {needsLiquidation && (
+              <View style={styles.liquidationReasonsContainer}>
+                <Text style={styles.liquidationReasonsTitle}>Chọn lý do thanh lý:</Text>
+                {liquidationReasons.map((reason, index) => (
+                  <TouchableOpacity
+                    key={index}
+                    style={[
+                      styles.reasonButton,
+                      selectedNote === reason && styles.reasonButtonSelected
+                    ]}
+                    onPress={() => setSelectedNote(reason)}
+                  >
+                    <Text style={[
+                      styles.reasonButtonText,
+                      selectedNote === reason && styles.reasonButtonTextSelected
+                    ]}>
+                      {reason}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
             
             <View style={styles.modalButtons}>
               <Button 
@@ -467,8 +561,9 @@ export default function StockCheckScanQrScreen() {
                 {isProcessing ? "Đang xử lý..." : "Xác nhận"}
               </Button>
             </View>
-          </View>
-        </View>
+            </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
   );
@@ -543,8 +638,12 @@ const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0, 0, 0, 0.5)",
+  },
+  scrollViewContent: {
+    flexGrow: 1,
     justifyContent: "center",
     alignItems: "center",
+    paddingVertical: 20,
   },
   modalContent: {
     backgroundColor: "white",
@@ -614,5 +713,36 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#333",
     flex: 1,
+  },
+  liquidationReasonsContainer: {
+    marginBottom: 20,
+  },
+  liquidationReasonsTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#333",
+    marginBottom: 12,
+  },
+  reasonButton: {
+    backgroundColor: "#f8f9fa",
+    borderWidth: 1,
+    borderColor: "#e9ecef",
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginBottom: 8,
+  },
+  reasonButtonSelected: {
+    backgroundColor: "#1677ff",
+    borderColor: "#1677ff",
+  },
+  reasonButtonText: {
+    fontSize: 14,
+    color: "#333",
+    textAlign: "center",
+  },
+  reasonButtonTextSelected: {
+    color: "white",
+    fontWeight: "500",
   },
 });
