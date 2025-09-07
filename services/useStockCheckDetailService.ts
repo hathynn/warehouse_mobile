@@ -7,6 +7,7 @@ export interface TrackInventoryItemPayload {
   inventoryItemId: string;
   actualMeasurementValue?: number;
   status?: "AVAILABLE" | "NEED_LIQUID";
+  note?: string;
 }
 
 const useStockCheckDetail = () => {
