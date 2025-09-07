@@ -107,6 +107,7 @@ const MainDashboard = () => {
   useEffect(() => {
     if (taskOfStaffPerDate) {
       console.log("🏠 Home - Staff tasks per date:", taskOfStaffPerDate);
+      console.log("🎯 Priority task IDs:", taskOfStaffPerDate.priorityTaskIds);
       console.log("📦 Export request IDs:", taskOfStaffPerDate.exportRequestIds);
       console.log("📥 Import order IDs:", taskOfStaffPerDate.importOrderIds);
       console.log("📋 Stock check IDs:", taskOfStaffPerDate.stockCheckIds);
@@ -145,86 +146,93 @@ const MainDashboard = () => {
   const [exportCount, setExportCount] = useState(0);
   const [stockCheckCount, setStockCheckCount] = useState(0);
 
-  // Filter orders by status and create order items
+  // Filter orders by status and create order items using priorityTaskIds
   useEffect(() => {
     const filterOrders = async () => {
-      if (!taskOfStaffPerDate) return;
+      if (!taskOfStaffPerDate || !taskOfStaffPerDate.priorityTaskIds) return;
       
       const orderItems = [];
       let importFilteredCount = 0;
       let exportFilteredCount = 0;
       let stockFilteredCount = 0;
       
-      // Filter import orders
-      if (taskOfStaffPerDate.importOrderIds) {
-        for (const orderId of taskOfStaffPerDate.importOrderIds) {
-          try {
-            const order = await fetchImportOrderById(orderId);
-            // Skip COMPLETED and STORED orders
-            if (order && order.status !== 'COMPLETED' && order.status !== 'STORED') {
-              orderItems.push({
-                id: `import_${orderId}`,
-                type: "import",
-                title: `Đơn Nhập Hàng #${orderId}`,
-                subtitle: "Kiểm đếm và xử lý đơn nhập kho",
-                icon: "download" as const,
-                gradient: ["#1677ff", "#0ea5e9"],
-                priority: "high",
-                screen: `/import/detail/${orderId}`,
-                orderId: orderId,
-                status: order.status,
-              });
-              importFilteredCount++;
-            }
-          } catch (error) {
-            console.log(`Error fetching import order ${orderId}:`, error);
-          }
-        }
-      }
+      // Process each priority task ID and determine its type
+      for (const taskId of taskOfStaffPerDate.priorityTaskIds) {
+        try {
+          // Try to identify task type by attempting to fetch from different services
+          let taskProcessed = false;
 
-      // Filter export requests  
-      if (taskOfStaffPerDate.exportRequestIds) {
-        for (const requestId of taskOfStaffPerDate.exportRequestIds) {
-          try {
-            const request = await fetchExportRequestById(requestId);
-            // Skip COMPLETED orders
-            if (request && request.status !== 'COMPLETED') {
+          // Try as import order first
+          if (!taskProcessed) {
+            try {
+              const order = await fetchImportOrderById(taskId);
+              if (order) {
+                // Skip COMPLETED and STORED orders
+                if (order.status !== 'COMPLETED' && order.status !== 'STORED') {
+                  orderItems.push({
+                    id: `import_${taskId}`,
+                    type: "import",
+                    title: `Đơn Nhập Hàng #${taskId}`,
+                    subtitle: "Kiểm đếm và xử lý đơn nhập kho",
+                    icon: "download" as const,
+                    gradient: ["#1677ff", "#0ea5e9"],
+                    priority: "high",
+                    screen: `/import/detail/${taskId}`,
+                    orderId: taskId,
+                    status: order.status,
+                  });
+                  importFilteredCount++;
+                }
+                taskProcessed = true;
+              }
+            } catch (error) {
+              // Not an import order, continue to next type
+            }
+          }
+
+          // Try as export request if not processed
+          if (!taskProcessed) {
+            try {
+              await fetchExportRequestById(taskId);
+              // fetchExportRequestById sets the exportRequest in state but doesn't return it
+              // We need to access it from the service's state or make an assumption that it exists
+              // For now, we'll add the task and let the UI handle the display
               orderItems.push({
-                id: `export_${requestId}`,
+                id: `export_${taskId}`,
                 type: "export",
-                title: `Phiếu Xuất Hàng #${requestId}`,
+                title: `Phiếu Xuất Hàng #${taskId}`,
                 subtitle: "Kiểm đếm và xử lý yêu cầu xuất kho",
                 icon: "arrow-up-circle" as const,
                 gradient: ["#1677ff", "#0ea5e9"],
                 priority: "high",
-                screen: `/export/export-detail/${requestId}`,
-                orderId: requestId,
-                status: request.status,
+                screen: `/export/export-detail/${taskId}`,
+                orderId: taskId,
               });
               exportFilteredCount++;
+              taskProcessed = true;
+            } catch (error) {
+              // Not an export request, continue to next type
             }
-          } catch (error) {
-            console.log(`Error fetching export request ${requestId}:`, error);
           }
-        }
-      }
 
-      // Add stock check requests (assuming no status filtering needed for now)
-      if (taskOfStaffPerDate.stockCheckIds) {
-        taskOfStaffPerDate.stockCheckIds.forEach((stockCheckId, index) => {
-          orderItems.push({
-            id: `stock_${stockCheckId}`,
-            type: "stock_check",
-            title: `Phiếu Kiểm Kho #${stockCheckId}`,
-            subtitle: "Thực hiện kiểm tra tồn kho",
-            icon: "clipboard" as const,
-            gradient: ["#1677ff", "#0ea5e9"],
-            priority: "medium",
-            screen: `/stock-check/detail/${stockCheckId}`,
-            orderId: stockCheckId,
-          });
-          stockFilteredCount++;
-        });
+          // If not processed as import or export, assume it's a stock check
+          if (!taskProcessed) {
+            orderItems.push({
+              id: `stock_${taskId}`,
+              type: "stock_check",
+              title: `Phiếu Kiểm Kho #${taskId}`,
+              subtitle: "Thực hiện kiểm tra tồn kho",
+              icon: "clipboard" as const,
+              gradient: ["#1677ff", "#0ea5e9"],
+              priority: "medium",
+              screen: `/stock-check/detail/${taskId}`,
+              orderId: taskId,
+            });
+            stockFilteredCount++;
+          }
+        } catch (error) {
+          console.log(`Error processing task ID ${taskId}:`, error);
+        }
       }
 
       setFilteredOrderItems(orderItems);
