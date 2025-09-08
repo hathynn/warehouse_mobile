@@ -115,6 +115,9 @@ const ExportInventoryScreen: React.FC = () => {
   const [showMeasurementModal, setShowMeasurementModal] = useState(false);
   const [scannedNewItemsForModal, setScannedNewItemsForModal] = useState<any[]>([]);
   const [measurementModalReason, setMeasurementModalReason] = useState('');
+  
+  // Track processed scanned items to avoid re-processing
+  const [processedScannedItems, setProcessedScannedItems] = useState<Set<string>>(new Set());
 
   // Services
   const {
@@ -215,8 +218,15 @@ const ExportInventoryScreen: React.FC = () => {
   useEffect(() => {
     console.log(`🔍 QR useEffect check - scannedItem: ${scannedNewItemFromRedux}, exportType: ${exportRequestType}, step: ${internalManualChangeStep}`);
     
-    if (scannedNewItemFromRedux && exportRequestType === "INTERNAL" && (internalManualChangeStep === 'reason_input' || internalManualChangeStep === 'select_old')) {
+    if (scannedNewItemFromRedux && 
+        exportRequestType === "INTERNAL" && 
+        (internalManualChangeStep === 'reason_input' || internalManualChangeStep === 'select_old') &&
+        !processedScannedItems.has(scannedNewItemFromRedux)) {
+      
       console.log(`📱 Received scanned new item from Redux: ${scannedNewItemFromRedux}`);
+
+      // Mark as processed immediately to prevent re-processing
+      setProcessedScannedItems(prev => new Set([...prev, scannedNewItemFromRedux]));
 
       // Fetch the inventory item details and show measurement modal
       const showMeasurementModalForScannedItem = async () => {
@@ -260,8 +270,10 @@ const ExportInventoryScreen: React.FC = () => {
             // Play success haptic feedback
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-            // Clear the Redux state to avoid re-processing
-            dispatch(setScannedNewItemForMultiSelect(null));
+            // Delay clearing Redux state to ensure component has processed it
+            setTimeout(() => {
+              dispatch(setScannedNewItemForMultiSelect(null));
+            }, 100);
           }
         } catch (error) {
           console.log(`❌ Error fetching scanned item ${scannedNewItemFromRedux}:`, error);
@@ -272,7 +284,7 @@ const ExportInventoryScreen: React.FC = () => {
 
       showMeasurementModalForScannedItem();
     }
-  }, [scannedNewItemFromRedux, exportRequestType, internalManualChangeStep, selectedOldItems]);
+  }, [scannedNewItemFromRedux, exportRequestType, internalManualChangeStep, selectedOldItems, processedScannedItems]);
 
   // Function to refresh inventory data
   const refreshInventoryData = async () => {

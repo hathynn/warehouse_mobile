@@ -189,7 +189,7 @@ export default function ScanQrManualScreen() {
   // Reset scanning state when screen is focused
   useEffect(() => {
     if (isFocused) {
-      // console.log("🔄 Screen focused, resetting scan state");
+      console.log("🔄 Screen focused, resetting scan state");
       setIsProcessing(false);
       setScanningEnabled(true);
       setErrorMessage(null);
@@ -197,6 +197,7 @@ export default function ScanQrManualScreen() {
       lastScanTimeRef.current = 0;
       currentlyProcessingRef.current = null;
       lastProcessedQRRef.current = null;
+      // Don't reset newInventoryItemData and itemData here to preserve dialog state
     }
   }, [isFocused]);
 
@@ -269,9 +270,12 @@ export default function ScanQrManualScreen() {
 
     console.log(`🔒 Processing started for: ${inventoryItemId}`);
 
-    // Clear previous messages
+    // Clear previous messages and scanned data
     setErrorMessage(null);
     setLastScannedProduct(null);
+    setNewInventoryItemData(null);
+    setItemData(null);
+    setScannedNewItemId(null);
 
     try {
       console.log("📦 Raw QR data:", data);
@@ -419,6 +423,10 @@ export default function ScanQrManualScreen() {
       const itemInfo = await getItemDetailById(inventoryItemData.itemId);
       
       // Store inventory item data for measurement value display and validation
+      console.log(`🔄 Setting scanned item data: ${inventoryItemId}`, {
+        inventoryItemData: inventoryItemData ? 'present' : 'null',
+        itemInfo: itemInfo ? 'present' : 'null'
+      });
       setNewInventoryItemData(inventoryItemData);
       setItemData(itemInfo);
       setScannedNewItemId(inventoryItemId);
@@ -426,7 +434,10 @@ export default function ScanQrManualScreen() {
       // Store the itemId for back navigation
       setItemIdForNavigation(inventoryItemData.itemId);
 
-      setShowReasonInput(true);
+      // Only show reason input after data is properly set
+      setTimeout(() => {
+        setShowReasonInput(true);
+      }, 100);
       await playBeep();
       setLastScannedProduct({
         id: inventoryItemId,
@@ -470,6 +481,12 @@ export default function ScanQrManualScreen() {
     lastScanTimeRef.current = 0;
     currentlyProcessingRef.current = null;
     lastProcessedQRRef.current = null;
+    // Only reset dialog data if dialog is not currently shown
+    if (!showReasonInput) {
+      setNewInventoryItemData(null);
+      setItemData(null);
+      setScannedNewItemId(null);
+    }
 
     setTimeout(() => {
       setScanningEnabled(true);
@@ -754,7 +771,7 @@ export default function ScanQrManualScreen() {
           </View>
         )}
 
-        {showReasonInput && !showMeasurementWarning && (
+        {showReasonInput && !showMeasurementWarning && scannedNewItemId && (
           <KeyboardAvoidingView
             style={styles.keyboardAvoidingView}
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -776,6 +793,16 @@ export default function ScanQrManualScreen() {
                     </Text>
                     <Text style={styles.measurementText}>
                       Giá trị sản phẩm vừa quét: {newInventoryItemData.measurementValue || 0} {itemData.measurementUnit || ''}
+                    </Text>
+                  </View>
+                )}
+                
+                {/* Show scanned item ID for better visibility */}
+                {scannedNewItemId && (
+                  <View style={styles.measurementInfo}>
+                    <Text style={styles.measurementLabel}>Mã sản phẩm vừa quét:</Text>
+                    <Text style={styles.measurementText}>
+                      {scannedNewItemId}
                     </Text>
                   </View>
                 )}

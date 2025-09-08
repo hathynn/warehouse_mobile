@@ -30,6 +30,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import StyledButton from "@/components/ui/StyledButton";
 import StatusBadge from "@/components/StatusBadge";
 import { InventoryItem } from "@/types/inventoryItem.type";
+import { extractItemIdFromQR } from "@/utils/qrUtils";
 // import InventoryModal from "@/components/InventoryModal";
 
 interface RouteParams {
@@ -571,15 +572,6 @@ const StockCheckDetailScreen: React.FC = () => {
   };
 
   // Search and scan functions
-  const extractItemIdFromQR = (qrData: string): string | null => {
-    // Extract itemId from QR format: ITM-VAI-KK-001-DN-PN-20250907-001-P1-1-3
-    // ItemId is the part after ITM- and before the next dash sequence
-    const match = qrData.match(/^ITM-([^-]+-[^-]+-[^-]+)/);
-    if (match && match[1]) {
-      return match[1]; // Returns VAI-KK-001
-    }
-    return null;
-  };
 
   const handleScanQR = async () => {
     const { status } = await Camera.requestCameraPermissionsAsync();

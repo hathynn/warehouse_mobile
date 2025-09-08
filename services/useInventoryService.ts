@@ -190,8 +190,14 @@ const useInventoryService = () => {
         );
 
         return response.content;
-      } catch (error) {
+      } catch (error: any) {
         console.log("Lỗi khi lấy inventory item theo ID:", error);
+        
+        // Log more details about the error for debugging
+        if (error?.response?.status) {
+          console.log(`❌ API Error ${error.response.status}: ${error.response.data?.message || 'Unknown error'}`);
+        }
+        
         return null;
       }
     },

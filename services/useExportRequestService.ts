@@ -147,6 +147,26 @@ const filterExportRequestsByRole = useCallback(
     [callApi, setIsLoading]
   );
 
+   const completeExportRequest = useCallback(
+    async (exportRequestId: string) => {
+      if (!exportRequestId) return false;
+      setIsLoading(true);
+      try {
+        const response = await callApi(
+          "post",
+          `/export-request/complete/${exportRequestId}`
+        );
+        return response;
+      } catch (error) {
+        console.log("❌ Lỗi khi complete export request:", error);
+        return false;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [callApi, setIsLoading]
+  );
+
   return {
     loading,
     exportRequests,
@@ -157,6 +177,7 @@ const filterExportRequestsByRole = useCallback(
     fetchExportRequestsByStaffId,
     updateExportRequestStatus,
     filterExportRequestsByRole,
+    completeExportRequest,
   };
 };
 

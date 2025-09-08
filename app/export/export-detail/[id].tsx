@@ -1151,6 +1151,20 @@ const ExportRequestScreen: React.FC = () => {
     if (!exportRequest) return null;
     const status = exportRequest.status;
 
+    // Check if any counted values are 0
+    const hasZeroCountedValues = savedExportRequestDetails.some((detail) => {
+      if (exportRequest.type === "INTERNAL") {
+        return detail.actualMeasurementValue === 0;
+      } else {
+        return detail.actualQuantity === 0;
+      }
+    });
+
+    // Check if current date is before expected export date
+    const isBeforeExportDate = exportRequest.exportDate 
+      ? new Date() < new Date(exportRequest.exportDate)
+      : false;
+
     switch (status) {
       case ExportRequestStatus.IN_PROGRESS:
         return (
@@ -1158,6 +1172,7 @@ const ExportRequestScreen: React.FC = () => {
             <StyledButton
               title="Xác nhận kiểm đếm"
               onPress={handleConfirm}
+              disabled={hasZeroCountedValues}
               style={{ marginTop: 12 }}
             />
           </View>
@@ -1171,6 +1186,7 @@ const ExportRequestScreen: React.FC = () => {
               onPress={() =>
                 router.push(`/export/sign/warehouse-sign?id=${id}`)
               }
+              disabled={isBeforeExportDate}
               style={{ marginTop: 12 }}
             />
           </View>

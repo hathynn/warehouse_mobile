@@ -365,7 +365,7 @@ export default function ScanQrScreen() {
       // Get inventory item data to check itemId
       const inventoryItemData = await fetchInventoryItemById(inventoryItemId);
       if (!inventoryItemData) {
-        throw new Error("Không tìm thấy inventory item với mã đã quét");
+        throw new Error("Mã QR không hợp lệ hoặc không tồn tại trong hệ thống");
       }
 
       // Check if any export request detail has the same itemId
