@@ -48,7 +48,7 @@ const SignReceiveScreen = () => {
   const { fetchExportRequestDetails, updateActualQuantity } = useExportRequestDetail();
   const { createPaper } = usePaperService();
   const paperData = useSelector((state: RootState) => state.paper);
-  const { exportRequest, updateExportRequestStatus, fetchExportRequestById } = useExportRequest();
+  const { exportRequest, updateExportRequestStatus, fetchExportRequestById, completeExportRequest } = useExportRequest();
   const exportRequestId = paperData.exportRequestId;
   const { getAccountByEmail } = useAccountService();
 
@@ -207,10 +207,7 @@ const SignReceiveScreen = () => {
       console.log("📋 Create paper response:", response);
       console.log("✅ Tạo phiếu thành công");
 
-      const statusUpdated = await updateExportRequestStatus(
-        exportRequestId,
-        "COMPLETED"
-      );
+      const statusUpdated = await completeExportRequest(exportRequestId);
       console.log("2", statusUpdated);
       if (statusUpdated) {
         console.log("✅ Đã cập nhật trạng thái COMPLETED");

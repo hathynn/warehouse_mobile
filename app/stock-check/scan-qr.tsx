@@ -195,7 +195,7 @@ export default function StockCheckScanQrScreen() {
         await playBeep();
         setLastScannedProduct({
           id: rawInventoryItemId,
-          message: "QR đã được quét để tìm kiếm!"
+          message: "Đã tìm thấy mã hàng của:"
         });
         
         // Go back after a short delay
@@ -469,7 +469,7 @@ export default function StockCheckScanQrScreen() {
           <View style={styles.bottomBox}>
             <View style={styles.productBox}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.productName}>Kiểm kho thành công</Text>
+                <Text style={styles.productName}>{lastScannedProduct.message || "Kiểm kho thành công"}</Text>
                 <Text style={styles.productTitle}>{lastScannedProduct.id}</Text>
               </View>
             </View>

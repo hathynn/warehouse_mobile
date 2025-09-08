@@ -4,12 +4,22 @@ interface Props {
   title: string;
   onPress: () => void;
   style?: any;
+  disabled?: boolean;
 }
 
-const StyledButton = ({ title, onPress, style }: Props) => {
+const StyledButton = ({ title, onPress, style, disabled = false }: Props) => {
   return (
-    <TouchableOpacity style={[styles.button, style]} onPress={onPress} activeOpacity={0.7}>
-      <Text style={styles.buttonText}>{title}</Text>
+    <TouchableOpacity 
+      style={[
+        styles.button, 
+        disabled && styles.buttonDisabled,
+        style
+      ]} 
+      onPress={disabled ? undefined : onPress} 
+      activeOpacity={disabled ? 1 : 0.7}
+      disabled={disabled}
+    >
+      <Text style={[styles.buttonText, disabled && styles.buttonTextDisabled]}>{title}</Text>
     </TouchableOpacity>
   );
 };
@@ -28,10 +38,18 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 2,
   },
+  buttonDisabled: {
+    backgroundColor: "#ccc",
+    shadowOpacity: 0,
+    elevation: 0,
+  },
   buttonText: {
     color: "#fff",
     fontWeight: "600",
     fontSize: 15,
+  },
+  buttonTextDisabled: {
+    color: "#999",
   },
 });
 
