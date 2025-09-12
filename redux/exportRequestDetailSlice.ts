@@ -15,6 +15,7 @@ interface ExportRequestDetailState {
   } | null;
   scannedNewItemForMultiSelect: string | null;
   measurementModalVisible: boolean;
+  scannedItemsForModal: any[];
 }
 
 const initialState: ExportRequestDetailState = {
@@ -23,6 +24,7 @@ const initialState: ExportRequestDetailState = {
   pendingModalNavigation: null,
   scannedNewItemForMultiSelect: null,
   measurementModalVisible: false,
+  scannedItemsForModal: [],
 };
 
 const exportRequestDetailSlice = createSlice({
@@ -112,6 +114,23 @@ const exportRequestDetailSlice = createSlice({
     setMeasurementModalVisible: (state, action: PayloadAction<boolean>) => {
       state.measurementModalVisible = action.payload;
     },
+
+    addScannedItemForModal: (state, action: PayloadAction<any>) => {
+      const item = action.payload;
+      const alreadyExists = state.scannedItemsForModal.some(existingItem => existingItem.id === item.id);
+      if (!alreadyExists) {
+        state.scannedItemsForModal.push(item);
+      }
+    },
+
+    removeScannedItemForModal: (state, action: PayloadAction<string>) => {
+      const itemId = action.payload;
+      state.scannedItemsForModal = state.scannedItemsForModal.filter(item => item.id !== itemId);
+    },
+
+    clearScannedItemsForModal: (state) => {
+      state.scannedItemsForModal = [];
+    },
   },
 });
 
@@ -123,7 +142,10 @@ export const {
   setPendingModalNavigation,
   clearPendingModalNavigation,
   setScannedNewItemForMultiSelect,
-  setMeasurementModalVisible
+  setMeasurementModalVisible,
+  addScannedItemForModal,
+  removeScannedItemForModal,
+  clearScannedItemsForModal
 } = exportRequestDetailSlice.actions;
 
 export default exportRequestDetailSlice.reducer;

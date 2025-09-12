@@ -23,7 +23,7 @@ import useInventoryService from "@/services/useInventoryService";
 import useItemService from "@/services/useItemService";
 import useExportRequestDetail from "@/services/useExportRequestDetailService";
 import { ExportRequestStatus, ExportRequestTypeEnum } from "@/types/exportRequest.type";
-import { updateInventoryItemId, setScanMappings, setScannedNewItemForMultiSelect, setMeasurementModalVisible } from "@/redux/exportRequestDetailSlice";
+import { updateInventoryItemId, setScanMappings, setScannedNewItemForMultiSelect, setMeasurementModalVisible, addScannedItemForModal, removeScannedItemForModal, clearScannedItemsForModal } from "@/redux/exportRequestDetailSlice";
 
 interface RouteParams extends Record<string, string | undefined> {
   id: string;
@@ -81,6 +81,11 @@ const ExportInventoryScreen: React.FC = () => {
   const scannedNewItemFromRedux = useSelector(
     (state: RootState) => state.exportRequestDetail.scannedNewItemForMultiSelect
   );
+  
+  // Get scanned items for modal from Redux
+  const scannedNewItemsForModalFromRedux = useSelector(
+    (state: RootState) => state.exportRequestDetail.scannedItemsForModal
+  );
 
   const [currentPage, setCurrentPage] = useState<ScreenPage>("main");
   const [originalItemIdState, setOriginalItemIdState] = useState<string>("");
@@ -113,7 +118,8 @@ const ExportInventoryScreen: React.FC = () => {
 
   // Measurement modal states for INTERNAL QR scan result
   const [showMeasurementModal, setShowMeasurementModal] = useState(false);
-  const [scannedNewItemsForModal, setScannedNewItemsForModal] = useState<any[]>([]);
+  // Use Redux state instead of local state for scanned items
+  const scannedNewItemsForModal = scannedNewItemsForModalFromRedux;
   const [measurementModalReason, setMeasurementModalReason] = useState('');
   
   // Track processed scanned items to avoid re-processing
@@ -250,18 +256,9 @@ const ExportInventoryScreen: React.FC = () => {
 
             console.log(`📊 Adding scanned item to measurement modal: ${scannedNewItemFromRedux}`);
 
-            // Add to scanned items array for modal (avoid duplicates)
-            setScannedNewItemsForModal(prevItems => {
-              const alreadyExists = prevItems.some(item => item.id === inventoryItem.id);
-              if (!alreadyExists) {
-                const updatedItems = [...prevItems, inventoryItem];
-                console.log(`✅ Added to modal items. Total: ${updatedItems.length}`);
-                return updatedItems;
-              } else {
-                console.log(`⚠️ Item ${inventoryItem.id} already in modal, skipping`);
-                return prevItems;
-              }
-            });
+            // Add to scanned items array for modal (avoid duplicates) using Redux
+            dispatch(addScannedItemForModal(inventoryItem));
+            console.log(`✅ Added to modal items. Total: ${scannedNewItemsForModal.length + 1}`);
 
             console.log(`📱 Opening measurement modal after QR scan`);
             setShowMeasurementModal(true);
@@ -1218,7 +1215,7 @@ const ExportInventoryScreen: React.FC = () => {
       // Reset states and return to main screen
       setShowMeasurementModal(false);
       dispatch(setMeasurementModalVisible(false));
-      setScannedNewItemsForModal([]);
+      dispatch(clearScannedItemsForModal());
       setMeasurementModalReason('');
       setSelectedOldItems([]);
       setSelectedNewItems([]);
@@ -1247,7 +1244,7 @@ const ExportInventoryScreen: React.FC = () => {
   const handleMeasurementModalCancel = () => {
     setShowMeasurementModal(false);
     dispatch(setMeasurementModalVisible(false));
-    setScannedNewItemsForModal([]);
+    dispatch(clearScannedItemsForModal());
     setMeasurementModalReason('');
     
     // Reset INTERNAL states
@@ -1279,11 +1276,8 @@ const ExportInventoryScreen: React.FC = () => {
 
   // Handle removing a scanned item from the modal
   const handleRemoveScannedItem = (itemId: string) => {
-    setScannedNewItemsForModal(prevItems => {
-      const updatedItems = prevItems.filter(item => item.id !== itemId);
-      console.log(`🗑️ Removed item ${itemId} from modal. Remaining: ${updatedItems.length}`);
-      return updatedItems;
-    });
+    dispatch(removeScannedItemForModal(itemId));
+    console.log(`🗑️ Removed item ${itemId} from modal. Remaining: ${scannedNewItemsForModal.length - 1}`);
   };
 
   // Handle removing an old item from the list
@@ -1522,7 +1516,10 @@ const ExportInventoryScreen: React.FC = () => {
 
         {/* List of inventory items in this group */}
         {items.map(item => (
-          <View key={item.id} style={styles.inventoryItemContainer}>
+          <View key={item.id} style={[
+            styles.inventoryItemContainer, 
+            item.isTrackingForExport && styles.trackedItemContainer
+          ]}>
             <View style={styles.inventoryItemRow}>
               <View style={styles.inventoryItemContent}>
                 <Text style={styles.inventoryItemId}>{item.id}</Text>
@@ -1774,15 +1771,7 @@ const ExportInventoryScreen: React.FC = () => {
                     <Text style={styles.globalScanButtonText}>Quét QR</Text>
                   </TouchableOpacity>
 
-                  {exportRequestType === "INTERNAL" && (
-                    <TouchableOpacity
-                      style={[styles.manualChangeButton, styles.halfWidthButton]}
-                      onPress={() => handleInternalManualChangePress("")}
-                    >
-                      <Ionicons name="swap-horizontal-outline" size={20} color="white" />
-                      <Text style={styles.manualChangeButtonText}>Đổi thủ công</Text>
-                    </TouchableOpacity>
-                  )}
+              
                 </View>
               </View>
             )}
@@ -2274,6 +2263,13 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 1,
+  },
+  trackedItemContainer: {
+    backgroundColor: "#f0f8f0",
+    borderWidth: 1,
+    borderColor: "#28a745",
+    elevation: 2,
+    shadowOpacity: 0.15,
   },
   inventoryItemRow: {
     flexDirection: "row",
