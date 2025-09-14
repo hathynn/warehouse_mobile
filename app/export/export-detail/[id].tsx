@@ -661,7 +661,7 @@ const ExportRequestScreen: React.FC = () => {
       const allInventoryItemsForItemId = await fetchInventoryItemByItemId(selectedItemCode);
 
       if (!allInventoryItemsForItemId || allInventoryItemsForItemId.length === 0) {
-        Alert.alert("Lỗi", "Không tìm thấy inventory items cho item này");
+        Alert.alert("Lỗi", "Không tìm thấy hàng tồn kho cho item này");
         return;
       }
 
