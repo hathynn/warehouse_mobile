@@ -17,6 +17,7 @@ import { Audio } from "expo-av";
 import useExportRequestDetail from "@/services/useExportRequestDetailService";
 import useExportRequest from "@/services/useExportRequestService";
 import useInventoryService from "@/services/useInventoryService";
+import useItemService from "@/services/useItemService";
 
 
 export default function ScanQrScreen() {
@@ -31,9 +32,10 @@ export default function ScanQrScreen() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [cameraKey, setCameraKey] = useState(0);
   const isFocused = useIsFocused();
-  const { updateActualQuantity } = useExportRequestDetail();
+  const { updateActualQuantity, fetchExportRequestDetailById } = useExportRequestDetail();
   const { exportRequest, fetchExportRequestById } = useExportRequest();
   const { fetchInventoryItemById, fetchInventoryItemsByExportRequestDetailId } = useInventoryService();
+  const { getItemDetailById } = useItemService();
   const [scanningEnabled, setScanningEnabled] = useState(true);
   const [alertShowing, setAlertShowing] = useState(false);
 
@@ -41,6 +43,7 @@ export default function ScanQrScreen() {
     null
   );
   const [scannedItemCode, setScannedItemCode] = useState<string>("");
+  const [currentTargetItemId, setCurrentTargetItemId] = useState<string | null>(null);
 
   // Import Redux actions and dispatch
   const dispatch = useDispatch();
@@ -197,6 +200,12 @@ export default function ScanQrScreen() {
       console.log("📦 Raw QR data:", data);
       console.log("🔍 inventoryItemId:", inventoryItemId);
 
+      // Get inventory item data to validate itemId first
+      const inventoryItemData = await fetchInventoryItemById(inventoryItemId);
+      if (!inventoryItemData) {
+        throw new Error("Không tìm thấy hàng tồn kho với mã đã quét");
+      }
+
       // Normal scan mode: Check scan mappings
       console.log("🔍 All scanMappings:", scanMappings.map(m => m.inventoryItemId.toUpperCase()));
       console.log("🔍 Looking for inventoryItemId:", inventoryItemId);
@@ -207,6 +216,15 @@ export default function ScanQrScreen() {
 
       console.log("🔍 Mapping found:", mapping);
       if (!mapping) {
+        // Validate itemId before allowing INTERNAL multi-select
+        const matchingExportDetail = exportDetails.find(
+          (detail: any) => detail.itemId === inventoryItemData.itemId
+        );
+
+        if (!matchingExportDetail) {
+          throw new Error(`Chỉ được phép quét inventory item của mã hàng trong danh sách xuất`);
+        }
+
         // NEW: Handle case where inventoryItemId is not in scanMappings (INTERNAL only)
         if (exportRequest?.type === "INTERNAL") {
           await handleInternalMultiSelectMode(inventoryItemId);
@@ -216,6 +234,7 @@ export default function ScanQrScreen() {
         }
       }
 
+      // Validate that scanned inventory item belongs to the expected itemId
       const exportRequestDetailId = mapping.exportRequestDetailId;
       const inventoryItemIdForApi = mapping.inventoryItemId.toUpperCase();
       const matched = exportDetails.find((d) => d.id === exportRequestDetailId);
@@ -224,9 +243,16 @@ export default function ScanQrScreen() {
         throw new Error("Không tìm thấy sản phẩm tương ứng với mã QR.");
       }
 
-      if (matched.actualQuantity >= matched.quantity) {
-        throw new Error("Sản phẩm đã được quét đủ.");
+      // Validate itemId match - only allow scanning inventory items of the correct itemId
+      if (inventoryItemData.itemId !== matched.itemId) {
+        throw new Error(`Chỉ được phép quét inventory item của mã hàng ${matched.itemId}`);
       }
+
+      // If we have a specific target item set from alert, only allow scanning for that item
+      if (currentTargetItemId && matched.itemId !== currentTargetItemId) {
+        throw new Error(`Hiện tại đang quét mã hàng ${currentTargetItemId}. Vui lòng quét inventory item của mã hàng ${currentTargetItemId}.`);
+      }
+
 
       console.log("🔄 Call API với:", {
         exportRequestDetailId,
@@ -249,7 +275,7 @@ export default function ScanQrScreen() {
 
       if (!success) throw new Error("Lỗi cập nhật số lượng");
 
-      // Success - add to scannedIds and show success message
+      // Success - add to scannedIds and track measurement values
       setScannedIds((prev) => {
         if (!prev.includes(inventoryItemId)) {
           const newIds = [...prev, inventoryItemId];
@@ -261,6 +287,7 @@ export default function ScanQrScreen() {
         return prev;
       });
 
+
       // Mark this QR as successfully processed
       lastProcessedQRRef.current = inventoryItemId;
 
@@ -268,7 +295,223 @@ export default function ScanQrScreen() {
       setScannedItemCode(matched.itemId);
 
       await playBeep();
-      setLastScannedProduct(matched);
+      
+      // Check alert conditions based on export type (AFTER API call)
+      let shouldShowAlert = false;
+      
+      if (exportRequest?.type === "SELLING") {
+        // For SELLING: check if we've reached the expected quantity (after +1 from this scan)
+        const newActualQuantity = matched.actualQuantity + 1;
+        shouldShowAlert = newActualQuantity >= matched.quantity;
+        console.log(`🔔 SELLING alert check: actualQuantity(${matched.actualQuantity}) + 1 = ${newActualQuantity} >= expectedQuantity(${matched.quantity}) = ${shouldShowAlert}`);
+      } else if (exportRequest?.type === "INTERNAL") {
+        // For INTERNAL: fetch fresh data to check if status became COMPLETED after this scan
+        try {
+          const freshExportDetail = await fetchExportRequestDetailById(Number(exportRequestDetailId));
+          console.log(`🔔 INTERNAL fresh status check: ${freshExportDetail?.status}`);
+          console.log(`🔔 INTERNAL fresh export detail:`, freshExportDetail);
+          console.log(`🔔 INTERNAL original matched status: ${matched.status}`);
+          
+          // Check if status indicates completion (COMPLETED from enum)
+          // Note: If API returns "MATCH", it will be logged but not trigger alert due to TypeScript constraints
+          if (freshExportDetail && freshExportDetail.status === "COMPLETED") {
+            shouldShowAlert = true;
+            console.log(`🔔 INTERNAL: Setting alert to true because status is COMPLETED`);
+          } else {
+            console.log(`🔔 INTERNAL: Status is not COMPLETED, current status: ${freshExportDetail?.status}`);
+            // For debugging: check if API actually returns "MATCH"
+            if ((freshExportDetail as any)?.status === "MATCH" || (freshExportDetail as any)?.status === "EXCEED") {
+              console.log(`🔔 INTERNAL: API returned "${(freshExportDetail as any)?.status}" status - showing completion alert`);
+              shouldShowAlert = true;
+            }
+          }
+        } catch (error) {
+          console.log("❌ Error fetching fresh export detail for INTERNAL check:", error);
+          // Fall back to checking if we've reached the expected quantity
+          const newActualQuantity = matched.actualQuantity + 1;
+          shouldShowAlert = newActualQuantity >= matched.quantity;
+          console.log(`🔔 INTERNAL fallback alert check: actualQuantity(${matched.actualQuantity}) + 1 = ${newActualQuantity} >= expectedQuantity(${matched.quantity}) = ${shouldShowAlert}`);
+        }
+      }
+      
+      console.log(`🔔 Final shouldShowAlert decision: ${shouldShowAlert} for export type: ${exportRequest?.type}`);
+
+      // Clear current target if this item is now complete
+      if (shouldShowAlert && currentTargetItemId === matched.itemId) {
+        console.log(`🔓 Clearing currentTargetItemId as item ${currentTargetItemId} is now complete`);
+        setCurrentTargetItemId(null);
+      }
+
+      if (shouldShowAlert) {
+        // Find items that need more scanning based on export type
+        let insufficientItems: any[] = [];
+        
+        if (exportRequest?.type === "SELLING") {
+          // For SELLING: find items with insufficient quantity
+          insufficientItems = exportDetails.filter(
+            (detail: any) => detail.actualQuantity < detail.quantity && detail.id !== exportRequestDetailId
+          );
+        } else if (exportRequest?.type === "INTERNAL") {
+          // For INTERNAL: find items that are not COMPLETED status
+          insufficientItems = exportDetails.filter(
+            (detail: any) => detail.status !== "COMPLETED" && detail.id !== exportRequestDetailId
+          );
+        }
+
+        console.log(`🔍 Found ${insufficientItems.length} insufficient items:`, insufficientItems.map(item => ({
+          id: item.id,
+          itemId: item.itemId,
+          status: item.status,
+          actualQuantity: item.actualQuantity,
+          quantity: item.quantity
+        })));
+
+        if (insufficientItems.length > 0) {
+          const nextItem = insufficientItems[0];
+          console.log(`🔄 Next item to navigate to:`, {
+            id: nextItem.id,
+            itemId: nextItem.itemId,
+            status: nextItem.status,
+            actualQuantity: nextItem.actualQuantity,
+            quantity: nextItem.quantity
+          });
+          setAlertShowing(true);
+          setScanningEnabled(false);
+          
+          const alertTitle = exportRequest?.type === "SELLING" ? "Hoàn thành quét mã hàng" : "Mã hàng đã đủ";
+          const alertMessage = exportRequest?.type === "SELLING" 
+            ? `Đã quét đủ số lượng của mã hàng ${matched.itemId}. Bạn có muốn tiếp tục kiểm đếm mã hàng ${nextItem.itemId}?`
+            : `Mã hàng ${matched.itemId} đã quét đủ số lượng. Bạn có muốn tiếp tục kiểm đếm mã hàng ${nextItem.itemId}?`;
+          
+          Alert.alert(
+            alertTitle,
+            alertMessage,
+            [
+              {
+                text: "Hủy",
+                style: "cancel",
+                onPress: () => {
+                  setAlertShowing(false);
+                  // Navigate back to main export detail screen
+                  router.replace(`/export/export-detail/${id}`);
+                }
+              },
+              {
+                text: "Xác nhận",
+                onPress: () => {
+                  setAlertShowing(false);
+                  console.log(`🔄 Alert confirm pressed - continuing scan for next item:`, {
+                    nextItemId: nextItem.id,
+                    itemCode: nextItem.itemId,
+                    exportRequestId: id
+                  });
+
+                  // Set the target item ID to focus on the next item
+                  setCurrentTargetItemId(nextItem.itemId);
+
+                  // Re-enable scanning
+                  setTimeout(() => {
+                    setScanningEnabled(true);
+                    console.log(`🔄 Scanning enabled for next item: ${nextItem.itemId}`);
+                  }, 100);
+                }
+              }
+            ]
+          );
+          return;
+        } else {
+          // All items are complete - clear target and navigate back to main screen
+          console.log(`✅ All items are complete - showing completion alert`);
+          setCurrentTargetItemId(null);
+          setAlertShowing(true);
+          setScanningEnabled(false);
+
+          const completionMessage = exportRequest?.type === "SELLING"
+            ? "Tất cả sản phẩm đã được quét đủ số lượng."
+            : "Tất cả sản phẩm đã hoàn thành kiểm tra.";
+
+          Alert.alert(
+            "Hoàn thành",
+            completionMessage,
+            [
+              {
+                text: "OK",
+                onPress: () => {
+                  setAlertShowing(false);
+                  router.replace(`/export/export-detail/${id}`);
+                }
+              }
+            ]
+          );
+          return;
+        }
+      }
+      
+      // For both SELLING and INTERNAL types, show scanned quantity in success message
+      if (exportRequest?.type === "SELLING" || exportRequest?.type === "INTERNAL") {
+        // Use actual quantity from matched export detail (updated after API call)
+        const currentActualQuantity = matched.actualQuantity + 1; // +1 for current scan
+        const expectedQuantity = matched.quantity;
+
+        // Only show measurement info for INTERNAL exports
+        if (exportRequest?.type === "INTERNAL") {
+          // Fetch fresh export detail data to get updated measurement values
+          fetchExportRequestDetailById(Number(exportRequestDetailId)).then(freshExportDetail => {
+            if (freshExportDetail) {
+              const expectedMeasurement = freshExportDetail.measurementValue || 0;
+              const actualMeasurement = freshExportDetail.actualMeasurementValue || 0;
+              
+              // Get item details to fetch measurement unit
+              getItemDetailById(matched.itemId).then(itemDetails => {
+                const unit = itemDetails?.measurementUnit || '';
+                
+                setLastScannedProduct({
+                  ...matched,
+                  actualQuantity: freshExportDetail.actualQuantity, // Use fresh data
+                  message: `Đã quét ${freshExportDetail.actualQuantity}/${expectedQuantity} - ${matched.itemId}`,
+                  measurementInfo: `Giá trị cần xuất: ${expectedMeasurement}${unit ? ' ' + unit : ''} | Giá trị đã quét: ${actualMeasurement}${unit ? ' ' + unit : ''}`
+                });
+              }).catch(() => {
+                // Fallback without unit if fetch fails
+                setLastScannedProduct({
+                  ...matched,
+                  actualQuantity: freshExportDetail.actualQuantity, // Use fresh data
+                  message: `Đã quét ${freshExportDetail.actualQuantity}/${expectedQuantity} - ${matched.itemId}`,
+                  measurementInfo: `Giá trị cần xuất: ${expectedMeasurement} | Giá trị đã quét: ${actualMeasurement}`
+                });
+              });
+            } else {
+              // Fallback to original data if fetch fails
+              const expectedMeasurement = matched.measurementValue || 0;
+              const actualMeasurement = matched.actualMeasurementValue || 0;
+              
+              setLastScannedProduct({
+                ...matched,
+                message: `Đã quét ${currentActualQuantity}/${expectedQuantity} - ${matched.itemId}`,
+                measurementInfo: `Giá trị cần xuất: ${expectedMeasurement} | Giá trị đã quét: ${actualMeasurement}`
+              });
+            }
+          }).catch(() => {
+            // Fallback to original data if fetch fails
+            const expectedMeasurement = matched.measurementValue || 0;
+            const actualMeasurement = matched.actualMeasurementValue || 0;
+            
+            setLastScannedProduct({
+              ...matched,
+              message: `Đã quét ${currentActualQuantity}/${expectedQuantity} - ${matched.itemId}`,
+              measurementInfo: `Giá trị cần xuất: ${expectedMeasurement} | Giá trị đã quét: ${actualMeasurement}`
+            });
+          });
+        } else {
+          // For SELLING type, only show quantity without measurement info
+          setLastScannedProduct({
+            ...matched,
+            message: `Đã quét ${currentActualQuantity}/${expectedQuantity} - ${matched.itemId}`
+          });
+        }
+      } else {
+        setLastScannedProduct(matched);
+      }
 
       // Clear success message after longer duration
       setTimeout(() => {
@@ -286,7 +529,7 @@ export default function ScanQrScreen() {
 
       if (message.toLowerCase().includes("has been tracked")) {
         displayMessage = "Sản phẩm này đã được quét trước đó!";
-        // If API says already tracked, add to scannedIds
+        // If API says already tracked, add to scannedIds and track measurement
         setScannedIds((prev) => {
           if (!prev.includes(inventoryItemId)) {
             const newIds = [...prev, inventoryItemId];
@@ -299,6 +542,8 @@ export default function ScanQrScreen() {
           }
           return prev;
         });
+        
+        
         lastProcessedQRRef.current = inventoryItemId;
       } else if (message.toLowerCase().includes("not stable")) {
         displayMessage = "Sản phẩm không hợp lệ.";
@@ -502,6 +747,15 @@ export default function ScanQrScreen() {
         <Text style={styles.headerTitle}>Quét QR</Text>
       </View>
 
+      {/* Current Target Item Indicator */}
+      {/* {currentTargetItemId && (
+        <View style={styles.targetIndicator}>
+          <Text style={styles.targetText}>
+            🎯 Đang quét mã hàng: {currentTargetItemId}
+          </Text>
+        </View>
+      )} */}
+
       {/* Camera */}
       <View style={styles.cameraWrapper}>
         {isFocused && !alertShowing && (
@@ -540,6 +794,11 @@ export default function ScanQrScreen() {
                 <Text style={styles.productTitle}>
                   {lastScannedProduct.itemId || lastScannedProduct.id}
                 </Text>
+                {lastScannedProduct.measurementInfo && (
+                  <Text style={styles.measurementText}>
+                    {lastScannedProduct.measurementInfo}
+                  </Text>
+                )}
               </View>
             </View>
           </View>
@@ -568,6 +827,19 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: "bold",
+  },
+  targetIndicator: {
+    backgroundColor: "#e3f2fd",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderColor: "#bbdefb",
+  },
+  targetText: {
+    fontSize: 14,
+    color: "#1976d2",
+    fontWeight: "600",
+    textAlign: "center",
   },
   cameraWrapper: {
     flex: 1,

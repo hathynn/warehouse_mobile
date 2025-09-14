@@ -10,6 +10,7 @@ import {
   Platform,
   ScrollView,
   Keyboard,
+  Alert,
 } from "react-native";
 import { Camera, CameraView } from "expo-camera";
 import { router, useLocalSearchParams } from "expo-router";
@@ -295,7 +296,7 @@ export default function ScanQrManualScreen() {
       // Get inventory item details to validate itemId
       const inventoryItemData = await fetchInventoryItemById(inventoryItemId);
       if (!inventoryItemData) {
-        throw new Error("Không tìm thấy inventory item với mã đã quét");
+        throw new Error("Không tìm thấy hàng tồn kho với mã đã quét");
       }
 
       let originalItemData = null;
@@ -305,7 +306,7 @@ export default function ScanQrManualScreen() {
         // We need to get the original item's data to compare itemId
         originalItemData = await fetchInventoryItemById(currentOriginalId || '');
         if (!originalItemData) {
-          throw new Error("Không tìm thấy thông tin inventory item gốc");
+          throw new Error("Không tìm thấy thông tin hàng tồn kho gốc");
         }
 
         if (inventoryItemData.itemId !== originalItemData.itemId) {
@@ -344,56 +345,9 @@ export default function ScanQrManualScreen() {
 
       console.log(`✅ Status validation passed: ${inventoryItemData.status} is allowed`);
 
-      // Validate measurement for replacement when new item has lower measurement value (INTERNAL exports only)
-      if (exportRequest?.type === "INTERNAL" && exportDetailIdNum && (inventoryItemData.measurementValue || 0) < (originalItemData.measurementValue || 0)) {
-        // console.log(`🔍 INTERNAL export - Validating measurement replacement: new ${inventoryItemData.measurementValue} < old ${originalItemData.measurementValue}`);
-        
-        const validation = await validateMeasurementForReplacement(
-          currentOriginalId,
-          inventoryItemData,
-          exportDetailIdNum
-        );
-        
-        if (!validation.isValid) {
-          // console.log(`❌ INTERNAL export - Measurement replacement validation failed: total ${validation.totalAfterChange} < required ${validation.requiredValue}`);
-          
-          // Show error message and force re-scan
-          setErrorMessage("Giá trị đo lường của sản phẩm tồn kho không phù hợp với giá trị xuất của sản phẩm này");
-          setIsProcessing(false);
+      // Removed measurement validation for replacement - allow all measurement values
 
-          // Allow re-scanning after showing message
-          setTimeout(() => {
-            setScanningEnabled(true);
-            setErrorMessage(null);
-          }, 3000);
-
-          return; // Stop processing and force re-scan
-        }
-        // console.log(`✅ INTERNAL export - Measurement replacement validation passed: total ${validation.totalAfterChange} >= required ${validation.requiredValue}`);
-      }
-
-      // Check for SELLING export type with mismatched measurement value (both exceeded and insufficient)
-      if (exportRequest?.type === "SELLING") {
-        const scannedMeasurementValue = inventoryItemData.measurementValue || 0;
-        const itemInfo = await getItemDetailById(inventoryItemData.itemId);
-        const requiredMeasurementValue = itemInfo?.measurementValue || 0;
-        
-        if (scannedMeasurementValue !== requiredMeasurementValue) {
-          console.log(`❌ SELLING export: Measurement value mismatch - scanned: ${scannedMeasurementValue}, required: ${requiredMeasurementValue}`);
-          
-          // Show error message and force re-scan
-          setErrorMessage(`Giá trị đo lường không phù hợp với giá trị cần xuất. Vui lòng quét QR khác.`);
-          setIsProcessing(false);
-
-          // Allow re-scanning after showing message
-          setTimeout(() => {
-            setScanningEnabled(true);
-            setErrorMessage(null);
-          }, 3000);
-
-          return; // Stop processing and force re-scan
-        }
-      }
+      // Removed SELLING export measurement validation - allow all measurement values
 
       if (exportDetailIdNum) {
         try {
@@ -507,22 +461,7 @@ export default function ScanQrManualScreen() {
       return;
     }
 
-    // Check measurement value for INTERNAL export requests only (for warnings)
-    if (exportRequest?.type === "INTERNAL" && newInventoryItemData && itemData) {
-      const scannedInventoryMeasurement = newInventoryItemData.measurementValue || 0;
-      const itemIdMeasurement = itemData.measurementValue || 0;
-
-      // Only warn for exceeded values in INTERNAL exports
-      if (scannedInventoryMeasurement > itemIdMeasurement) {
-        console.log(`⚠️ INTERNAL export - Measurement value exceeded: scanned inventory ${scannedInventoryMeasurement} > itemId ${itemIdMeasurement}`);
-        // Dismiss keyboard before showing warning dialog
-        Keyboard.dismiss();
-        setTimeout(() => {
-          setShowMeasurementWarning(true);
-        }, 100);
-        return;
-      }
-    }
+    // Removed measurement warning for INTERNAL exports - allow all measurement values
 
     await performManualChange();
   };
@@ -648,6 +587,73 @@ export default function ScanQrManualScreen() {
       });
 
       setTimeout(() => setLastScannedProduct(null), 2000);
+
+      // Check if we need to show completion alert for INTERNAL exports
+      if (exportRequest?.type === "INTERNAL" && exportDetailIdNum && scannedNewItemId) {
+        try {
+          // Fetch fresh export detail data to check current status
+          const freshExportDetail = await fetchExportRequestDetailById(exportDetailIdNum);
+          console.log(`🔔 INTERNAL manual change - fresh status check: ${freshExportDetail?.status}`);
+
+          let shouldShowAlert = false;
+          if ((freshExportDetail as any)?.status === "MATCH" || (freshExportDetail as any)?.status === "EXCEED") {
+            shouldShowAlert = true;
+            console.log(`🔔 INTERNAL manual change: Status is ${(freshExportDetail as any)?.status} - showing alert`);
+          }
+
+          if (shouldShowAlert) {
+            // Find items that still need scanning (not COMPLETED status)
+            const insufficientItems = savedExportRequestDetails.filter(
+              (detail: any) => detail.status !== "COMPLETED" && detail.id !== exportDetailIdNum
+            );
+
+            console.log(`🔍 Found ${insufficientItems.length} items still needing completion after manual change`);
+
+            if (insufficientItems.length > 0) {
+              const nextItem = insufficientItems[0];
+
+              setTimeout(() => {
+                Alert.alert(
+                  "Mã hàng đã đủ",
+                  `Mã hàng ${freshExportDetail?.itemId || currentOriginalId} đã quét đủ số lượng. Bạn có muốn tiếp tục kiểm đếm mã hàng ${nextItem.itemId}?`,
+                  [
+                    {
+                      text: "Hủy",
+                      style: "cancel",
+                      onPress: () => {
+                        // Navigate back to main export detail screen
+                        router.replace(`/export/export-detail/${id}`);
+                      }
+                    },
+                    {
+                      text: "Xác nhận",
+                      onPress: () => {
+                        console.log(`🔄 Manual change alert confirm - continuing scan for next item: ${nextItem.itemId}`);
+
+                        // Update current item to the next item and continue scanning
+                        setCurrentOriginalId(nextItem.itemId);
+                        setItemIdForNavigation(nextItem.itemId);
+
+                        // Re-enable scanning to continue with next item
+                        setTimeout(() => {
+                          setScanningEnabled(true);
+                        }, 100);
+                      }
+                    }
+                  ]
+                );
+              }, 1000);
+            } else {
+              // No more items to scan, go back to export detail
+              setTimeout(() => {
+                router.replace(`/export/export-detail/${id}`);
+              }, 2000);
+            }
+          }
+        } catch (error) {
+          console.log("❌ Error checking INTERNAL completion status after manual change:", error);
+        }
+      }
 
     } catch (error: any) {
       console.log("❌ QR Manual change error:", error);

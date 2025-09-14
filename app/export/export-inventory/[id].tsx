@@ -297,6 +297,20 @@ const ExportInventoryScreen: React.FC = () => {
     }
   };
 
+  // Function to refresh export request detail data
+  const refreshExportRequestDetailData = async () => {
+    if (!exportRequestDetailId) return;
+
+    try {
+      console.log(`🔄 Refreshing export request detail data for id: ${exportRequestDetailId}`);
+      const exportDetailInfo = await fetchExportRequestDetailById(parseInt(exportRequestDetailId));
+      setExportRequestDetailData(exportDetailInfo);
+      console.log(`✅ Refreshed export request detail data, status: ${exportDetailInfo?.status}`);
+    } catch (error) {
+      console.log("❌ Error refreshing export request detail data:", error);
+    }
+  };
+
   // Load initial data
   useEffect(() => {
     const loadInitialData = async () => {
@@ -439,9 +453,49 @@ const ExportInventoryScreen: React.FC = () => {
   );
 
   const filteredAllInventoryItems = (allInventoryItems || []).filter((item) =>
-    measurementSearch(item, manualSearchText || "")
+    measurementSearch(item, manualSearchText || "") &&
+    // For manual change mode, only show items with isTrackingForExport = false
+    (currentPage !== "manual_select" || !item.isTrackingForExport)
   );
   
+  const handleInventoryItemPress = async (item: InventoryItem) => {
+    // Only handle tracking products for INTERNAL export type
+    if (exportRequestType === "INTERNAL" && item.isTrackingForExport) {
+      Alert.alert(
+        "Hủy tracking",
+        `Bạn có muốn hủy tracking cho sản phẩm ${item.id} không?`,
+        [
+          {
+            text: "Hủy",
+            style: "cancel"
+          },
+          {
+            text: "Xác nhận",
+            style: "destructive",
+            onPress: async () => {
+              try {
+                const success = await resetTracking(exportRequestDetailId.toString(), item.id);
+                if (success) {
+                  Alert.alert("Thành công", "Đã hủy tracking cho sản phẩm");
+                  // Refresh both inventory data and export request detail data to show updated status
+                  await Promise.all([
+                    refreshInventoryData(),
+                    refreshExportRequestDetailData()
+                  ]);
+                } else {
+                  Alert.alert("Lỗi", "Không thể hủy tracking. Vui lòng thử lại!");
+                }
+              } catch (error) {
+                console.error("Error resetting tracking:", error);
+                Alert.alert("Lỗi", "Có lỗi xảy ra khi hủy tracking. Vui lòng thử lại!");
+              }
+            }
+          }
+        ]
+      );
+    }
+    // For non-tracked items or non-INTERNAL exports, do nothing (or you could add other logic here)
+  };
 
   const handleManualChangePress = async (originalInventoryItemId: string) => {
     try {
@@ -467,7 +521,7 @@ const ExportInventoryScreen: React.FC = () => {
       const allInventoryItemsForItemId = await fetchInventoryItemByItemId(itemCode);
 
       if (!allInventoryItemsForItemId || allInventoryItemsForItemId.length === 0) {
-        Alert.alert("Lỗi", "Không tìm thấy inventory items cho item này");
+        Alert.alert("Lỗi", "Không tìm thấy hàng tồn kho cho item này");
         return;
       }
 
@@ -581,8 +635,9 @@ const ExportInventoryScreen: React.FC = () => {
       setManualSearchText("");
       setCurrentPage("manual_select");
 
-      // Auto-select all items by default for INTERNAL multi-select
-      setSelectedOldItems(convertedCurrentItems);
+      // Auto-select all untracked items by default for INTERNAL multi-select
+      const untrackedItems = convertedCurrentItems.filter(item => !item.isTrackingForExport);
+      setSelectedOldItems(untrackedItems);
 
       console.log(`✅ INTERNAL manual change - loaded ${convertedCurrentItems.length} current items for old selection`);
 
@@ -597,6 +652,12 @@ const ExportInventoryScreen: React.FC = () => {
   // Handle item selection for INTERNAL export type multi-selection
   const handleInternalItemSelect = async (item: InventoryItem) => {
     if (multiSelectMode === 'old') {
+      // Don't allow selecting tracked items
+      if (item.isTrackingForExport) {
+        Alert.alert("Thông báo", "Không thể chọn sản phẩm đã được quét");
+        return;
+      }
+
       // Selecting old items to replace
       const isAlreadySelected = selectedOldItems.some(selected => selected.id === item.id);
 
@@ -667,9 +728,10 @@ const ExportInventoryScreen: React.FC = () => {
 
         setAllInventoryItems(convertedItems);
 
-        // Check all items by default
+        // Check all untracked items by default
         if (checkAllOldItems) {
-          setSelectedOldItems(convertedItems);
+          const untrackedItems = convertedItems.filter(item => !item.isTrackingForExport);
+          setSelectedOldItems(untrackedItems);
         }
 
         // Skip select_new step, go directly to reason_input
@@ -847,28 +909,7 @@ const ExportInventoryScreen: React.FC = () => {
         }
         console.log(`✅ ItemId validation passed: ${item.itemId} matches ${originalItem.itemId}`);
 
-        // ✅ 2) Then check measurement validation for INTERNAL exports only
-        if (exportRequestType === "INTERNAL" && exportRequestDetailId && originalItem && (item.measurementValue || 0) < (originalItem.measurementValue || 0)) {
-          console.log(`🔍 INTERNAL export - ExportInventoryScreen - Validating measurement replacement: new ${item.measurementValue} < old ${originalItem.measurementValue}`);
-
-          const validation = await validateMeasurementForReplacement(
-            originalItemId,
-            item,
-            parseInt(exportRequestDetailId)
-          );
-
-          if (!validation.isValid) {
-            console.log(`❌ INTERNAL export - ExportInventoryScreen - Measurement replacement validation failed: total ${validation.totalAfterChange} < required ${validation.requiredValue}`);
-
-            // Show error message
-            Alert.alert(
-              "Không thể chọn",
-              "Giá trị đo lường của sản phẩm tồn kho không phù hợp với giá trị xuất của sản phẩm"
-            );
-            return; // Stop processing and don't select the item
-          }
-          console.log(`✅ INTERNAL export - ExportInventoryScreen - Measurement replacement validation passed: total ${validation.totalAfterChange} >= required ${validation.requiredValue}`);
-        }
+        // ✅ 2) Removed measurement validation - allow all measurement values
 
       } catch (error) {
         console.log("❌ Error validating original item:", error);
@@ -883,18 +924,7 @@ const ExportInventoryScreen: React.FC = () => {
 
   // Function to check measurement warning before manual change submit
   const handleManualChangeSubmit = async () => {
-    // Only show warnings for INTERNAL export requests with exceeded values
-    if (exportRequestType === "INTERNAL" && selectedManualItem && itemData) {
-      const selectedMeasurement = selectedManualItem.measurementValue || 0;
-      const requiredMeasurement = itemData.measurementValue || 0;
-
-      // Only warn for exceeded values in INTERNAL exports
-      if (selectedMeasurement > requiredMeasurement) {
-        console.log(`⚠️ INTERNAL export - Measurement value exceeded: selected ${selectedMeasurement} > required ${requiredMeasurement}`);
-        setShowMeasurementWarning(true);
-        return;
-      }
-    }
+    // Removed measurement warning - allow all measurement values
 
     // If no measurement issues or not INTERNAL type, proceed directly
     submitManualChange();
@@ -1064,31 +1094,7 @@ const ExportInventoryScreen: React.FC = () => {
       return;
     }
 
-    // Calculate total measurement values for validation
-    const totalReplacementValue = scannedNewItemsForModal.reduce((total, item) => total + (item.measurementValue || 0), 0);
-    const requiredValue = exportRequestDetailData?.measurementValue || 0;
-
-    if (totalReplacementValue > requiredValue) {
-      // Show warning when replacement items exceed required value
-      Alert.alert(
-        "Cảnh báo",
-        "Giá trị đo lường của những sản phẩm thay thế đang vượt quá giá trị đo lường cần xuất, bạn có chắc chắn muốn thay đổi?",
-        [
-          { text: "Hủy", style: "cancel" },
-          { text: "Xác nhận", onPress: () => proceedWithMeasurementModalChange() }
-        ]
-      );
-      return;
-    } else if (totalReplacementValue < requiredValue) {
-      // Show error when replacement items are insufficient
-      Alert.alert(
-        "Lỗi",
-        "Giá trị đo lường của những sản phẩm thay thế chưa đạt giá trị đo lường cần xuất, cần quét thêm sản phẩm"
-      );
-      return;
-    }
-
-    // If values match exactly, proceed directly
+    // Skip measurement value validation for INTERNAL exports
     proceedWithMeasurementModalChange();
   };
 
@@ -1516,10 +1522,15 @@ const ExportInventoryScreen: React.FC = () => {
 
         {/* List of inventory items in this group */}
         {items.map(item => (
-          <View key={item.id} style={[
-            styles.inventoryItemContainer, 
-            item.isTrackingForExport && styles.trackedItemContainer
-          ]}>
+          <TouchableOpacity 
+            key={item.id} 
+            style={[
+              styles.inventoryItemContainer, 
+              item.isTrackingForExport && styles.trackedItemContainer
+            ]}
+            onPress={() => handleInventoryItemPress(item)}
+            activeOpacity={0.7}
+          >
             <View style={styles.inventoryItemRow}>
               <View style={styles.inventoryItemContent}>
                 <Text style={styles.inventoryItemId}>{item.id}</Text>
@@ -1582,7 +1593,7 @@ const ExportInventoryScreen: React.FC = () => {
                 </>
               )}
             </View>
-          </View>
+          </TouchableOpacity>
         ))}
       </View>
     );
@@ -1760,7 +1771,11 @@ const ExportInventoryScreen: React.FC = () => {
               )}
             </View>
 
-            {exportRequestStatus === ExportRequestStatus.IN_PROGRESS && (
+            {exportRequestStatus === ExportRequestStatus.IN_PROGRESS && 
+             !(
+               (exportRequestType === "INTERNAL" && (exportRequestDetailData as any)?.status === "MATCH") ||
+               (exportRequestType === "SELLING" && exportRequestDetailData?.actualQuantity === exportRequestDetailData?.quantity)
+             ) && (
               <View style={styles.scanButtonContainer}>
                 <View style={styles.buttonRow}>
                   <TouchableOpacity
@@ -1824,7 +1839,11 @@ const ExportInventoryScreen: React.FC = () => {
 
             {/* QR Scan Button for Manual Change - Only for non-INTERNAL or traditional flow */}
             {exportRequestStatus === ExportRequestStatus.IN_PROGRESS &&
-              !(exportRequestType === "INTERNAL" && multiSelectMode === 'old') && (
+              !(exportRequestType === "INTERNAL" && multiSelectMode === 'old') &&
+              !(
+                (exportRequestType === "INTERNAL" && (exportRequestDetailData as any)?.status === "MATCH") ||
+                (exportRequestType === "SELLING" && exportRequestDetailData?.actualQuantity === exportRequestDetailData?.quantity)
+              ) && (
                 <View style={styles.scanButtonContainer}>
                   <TouchableOpacity
                     style={styles.manualScanButton}
@@ -1844,13 +1863,15 @@ const ExportInventoryScreen: React.FC = () => {
                 </Text>
 
                 {/* QR Scan button for scanning new items */}
-                <TouchableOpacity
-                  style={styles.qrScanButton}
-                  onPress={() => router.push(`/export/scan-qr-manual?id=${exportRequestId || id}&originalItemId=INTERNAL_MULTI_SELECT`)}
-                >
-                  <Ionicons name="qr-code-outline" size={20} color="white" />
-                  <Text style={styles.qrScanButtonText}>Scan QR sản phẩm mới</Text>
-                </TouchableOpacity>
+                {!((exportRequestDetailData as any)?.status === "MATCH") && (
+                  <TouchableOpacity
+                    style={styles.qrScanButton}
+                    onPress={() => router.push(`/export/scan-qr-manual?id=${exportRequestId || id}&originalItemId=INTERNAL_MULTI_SELECT`)}
+                  >
+                    <Ionicons name="qr-code-outline" size={20} color="white" />
+                    <Text style={styles.qrScanButtonText}>Scan QR sản phẩm mới</Text>
+                  </TouchableOpacity>
+                )}
 
                 {/* Confirm Changes button */}
                 {/* <TouchableOpacity
@@ -1889,7 +1910,9 @@ const ExportInventoryScreen: React.FC = () => {
                         setSelectedOldItems([]);
                         setCheckAllOldItems(false);
                       } else {
-                        setSelectedOldItems(filteredAllInventoryItems);
+                        // Only select untracked items
+                        const untrackedItems = filteredAllInventoryItems.filter(item => !item.isTrackingForExport);
+                        setSelectedOldItems(untrackedItems);
                         setCheckAllOldItems(true);
                       }
                     }}
@@ -2076,10 +2099,14 @@ const ExportInventoryScreen: React.FC = () => {
             <Text style={styles.measurementModalTitle}>Xác nhận thay đổi sản phẩm</Text>
 
             <ScrollView style={styles.measurementModalContent}>
-              {/* Selected old items summary */}
+              {/* Selected old items summary - only show untracked items */}
               <View style={styles.measurementSection}>
-                <Text style={styles.measurementSectionTitle}>Sản phẩm được thay đổi ({selectedOldItems.length}):</Text>
-                {selectedOldItems.map((item, index) => (
+                {(() => {
+                  const untrackedSelectedItems = selectedOldItems.filter(item => !item.isTrackingForExport);
+                  return (
+                    <>
+                      <Text style={styles.measurementSectionTitle}>Sản phẩm được thay đổi ({untrackedSelectedItems.length}):</Text>
+                      {untrackedSelectedItems.map((item, index) => (
                   <View key={item.id} style={styles.measurementItemInfo}>
                     <View style={styles.measurementItemContent}>
                       <View style={styles.measurementItemDetails}>
@@ -2094,11 +2121,14 @@ const ExportInventoryScreen: React.FC = () => {
                         onPress={() => handleRemoveOldItem(item.id)}
                         disabled={manualChangeLoading}
                       >
-                        <Ionicons name="close-circle" size={24} color="#ff4444" />
-                      </TouchableOpacity>
+                          <Ionicons name="close-circle" size={24} color="#ff4444" />
+                        </TouchableOpacity>
+                      </View>
                     </View>
-                  </View>
-                ))}
+                      ))}
+                    </>
+                  );
+                })()}
               </View>
 
               {/* Scanned new items info */}

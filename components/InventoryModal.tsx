@@ -299,37 +299,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
   };
 
   const handleManualItemSelect = async (item: InventoryItem) => {
-    // Validate measurement for replacement when new item has lower measurement value (INTERNAL exports only)
-    if (exportRequest?.type === "INTERNAL" && exportRequestDetailId && originalItemId) {
-      // First, get original item to compare measurement values
-      try {
-        const originalItem = await fetchInventoryItemById(originalItemId);
-        if (originalItem && (item.measurementValue || 0) < (originalItem.measurementValue || 0)) {
-          console.log(`🔍 INTERNAL export - InventoryModal - Validating measurement replacement: new ${item.measurementValue} < old ${originalItem.measurementValue}`);
-          
-          const validation = await validateMeasurementForReplacement(
-            originalItemId,
-            item,
-            exportRequestDetailId
-          );
-          
-          if (!validation.isValid) {
-            console.log(`❌ INTERNAL export - InventoryModal - Measurement replacement validation failed: total ${validation.totalAfterChange} < required ${validation.requiredValue}`);
-            
-            // Show error message
-            Alert.alert(
-              "Không thể chọn",
-              "Giá trị đo lường của sản phẩm tồn kho không phù hợp với giá trị xuất của sản phẩm"
-            );
-            return; // Stop processing and don't select the item
-          }
-          console.log(`✅ INTERNAL export - InventoryModal - Measurement replacement validation passed: total ${validation.totalAfterChange} >= required ${validation.requiredValue}`);
-        }
-      } catch (error) {
-        console.log("❌ Error validating original item:", error);
-        // Continue with selection if validation fails to avoid blocking legitimate operations
-      }
-    }
+    // Removed measurement validation - allow all measurement values
 
     onManualItemSelect?.(item, originalItemId);
     setModalPage("reason_input");
@@ -337,18 +307,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
 
   // Function to check measurement warning before manual change submit
   const handleManualChangeSubmit = async () => {
-    // Only show warnings for INTERNAL export requests with exceeded values
-    if (exportRequest?.type === "INTERNAL" && selectedManualItem && itemData) {
-      const selectedMeasurement = selectedManualItem.measurementValue || 0;
-      const requiredMeasurement = itemData.measurementValue || 0;
-      
-      // Only warn for exceeded values in INTERNAL exports
-      if (selectedMeasurement > requiredMeasurement) {
-        console.log(`⚠️ INTERNAL export - Measurement value exceeded: selected ${selectedMeasurement} > required ${requiredMeasurement}`);
-        setShowMeasurementWarning(true);
-        return;
-      }
-    }
+    // Removed measurement warning - allow all measurement values
     
     // If no measurement issues or not INTERNAL type, proceed directly
     if (onManualChangeSubmit) {

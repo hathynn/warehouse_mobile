@@ -283,6 +283,55 @@ const MainDashboard = () => {
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
       >
+
+            {/* Compact Count Overview */}
+          <View style={styles.countOverview}>
+            <View style={styles.overviewHeader}>
+              <Ionicons name="bar-chart-outline" size={20} color="#1e293b" />
+              <Text style={styles.overviewTitle}>Tổng quan nhanh</Text>
+            </View>
+            <View style={styles.countGrid}>
+              <View style={styles.countItem}>
+                <LinearGradient
+                  colors={["#1677ff", "#0ea5e9"]}
+                  style={styles.countCircle}
+                >
+                  <Text style={styles.countNumber}>{importCount}</Text>
+                </LinearGradient>
+                <Text style={styles.countLabel}>Nhập hàng</Text>
+              </View>
+              <View style={styles.countItem}>
+                <LinearGradient
+                  colors={["#1677ff", "#0ea5e9"]}
+                  style={styles.countCircle}
+                >
+                  <Text style={styles.countNumber}>{exportCount}</Text>
+                </LinearGradient>
+                <Text style={styles.countLabel}>Xuất hàng</Text>
+              </View>
+              <View style={styles.countItem}>
+                <LinearGradient
+                  colors={["#1677ff", "#0ea5e9"]}
+                  style={styles.countCircle}
+                >
+                  <Text style={styles.countNumber}>{stockCheckCount}</Text>
+                </LinearGradient>
+                <Text style={styles.countLabel}>Kiểm kho</Text>
+              </View>
+              <View style={styles.countItem}>
+                <LinearGradient
+                  colors={["#1677ff", "#0ea5e9"]}
+                  style={styles.countCircle}
+                >
+                  <Text style={styles.countNumber}>
+                    {importCount + exportCount + stockCheckCount}
+                  </Text>
+                </LinearGradient>
+                <Text style={styles.countLabel}>Tổng cộng</Text>
+              </View>
+            </View>
+          </View>
+
         {/* Main Content */}
         <View style={styles.mainContent}>
           <View style={styles.sectionHeader}>
@@ -393,53 +442,7 @@ const MainDashboard = () => {
             </View>
           )}
 
-          {/* Compact Count Overview */}
-          <View style={styles.countOverview}>
-            <View style={styles.overviewHeader}>
-              <Ionicons name="bar-chart-outline" size={20} color="#1e293b" />
-              <Text style={styles.overviewTitle}>Tổng quan nhanh</Text>
-            </View>
-            <View style={styles.countGrid}>
-              <View style={styles.countItem}>
-                <LinearGradient
-                  colors={["#1677ff", "#0ea5e9"]}
-                  style={styles.countCircle}
-                >
-                  <Text style={styles.countNumber}>{importCount}</Text>
-                </LinearGradient>
-                <Text style={styles.countLabel}>Nhập hàng</Text>
-              </View>
-              <View style={styles.countItem}>
-                <LinearGradient
-                  colors={["#1677ff", "#0ea5e9"]}
-                  style={styles.countCircle}
-                >
-                  <Text style={styles.countNumber}>{exportCount}</Text>
-                </LinearGradient>
-                <Text style={styles.countLabel}>Xuất hàng</Text>
-              </View>
-              <View style={styles.countItem}>
-                <LinearGradient
-                  colors={["#1677ff", "#0ea5e9"]}
-                  style={styles.countCircle}
-                >
-                  <Text style={styles.countNumber}>{stockCheckCount}</Text>
-                </LinearGradient>
-                <Text style={styles.countLabel}>Kiểm kho</Text>
-              </View>
-              <View style={styles.countItem}>
-                <LinearGradient
-                  colors={["#1677ff", "#0ea5e9"]}
-                  style={styles.countCircle}
-                >
-                  <Text style={styles.countNumber}>
-                    {importCount + exportCount + stockCheckCount}
-                  </Text>
-                </LinearGradient>
-                <Text style={styles.countLabel}>Tổng cộng</Text>
-              </View>
-            </View>
-          </View>
+      
         </View>
       </ScrollView>
     </View>
@@ -654,6 +657,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 20,
     marginTop: 16,
+    marginHorizontal:16,
     shadowColor: "#000",
     shadowOffset: {
       width: 0,
