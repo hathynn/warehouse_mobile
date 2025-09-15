@@ -22,6 +22,8 @@ interface ImportOrderDetailItem {
   sku: string;
   itemId: string;
   inventoryItemId: string;
+  inventoryItemRealId?: string; // ID thật từ API inventory-item khi READY_TO_STORE/STORED
+  parentId?: string; // parentId từ API inventory-item
   expectedQuantity: number;
   countedQuantity: number;
   expectedMeasurementValue?: number;
@@ -276,6 +278,8 @@ const ImportOrderDetailsTable: React.FC<ImportOrderDetailsTableProps> = ({
       item.status === ImportOrderStatus.READY_TO_STORE ||
       item.status === ImportOrderStatus.STORED;
 
+
+
     const progressPercentage = Math.round(
       (item.countedQuantity / item.expectedQuantity) * 100
     );
@@ -331,7 +335,13 @@ const ImportOrderDetailsTable: React.FC<ImportOrderDetailsTableProps> = ({
         <View style={styles.detailHeader}>
           <View style={styles.detailIdContainer}>
             <Text style={styles.detailId}>
-              {importType === ImportType.RETURN ? item.inventoryItemId || item.id : item.id}
+              {/* Hiển thị inventoryItemRealId khi READY_TO_STORE/STORED + RETURN */}
+              {importType === ImportType.RETURN &&
+               (item.status === ImportOrderStatus.READY_TO_STORE || item.status === ImportOrderStatus.STORED) &&
+               item.inventoryItemRealId
+                ? item.inventoryItemRealId
+                : (importType === ImportType.RETURN ? item.inventoryItemId || item.id : item.id)
+              }
             </Text>
           </View>
         </View>
@@ -364,11 +374,23 @@ const ImportOrderDetailsTable: React.FC<ImportOrderDetailsTableProps> = ({
           >
             {item.productName}
           </Text>
-          <Text style={styles.detailSku}>
-            {importType === ImportType.RETURN 
-              ? `Mã sản phẩm ${item.inventoryItemId || item.itemId}` 
-              : `Mã sản phẩm ${item.itemId}`}
-          </Text>
+          {/* Ẩn "Mã sản phẩm" khi RETURN + (READY_TO_STORE hoặc STORED) */}
+          {!(importType === ImportType.RETURN &&
+             (item.status === ImportOrderStatus.READY_TO_STORE || item.status === ImportOrderStatus.STORED)) && (
+            <Text style={styles.detailSku}>
+              {importType === ImportType.RETURN
+                ? `Mã sản phẩm ${item.inventoryItemId || item.itemId}`
+                : `Mã sản phẩm ${item.itemId}`}
+            </Text>
+          )}
+          {/* Hiển thị parentId cho READY_TO_STORE/STORED + RETURN */}
+          {importType === ImportType.RETURN &&
+           (item.status === ImportOrderStatus.READY_TO_STORE || item.status === ImportOrderStatus.STORED) &&
+           item.parentId && (
+            <Text style={styles.parentIdText}>
+              Mã cũ: {item.parentId}
+            </Text>
+          )}
         </View>
 
         {/* Show quantity and progress only when not completed */}
@@ -1086,6 +1108,17 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#666",
     marginTop: 2,
+  },
+  parentIdText: {
+    fontSize: 12,
+    color: "#1677ff",
+    marginTop: 4,
+    fontWeight: "500",
+    backgroundColor: "#e6f7ff",
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+    alignSelf: "flex-start",
   },
   statusIndicator: {
     width: 32,

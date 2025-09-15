@@ -73,6 +73,7 @@ export default function SuccessPage() {
   const [quantity, setQuantity] = useState("0");
   const [measurementValue, setMeasurementValue] = useState("0");
   const [inventoryData, setInventoryData] = useState<any>(null);
+  const [measurementError, setMeasurementError] = useState("");
 
   const [fadeAnim] = useState(new Animated.Value(0));
   const [translateY] = useState(new Animated.Value(20));
@@ -328,6 +329,13 @@ export default function SuccessPage() {
                       </Text>
                     </View>
                   )}
+                  {measurementError ? (
+                    <View style={styles.errorContainer}>
+                      <Text style={styles.errorText}>
+                        🚫 {measurementError}
+                      </Text>
+                    </View>
+                  ) : null}
                   <View style={styles.quantityInput}>
                     <TouchableOpacity
                       style={styles.quantityButton}
@@ -336,17 +344,16 @@ export default function SuccessPage() {
                           const current = parseFloat(measurementValue) || 0;
                           if (current >= 1) {
                             const newValue = current - 1;
-                            if (validateMeasurementValue(newValue)) {
-                              setMeasurementValue(newValue.toString());
-                              
-                              // Update Redux immediately
-                              if (product?.inventoryItemId) {
-                                dispatch(updateActual({ 
-                                  id: productId, 
-                                  actualMeasurementValue: newValue,
-                                  inventoryItemId: product.inventoryItemId
-                                }));
-                              }
+                            setMeasurementValue(newValue.toString());
+                            setMeasurementError(""); // Clear any error
+
+                            // Update Redux immediately
+                            if (product?.inventoryItemId) {
+                              dispatch(updateActual({
+                                id: productId,
+                                actualMeasurementValue: newValue,
+                                inventoryItemId: product.inventoryItemId
+                              }));
                             }
                           }
                         } else {
@@ -367,18 +374,39 @@ export default function SuccessPage() {
                         if (isInventoryItemScan) {
                           // Cho phép số thập phân cho measurement
                           const numericText = text.replace(/[^0-9.]/g, "");
-                          setMeasurementValue(numericText);
-                          
-                          // Update Redux immediately when measurement value changes (with validation)
-                          if (product?.inventoryItemId && numericText) {
-                            const newMeasurementValue = parseFloat(numericText) || 0;
-                            console.log(`📝 Updating measurement value for productId: ${productId}, inventoryItemId: ${product.inventoryItemId}, newValue: ${newMeasurementValue}`);
-                            
-                            // Only update Redux if validation passes, but don't show alert for real-time typing
-                            const maxValue = getMaxMeasurementValue();
-                            if (maxValue <= 0 || newMeasurementValue <= maxValue) {
-                              dispatch(updateActual({ 
-                                id: productId, 
+                          const newMeasurementValue = parseFloat(numericText) || 0;
+                          const maxValue = getMaxMeasurementValue();
+
+                          // Kiểm tra nếu vượt quá giới hạn
+                          if (maxValue > 0 && newMeasurementValue > maxValue) {
+                            // Tự động xóa input và hiển thị lỗi
+                            setMeasurementValue("0");
+                            setMeasurementError(`Chỉ được nhập tối đa ${maxValue}${product?.measurementUnit ? ` ${product.measurementUnit}` : ''}`);
+
+                            // Tự động ẩn lỗi sau 3 giây
+                            setTimeout(() => {
+                              setMeasurementError("");
+                            }, 3000);
+
+                            // Reset Redux về 0
+                            if (product?.inventoryItemId) {
+                              dispatch(updateActual({
+                                id: productId,
+                                actualMeasurementValue: 0,
+                                inventoryItemId: product.inventoryItemId
+                              }));
+                            }
+                          } else {
+                            // Giá trị hợp lệ
+                            setMeasurementValue(numericText);
+                            setMeasurementError(""); // Xóa lỗi nếu có
+
+                            // Update Redux immediately when measurement value changes
+                            if (product?.inventoryItemId && numericText) {
+                              console.log(`📝 Updating measurement value for productId: ${productId}, inventoryItemId: ${product.inventoryItemId}, newValue: ${newMeasurementValue}`);
+
+                              dispatch(updateActual({
+                                id: productId,
                                 actualMeasurementValue: newMeasurementValue,
                                 inventoryItemId: product.inventoryItemId
                               }));
@@ -388,7 +416,7 @@ export default function SuccessPage() {
                           // Chỉ số nguyên cho quantity
                           const numericText = text.replace(/[^0-9]/g, "");
                           setQuantity(numericText);
-                          
+
                           // Note: Redux update không cần thiết ở đây vì actual sẽ được tính trong handleSubmit
                           // Input này chỉ là số lượng thêm vào, không thay đổi actual ngay lập tức
                         }
@@ -404,13 +432,25 @@ export default function SuccessPage() {
                         if (isInventoryItemScan) {
                           const current = parseFloat(measurementValue) || 0;
                           const newValue = current + 1;
-                          if (validateMeasurementValue(newValue)) {
+                          const maxValue = getMaxMeasurementValue();
+
+                          // Kiểm tra nếu vượt quá giới hạn
+                          if (maxValue > 0 && newValue > maxValue) {
+                            // Hiển thị lỗi nhưng không thay đổi giá trị
+                            setMeasurementError(`Chỉ được nhập tối đa ${maxValue}${product?.measurementUnit ? ` ${product.measurementUnit}` : ''}`);
+
+                            // Tự động ẩn lỗi sau 3 giây
+                            setTimeout(() => {
+                              setMeasurementError("");
+                            }, 3000);
+                          } else {
                             setMeasurementValue(newValue.toString());
-                            
+                            setMeasurementError(""); // Clear any error
+
                             // Update Redux immediately
                             if (product?.inventoryItemId) {
-                              dispatch(updateActual({ 
-                                id: productId, 
+                              dispatch(updateActual({
+                                id: productId,
                                 actualMeasurementValue: newValue,
                                 inventoryItemId: product.inventoryItemId
                               }));
@@ -428,20 +468,23 @@ export default function SuccessPage() {
                 </View>
 
                 <View style={styles.buttonGroup}>
-                  <TouchableOpacity
-                    style={[styles.button, styles.outline, styles.fullWidthButton]}
-                    onPress={handleBackToScan}
-                  >
-                    <View style={styles.buttonContent}>
-                      <Ionicons name="scan-outline" size={18} color="#1677ff" />
-                      <Text style={styles.outlineText}>Quét tiếp</Text>
-                    </View>
-                  </TouchableOpacity>
+                  {/* Button Quét tiếp - ẩn khi hiện button "Xác nhận các giá trị đo vừa kiểm đếm" */}
+                  {!(importType === "RETURN" && isInventoryItemScan && isAllProductsScanned) && (
+                    <TouchableOpacity
+                      style={[styles.button, styles.outline, styles.fullWidthButton]}
+                      onPress={handleBackToScan}
+                    >
+                      <View style={styles.buttonContent}>
+                        <Ionicons name="scan-outline" size={18} color="#1677ff" />
+                        <Text style={styles.outlineText}>Quét tiếp</Text>
+                      </View>
+                    </TouchableOpacity>
+                  )}
 
                   {/* Button Xác nhận chỉ hiện với RETURN type khi đã quét đủ sản phẩm */}
                   {(importType !== "RETURN" || !isInventoryItemScan || isAllProductsScanned) && (
                     <TouchableOpacity
-                      style={[styles.button, styles.fullWidthButton, { marginTop: 12 }]}
+                      style={[styles.button, styles.fullWidthButton, { marginTop: !(importType === "RETURN" && isInventoryItemScan && isAllProductsScanned) ? 12 : 0 }]}
                       onPress={handleSubmit}
                     >
                       <View style={styles.buttonContent}>
@@ -451,7 +494,7 @@ export default function SuccessPage() {
                           color="white"
                         />
                         <Text style={styles.buttonText}>
-                          {importType === "RETURN" && isInventoryItemScan 
+                          {importType === "RETURN" && isInventoryItemScan
                             ? "Xác nhận các giá trị đo vừa kiểm đếm"
                             : "Xác nhận"
                           }
@@ -577,6 +620,25 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#dc2626',
     fontWeight: '500',
+  },
+  errorContainer: {
+    backgroundColor: '#fef2f2',
+    padding: 10,
+    borderRadius: 8,
+    marginBottom: 10,
+    borderLeftWidth: 4,
+    borderLeftColor: '#ef4444',
+    shadowColor: '#ef4444',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  errorText: {
+    fontSize: 13,
+    color: '#dc2626',
+    fontWeight: '600',
+    textAlign: 'center',
   },
   quantityInput: {
     flexDirection: "row",
