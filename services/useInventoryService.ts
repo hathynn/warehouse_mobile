@@ -59,21 +59,46 @@ const useInventoryService = () => {
   );
 
   const autoChangeInventoryItem = useCallback(
-    async (inventoryItemId: string) => {
+    async (inventoryItemId: string, note?: string) => {
       if (!inventoryItemId) return;
 
       try {
+        const requestBody = {
+          inventoryItemId,
+          ...(note && { note })
+        };
+
+        console.log("🔍 Auto-change request details:", {
+          inventoryItemId,
+          note,
+          requestBody: JSON.stringify(requestBody, null, 2),
+          url: `/inventory-item/auto-change`,
+          method: "PUT"
+        });
+
         const response = await callApi(
           "put",
-          `/inventory-item/auto-change/${inventoryItemId}`,
-          {}, // empty body cho PUT request
+          `/inventory-item/auto-change`,
+          requestBody,
           undefined, // no additional options
-          `✅ Auto-change inventory item ${inventoryItemId}`
+          `✅ Auto-change inventory item ${inventoryItemId}${note ? ` với lý do: ${note}` : ''}`
         );
 
+        console.log("✅ Auto-change response:", JSON.stringify(response, null, 2));
         return response;
-      } catch (error) {
+      } catch (error: any) {
         console.log("❌ Lỗi khi gọi auto-change:", error);
+        console.log("❌ Auto-change error details:", {
+          status: error?.response?.status,
+          statusText: error?.response?.statusText,
+          data: error?.response?.data,
+          message: error?.message,
+          url: `/inventory-item/auto-change`,
+          requestBody: {
+            inventoryItemId,
+            ...(note && { note })
+          }
+        });
         throw error;
       }
     },
@@ -227,13 +252,24 @@ const useInventoryService = () => {
   );
 
   const fetchInventoryItemByItemId = useCallback(
-    async (itemId: string): Promise<InventoryItemDetail[]> => {
+    async (
+      itemId: string,
+      page?: number,
+      limit: number = 999
+    ): Promise<InventoryItemDetail[]> => {
       if (!itemId) return [];
 
       try {
+        const params = new URLSearchParams();
+        if (page !== undefined) params.append('page', page.toString());
+        params.append('limit', limit.toString());
+
+        const queryString = params.toString();
+        const url = `/inventory-item/item/${itemId}?${queryString}`;
+
         const response = await callApi(
           "get",
-          `/inventory-item/item/${itemId}`,
+          url,
           undefined,
           undefined,
           `✅ Lấy inventory items theo itemId: ${itemId}`

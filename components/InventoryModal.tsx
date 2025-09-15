@@ -36,7 +36,7 @@ interface InventoryModalProps {
   exportRequest?: any;
   exportRequestDetailId?: number | null;
   autoChangeLoading?: string | null;
-  onAutoChange?: (inventoryItemId: string) => void;
+  onAutoChange?: (inventoryItemId: string, note?: string) => void;
   onManualChangePress?: (originalInventoryItemId: string) => void;
   // Props for manual selection
   allInventoryItems?: InventoryItem[];
@@ -62,7 +62,14 @@ interface InventoryModalProps {
   onMarkAsUnavailable?: (inventoryItemId: string) => void;
 }
 
-type ModalPage = "main" | "manual_select" | "reason_input";
+type ModalPage = "main" | "manual_select" | "reason_input" | "auto_change_reason";
+
+// Auto change reason options
+const autoChangeReasons = [
+  "Hàng mất",
+  "Không sử dụng được",
+  "Tạm không sử dụng được"
+];
 
 // Function to format location string from English to Vietnamese
 const formatLocationString = (locationStr: string): string => {
@@ -113,6 +120,8 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
   const [showMeasurementWarning, setShowMeasurementWarning] = useState(false);
   const [itemData, setItemData] = useState<any | null>(null);
   const [exportRequestDetailData, setExportRequestDetailData] = useState<any | null>(null);
+  const [selectedAutoChangeReason, setSelectedAutoChangeReason] = useState<string>("");
+  const [autoChangeItemId, setAutoChangeItemId] = useState<string>("");
 
   // Validation function for measurement replacement
   const validateMeasurementForReplacement = async (
@@ -332,7 +341,29 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
   const handleClose = () => {
     setModalPage("main");
     setOriginalItemId("");
+    setSelectedAutoChangeReason("");
+    setAutoChangeItemId("");
     onClose();
+  };
+
+  const handleAutoChangePress = (inventoryItemId: string) => {
+    setAutoChangeItemId(inventoryItemId);
+    setModalPage("auto_change_reason");
+  };
+
+  const handleAutoChangeReasonSubmit = async () => {
+    if (!selectedAutoChangeReason || !autoChangeItemId) {
+      return;
+    }
+
+    try {
+      await onAutoChange?.(autoChangeItemId, selectedAutoChangeReason);
+      setModalPage("main");
+      setSelectedAutoChangeReason("");
+      setAutoChangeItemId("");
+    } catch (error) {
+      console.log("❌ Error in auto change:", error);
+    }
   };
 
   // Group inventory items by measurement value
@@ -550,7 +581,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                           styles.autoChangeActionButton,
                           autoChangeLoading === item.id && styles.actionButtonDisabled,
                         ]}
-                        onPress={() => onAutoChange?.(item.id)}
+                        onPress={() => handleAutoChangePress(item.id)}
                         disabled={autoChangeLoading === item.id}
                       >
                         {autoChangeLoading === item.id ? (
@@ -614,6 +645,9 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
       case "reason_input":
         title = "Nhập lý do đổi sản phẩm";
         break;
+      case "auto_change_reason":
+        title = "Chọn lý do đổi tự động";
+        break;
     }
 
     return (
@@ -625,6 +659,8 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                 setModalPage("main");
               } else if (modalPage === "reason_input") {
                 setModalPage("manual_select");
+              } else if (modalPage === "auto_change_reason") {
+                setModalPage("main");
               }
             }}
             style={styles.backButton}
@@ -784,7 +820,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                               styles.autoChangeActionButton,
                               autoChangeLoading === item.id && styles.actionButtonDisabled,
                             ]}
-                            onPress={() => onAutoChange?.(item.id)}
+                            onPress={() => handleAutoChangePress(item.id)}
                             disabled={autoChangeLoading === item.id}
                           >
                             {autoChangeLoading === item.id ? (
@@ -967,6 +1003,59 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
           </TouchableWithoutFeedback>
         );
 
+      case "auto_change_reason":
+        return (
+          <View style={styles.reasonInputContainer}>
+            <View style={styles.selectedItemInfo}>
+              <Text style={styles.selectedItemTitle}>Chọn lý do đổi tự động:</Text>
+              <Text style={styles.selectedItemId}>
+                Sản phẩm: {autoChangeItemId}
+              </Text>
+            </View>
+
+            <View style={styles.reasonButtonsContainer}>
+              {autoChangeReasons.map((reason, index) => (
+                <TouchableOpacity
+                  key={index}
+                  style={[
+                    styles.reasonButton,
+                    selectedAutoChangeReason === reason && styles.reasonButtonSelected
+                  ]}
+                  onPress={() => setSelectedAutoChangeReason(reason)}
+                >
+                  <Text style={[
+                    styles.reasonButtonText,
+                    selectedAutoChangeReason === reason && styles.reasonButtonTextSelected
+                  ]}>
+                    {reason}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <View style={styles.reasonButtonContainer}>
+              <TouchableOpacity
+                style={[
+                  styles.submitReasonButton,
+                  (!selectedAutoChangeReason || autoChangeLoading === autoChangeItemId) && styles.submitReasonButtonDisabled,
+                ]}
+                onPress={handleAutoChangeReasonSubmit}
+                disabled={!selectedAutoChangeReason || autoChangeLoading === autoChangeItemId}
+              >
+                {autoChangeLoading === autoChangeItemId ? (
+                  <ActivityIndicator size="small" color="white" />
+                ) : (
+                  <Text style={[
+                    styles.submitReasonButtonText,
+                    (!selectedAutoChangeReason) && { color: '#999' }
+                  ]}>
+                    Xác nhận đổi tự động
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        );
 
       default:
         return null;
@@ -1453,6 +1542,31 @@ const styles = StyleSheet.create({
   globalScanButtonText: {
     color: "white",
     fontSize: 14,
+    fontWeight: "600",
+  },
+  reasonButtonsContainer: {
+    marginBottom: 20,
+  },
+  reasonButton: {
+    backgroundColor: "#f8f9fa",
+    borderWidth: 1,
+    borderColor: "#e0e0e0",
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 8,
+    alignItems: "center",
+  },
+  reasonButtonSelected: {
+    backgroundColor: "#1677ff",
+    borderColor: "#1677ff",
+  },
+  reasonButtonText: {
+    fontSize: 14,
+    color: "#333",
+    fontWeight: "500",
+  },
+  reasonButtonTextSelected: {
+    color: "white",
     fontWeight: "600",
   },
 });

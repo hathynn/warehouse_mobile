@@ -380,8 +380,8 @@ export default function ScanQrScreen() {
           
           const alertTitle = exportRequest?.type === "SELLING" ? "Hoàn thành quét mã hàng" : "Mã hàng đã đủ";
           const alertMessage = exportRequest?.type === "SELLING" 
-            ? `Đã quét đủ số lượng của mã hàng ${matched.itemId}. Bạn có muốn tiếp tục kiểm đếm mã hàng ${nextItem.itemId}?`
-            : `Mã hàng ${matched.itemId} đã quét đủ số lượng. Bạn có muốn tiếp tục kiểm đếm mã hàng ${nextItem.itemId}?`;
+            ? `Đã quét đủ số lượng của mã hàng ${matched.itemId}. Bạn có muốn tiếp tục kiểm đếm mã hàng tiếp theo?`
+            : `Mã hàng ${matched.itemId} đã quét đủ số lượng. Bạn có muốn tiếp tục kiểm đếm mã hàng tiếp theo?`;
           
           Alert.alert(
             alertTitle,

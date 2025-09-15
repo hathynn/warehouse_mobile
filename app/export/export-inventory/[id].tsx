@@ -11,6 +11,7 @@ import {
   StyleSheet,
   Alert,
   ScrollView,
+  Modal,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
@@ -38,6 +39,13 @@ interface RouteParams extends Record<string, string | undefined> {
 }
 
 type ScreenPage = "main" | "manual_select" | "reason_input";
+
+// Auto change reason options
+const autoChangeReasons = [
+  "Hàng mất",
+  "Không sử dụng được",
+  "Tạm không sử dụng được"
+];
 
 // Function to format location string from English to Vietnamese
 const formatLocationString = (locationStr: string): string => {
@@ -100,6 +108,11 @@ const ExportInventoryScreen: React.FC = () => {
 
   // Auto-change loading state
   const [autoChangeLoading, setAutoChangeLoading] = useState<string | null>(null);
+
+  // Auto change reason states
+  const [showAutoChangeReasonModal, setShowAutoChangeReasonModal] = useState(false);
+  const [selectedAutoChangeReason, setSelectedAutoChangeReason] = useState<string>("");
+  const [autoChangeItemId, setAutoChangeItemId] = useState<string>("");
 
   // Manual change states
   const [allInventoryItems, setAllInventoryItems] = useState<InventoryItem[]>([]);
@@ -321,11 +334,10 @@ const ExportInventoryScreen: React.FC = () => {
 
         let inventoryItems = await fetchInventoryItemsByExportRequestDetailId(parseInt(exportRequestDetailId));
         
-        // INTERNAL_MULTI_SELECT mode: Show all items if untrackedItemIds is provided 
-        if (originalItemId === 'INTERNAL_MULTI_SELECT' && untrackedItemIds) {
-          const allIds = untrackedItemIds.split(',');
-          inventoryItems = inventoryItems.filter((item: any) => allIds.includes(item.id));
-          console.log(`📋 INTERNAL_MULTI_SELECT: Filtered to ${inventoryItems.length} items from ${allIds.length} IDs`);
+        // INTERNAL_MULTI_SELECT mode: Show only untracked items based on actual tracking status
+        if (originalItemId === 'INTERNAL_MULTI_SELECT') {
+          inventoryItems = inventoryItems.filter((item: any) => !item.isTrackingForExport);
+          console.log(`📋 INTERNAL_MULTI_SELECT: Filtered to ${inventoryItems.length} untracked items based on actual tracking status`);
           
           // Trigger the INTERNAL multi-select modal directly with filtered items
           console.log(`🔄 INTERNAL_MULTI_SELECT: Setting up modal with ${inventoryItems.length} items`);
@@ -462,8 +474,8 @@ const ExportInventoryScreen: React.FC = () => {
     // Only handle tracking products for INTERNAL export type
     if (exportRequestType === "INTERNAL" && item.isTrackingForExport) {
       Alert.alert(
-        "Hủy tracking",
-        `Bạn có muốn hủy tracking cho sản phẩm ${item.id} không?`,
+        "Hủy ghi nhận",
+        `Bạn có muốn hủy ghi nhận quét cho sản phẩm ${item.id} không?`,
         [
           {
             text: "Hủy",
@@ -476,18 +488,18 @@ const ExportInventoryScreen: React.FC = () => {
               try {
                 const success = await resetTracking(exportRequestDetailId.toString(), item.id);
                 if (success) {
-                  Alert.alert("Thành công", "Đã hủy tracking cho sản phẩm");
+                  Alert.alert("Thành công", "Đã hủy ghi nhận quét cho sản phẩm");
                   // Refresh both inventory data and export request detail data to show updated status
                   await Promise.all([
                     refreshInventoryData(),
                     refreshExportRequestDetailData()
                   ]);
                 } else {
-                  Alert.alert("Lỗi", "Không thể hủy tracking. Vui lòng thử lại!");
+                  Alert.alert("Lỗi", "Không thể hủy ghi nhận. Vui lòng thử lại!");
                 }
               } catch (error) {
                 console.error("Error resetting tracking:", error);
-                Alert.alert("Lỗi", "Có lỗi xảy ra khi hủy tracking. Vui lòng thử lại!");
+                Alert.alert("Lỗi", "Có lỗi xảy ra khi hủy ghi nhận. Vui lòng thử lại!");
               }
             }
           }
@@ -603,11 +615,10 @@ const ExportInventoryScreen: React.FC = () => {
       // Fetch current inventory items in the export request detail
       let currentInventoryItems = await fetchInventoryItemsByExportRequestDetailId(parseInt(exportRequestDetailId!));
       
-      // If we have untrackedItemIds, filter to all those items
-      if (originalItemId === 'INTERNAL_MULTI_SELECT' && untrackedItemIds) {
-        const allIds = untrackedItemIds.split(',');
-        currentInventoryItems = currentInventoryItems.filter((item: any) => allIds.includes(item.id));
-        console.log(`📋 INTERNAL_MULTI_SELECT manual change: Filtered to ${currentInventoryItems.length} items`);
+      // For INTERNAL_MULTI_SELECT, filter to only untracked items based on actual tracking status
+      if (originalItemId === 'INTERNAL_MULTI_SELECT') {
+        currentInventoryItems = currentInventoryItems.filter((item: any) => !item.isTrackingForExport);
+        console.log(`📋 INTERNAL_MULTI_SELECT manual change: Filtered to ${currentInventoryItems.length} untracked items based on actual tracking status`);
       }
 
       // Convert to InventoryItem format for compatibility
@@ -771,10 +782,52 @@ const ExportInventoryScreen: React.FC = () => {
         reason: changeReason.trim()
       });
 
+      // ✅ MEASUREMENT VALIDATION FOR INTERNAL EXPORT
+      // Get current untracked items from actual inventory data, not from selectedOldItems
+      const currentUntrackedItems = selectedInventoryItems.filter(item => !item.isTrackingForExport);
+      const totalOldMeasurement = currentUntrackedItems.reduce((sum, item) => sum + (item.measurementValue || 0), 0);
+      const totalNewMeasurement = selectedNewItems.reduce((sum, item) => sum + (item.measurementValue || 0), 0);
+
+      // Only validate when new measurement < old measurement
+      if (totalNewMeasurement < totalOldMeasurement && exportRequestDetailData) {
+        try {
+          // Get current actual measurement of the export request detail
+          const currentExportDetail = await fetchExportRequestDetailById(parseInt(exportRequestDetailId || '0'));
+          const actualMeasurement = currentExportDetail?.actualMeasurementValue || 0;
+          const expectedMeasurement = currentExportDetail?.measurementValue || exportRequestDetailData.measurementValue || 0;
+
+          // Calculate measurement after change: current actual + new items (old items are untracked so not in actual)
+          const measurementAfterChange = actualMeasurement + totalNewMeasurement;
+
+          console.log(`🔍 INTERNAL measurement validation:`, {
+            currentUntrackedItemsCount: currentUntrackedItems.length,
+            selectedNewItemsCount: selectedNewItems.length,
+            totalOldMeasurement,
+            totalNewMeasurement,
+            actualMeasurement,
+            expectedMeasurement,
+            measurementAfterChange,
+            isValid: measurementAfterChange >= expectedMeasurement
+          });
+
+          if (measurementAfterChange < expectedMeasurement) {
+            Alert.alert(
+              "Lỗi",
+              "Giá trị đo lường của sản phẩm sắp đổi không phù hợp với giá trị yêu cầu xuất"
+            );
+            setManualChangeLoading(false);
+            return;
+          }
+        } catch (validationError) {
+          console.log("❌ Error during measurement validation:", validationError);
+          // Continue with the change if validation fails to avoid blocking legitimate operations
+        }
+      }
+
       // ✅ 1) RESET TRACKING CHO TẤT CẢ OLD ITEMS TRƯỚC KHI CHANGE
       const itemsWereTracking: { [itemId: string]: boolean } = {};
 
-      for (const oldItem of selectedOldItems) {
+      for (const oldItem of currentUntrackedItems) {
         if (oldItem.isTrackingForExport && exportRequestDetailId) {
           try {
             // console.log(`🔄 INTERNAL - Reset tracking trước khi manual change cho item: ${oldItem.id}`);
@@ -809,7 +862,7 @@ const ExportInventoryScreen: React.FC = () => {
       let manualChangeResult: any;
       try {
         manualChangeResult = await changeInventoryItemsForExportDetail(
-          selectedOldItems.map(item => item.id),
+          currentUntrackedItems.map(item => item.id),
           selectedNewItems.map(item => item.id),
           changeReason.trim()
         );
@@ -823,7 +876,7 @@ const ExportInventoryScreen: React.FC = () => {
         // ❌ Nếu manual change thất bại sau khi đã reset tracking, khôi phục tracking cho các items đã bị reset
         // console.log("🔄 INTERNAL manual change thất bại, đang khôi phục tracking...");
 
-        for (const oldItem of selectedOldItems) {
+        for (const oldItem of currentUntrackedItems) {
           if (itemsWereTracking[oldItem.id] && exportRequestDetailId) {
             try {
               await updateActualQuantity(exportRequestDetailId.toString(), oldItem.id);
@@ -864,6 +917,10 @@ const ExportInventoryScreen: React.FC = () => {
         }
       }
 
+      // Save counts before clearing state
+      const oldItemsCount = currentUntrackedItems.length;
+      const newItemsCount = selectedNewItems.length;
+
       // Reset states and return to main screen
       setSelectedOldItems([]);
       setSelectedNewItems([]);
@@ -874,10 +931,13 @@ const ExportInventoryScreen: React.FC = () => {
       setCurrentPage("main");
       setManualChangeLoading(false);
 
+      // Clear showMeasurementModal to prevent auto re-opening
+      setShowMeasurementModal(false);
+
       // Refresh data
       await refreshInventoryData();
 
-      Alert.alert("Thành công", `Đã thay đổi ${selectedOldItems.length} sản phẩm thành ${selectedNewItems.length} sản phẩm mới!`);
+      Alert.alert("Thành công", `Đã thay đổi ${oldItemsCount} sản phẩm thành ${newItemsCount} sản phẩm mới!`);
 
     } catch (error: any) {
       console.log("❌ INTERNAL manual change error:", error);
@@ -1146,8 +1206,53 @@ const ExportInventoryScreen: React.FC = () => {
       // ✅ 2) SAU KHI RESET TRACKING THÀNH CÔNG, MỚI THỰC HIỆN CHANGE
       let changeResult: any;
       try {
+        // Filter selectedOldItems to only include untracked items
+        const untrackedOldItems = selectedOldItems.filter(item => !item.isTrackingForExport);
+
+        // 🔍 VALIDATION: Check if new measurement < old measurement for INTERNAL exports
+        if (exportRequestType === "INTERNAL") {
+          const totalOldMeasurement = untrackedOldItems.reduce((sum, item) => sum + (item.measurementValue || 0), 0);
+          const totalNewMeasurement = scannedNewItemsForModal.reduce((sum, item) => sum + (item.measurementValue || 0), 0);
+
+          // Only validate when new measurement < old measurement
+          if (totalNewMeasurement < totalOldMeasurement && exportRequestDetailData) {
+            try {
+              // Get current actual measurement of the export request detail
+              const currentExportDetail = await fetchExportRequestDetailById(parseInt(exportRequestDetailId || '0'));
+              const actualMeasurement = currentExportDetail?.actualMeasurementValue || 0;
+              const expectedMeasurement = currentExportDetail?.measurementValue || exportRequestDetailData.measurementValue || 0;
+
+              // Calculate measurement after change: current actual + new items (old items are untracked so not in actual)
+              const measurementAfterChange = actualMeasurement + totalNewMeasurement;
+
+              console.log(`🔍 INTERNAL measurement modal validation:`, {
+                untrackedOldItemsCount: untrackedOldItems.length,
+                scannedNewItemsCount: scannedNewItemsForModal.length,
+                totalOldMeasurement,
+                totalNewMeasurement,
+                actualMeasurement,
+                expectedMeasurement,
+                measurementAfterChange,
+                isValid: measurementAfterChange >= expectedMeasurement
+              });
+
+              if (measurementAfterChange < expectedMeasurement) {
+                Alert.alert(
+                  "Lỗi",
+                  "Giá trị đo lường của sản phẩm sắp đổi không phù hợp với giá trị yêu cầu xuất"
+                );
+                setManualChangeLoading(false);
+                return;
+              }
+            } catch (validationError) {
+              console.log("❌ Error during measurement modal validation:", validationError);
+              // Continue with the change if validation fails to avoid blocking legitimate operations
+            }
+          }
+        }
+
         changeResult = await changeInventoryItemsForExportDetail(
-          selectedOldItems.map(item => item.id),
+          untrackedOldItems.map(item => item.id),
           scannedNewItemsForModal.map(item => item.id), // Array of scanned items
           measurementModalReason.trim()
         );
@@ -1308,8 +1413,114 @@ const ExportInventoryScreen: React.FC = () => {
     });
   };
 
+  // Handle auto-change button press - show reason selection
+  const handleAutoChangePress = (inventoryItemId: string) => {
+    setAutoChangeItemId(inventoryItemId);
+    setShowAutoChangeReasonModal(true);
+  };
+
+  // Handle auto change reason submit - directly call API without alert confirmation
+  const handleAutoChangeReasonSubmit = async () => {
+    if (!selectedAutoChangeReason || !autoChangeItemId) {
+      return;
+    }
+
+    setShowAutoChangeReasonModal(false);
+    setAutoChangeLoading(autoChangeItemId);
+
+    try {
+      // Lấy item hiện tại để biết đang tracking hay không
+      const currentItem = selectedInventoryItems.find(item => item.id === autoChangeItemId);
+
+      // ✅ 1) NẾU ITEM ĐANG TRACKING, RESET TRACKING TRƯỚC KHI AUTO-CHANGE
+      if (currentItem?.isTrackingForExport && exportRequestDetailId) {
+        try {
+          const resetPromise = resetTracking(
+            exportRequestDetailId.toString(),
+            autoChangeItemId
+          );
+          const timeoutPromise = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error("Reset tracking timeout")), 10000)
+          );
+          await Promise.race([resetPromise, timeoutPromise]);
+        } catch (e) {
+          console.log("❌ Reset tracking thất bại/timeout trước auto-change:", e);
+          Alert.alert("Lỗi", "Không thể huỷ tracking mã cũ. Vui lòng thử lại!");
+          setAutoChangeLoading(null);
+          return;
+        }
+      }
+
+      // ✅ 2) SAU KHI RESET TRACKING THÀNH CÔNG, MỚI THỰC HIỆN AUTO-CHANGE
+      let autoChangeResult: any;
+      try {
+        console.log("🔍 Calling auto-change with params:", {
+          autoChangeItemId,
+          selectedAutoChangeReason,
+          currentItem: currentItem ? {
+            id: currentItem.id,
+            isTrackingForExport: currentItem.isTrackingForExport,
+            measurementValue: currentItem.measurementValue
+          } : null
+        });
+
+        autoChangeResult = await autoChangeInventoryItem(autoChangeItemId, selectedAutoChangeReason);
+        console.log("✅ Auto change thành công:", autoChangeResult);
+      } catch (autoChangeError) {
+        // ❌ Nếu auto change thất bại sau khi đã reset tracking, gọi lại updateActualQuantity để khôi phục
+        if (currentItem?.isTrackingForExport && exportRequestDetailId) {
+          try {
+            await updateActualQuantity(exportRequestDetailId.toString(), autoChangeItemId);
+            console.log("✅ Đã khôi phục tracking thành công sau lỗi auto change");
+          } catch (updateError) {
+            console.log("❌ Không thể khôi phục tracking sau lỗi auto change:", updateError);
+          }
+        }
+        throw autoChangeError;
+      }
+
+      // ✅ 3) CẬP NHẬT SCAN MAPPING VỚI ITEM MỚI
+      if (autoChangeResult?.content?.id && exportRequestDetailId) {
+        const newInventoryItemId = autoChangeResult.content.id;
+
+        // Tìm mapping hiện tại
+        const existingMapping = scanMappings.find(
+          mapping => mapping.exportRequestDetailId.toString() === exportRequestDetailId.toString() &&
+            mapping.inventoryItemId.toLowerCase() === autoChangeItemId.toLowerCase()
+        );
+
+        if (existingMapping) {
+          const updatedMappings = scanMappings.map(mapping =>
+            mapping === existingMapping
+              ? { ...mapping, inventoryItemId: newInventoryItemId }
+              : mapping
+          );
+          dispatch(setScanMappings(updatedMappings));
+        }
+      }
+
+      // ✅ 4) CẬP NHẬT DANH SÁCH ITEMS
+      await refreshInventoryData();
+
+      // ✅ 5) HIỂN THỊ THÔNG BÁO THÀNH CÔNG
+      Alert.alert("Thành công", `Đã đổi mã hàng tồn kho thành công! Lý do: ${selectedAutoChangeReason}`);
+
+      setSelectedAutoChangeReason("");
+      setAutoChangeItemId("");
+
+    } catch (error: any) {
+      console.log("❌ Error in handleAutoChangeReasonSubmit:", error);
+      Alert.alert(
+        "Lỗi",
+        error?.message || error?.response?.data?.message || "Không thể đổi mã inventory item"
+      );
+    } finally {
+      setAutoChangeLoading(null);
+    }
+  };
+
   // Handle auto-change inventory item
-  const handleAutoChange = async (inventoryItemId: string) => {
+  const handleAutoChange = async (inventoryItemId: string, note?: string) => {
     setAutoChangeLoading(inventoryItemId);
 
     Alert.alert(
@@ -1352,7 +1563,17 @@ const ExportInventoryScreen: React.FC = () => {
               // ✅ 2) SAU KHI RESET TRACKING THÀNH CÔNG, MỚI THỰC HIỆN AUTO-CHANGE
               let autoChangeResult: any;
               try {
-                autoChangeResult = await autoChangeInventoryItem(inventoryItemId);
+                console.log("🔍 Calling auto-change from reason modal with params:", {
+                  inventoryItemId,
+                  note,
+                  currentItem: currentItem ? {
+                    id: currentItem.id,
+                    isTrackingForExport: currentItem.isTrackingForExport,
+                    measurementValue: currentItem.measurementValue
+                  } : null
+                });
+
+                autoChangeResult = await autoChangeInventoryItem(inventoryItemId, note);
                 console.log("✅ Auto change thành công:", autoChangeResult);
               } catch (autoChangeError) {
                 // ❌ Nếu auto change thất bại sau khi đã reset tracking, gọi lại updateActualQuantity để khôi phục
@@ -1566,7 +1787,7 @@ const ExportInventoryScreen: React.FC = () => {
                       styles.autoChangeActionButton,
                       autoChangeLoading === item.id && styles.actionButtonDisabled,
                     ]}
-                    onPress={() => handleAutoChange(item.id)}
+                    onPress={() => handleAutoChangePress(item.id)}
                     disabled={autoChangeLoading === item.id}
                   >
                     {autoChangeLoading === item.id ? (
@@ -2092,6 +2313,84 @@ const ExportInventoryScreen: React.FC = () => {
         </View>
       )}
 
+      {/* Auto Change Reason Modal */}
+      <Modal
+        visible={showAutoChangeReasonModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => {
+          setShowAutoChangeReasonModal(false);
+          setSelectedAutoChangeReason("");
+          setAutoChangeItemId("");
+        }}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.reasonModalContainer}>
+            <View style={styles.reasonModalHeader}>
+              <TouchableOpacity
+                onPress={() => {
+                  setShowAutoChangeReasonModal(false);
+                  setSelectedAutoChangeReason("");
+                  setAutoChangeItemId("");
+                }}
+                style={styles.closeButton}
+              >
+                <Ionicons name="close" size={24} color="#666" />
+              </TouchableOpacity>
+              <Text style={styles.reasonModalTitle}>Chọn lý do đổi tự động</Text>
+            </View>
+
+            <View style={styles.reasonModalContent}>
+              <View style={styles.autoChangeItemInfo}>
+                <Text style={styles.autoChangeItemTitle}>Sản phẩm:</Text>
+                <Text style={styles.autoChangeItemId}>{autoChangeItemId}</Text>
+              </View>
+
+              <View style={styles.reasonButtonsContainer}>
+                <Text style={styles.reasonSectionTitle}>Chọn lý do:</Text>
+                {autoChangeReasons.map((reason, index) => (
+                  <TouchableOpacity
+                    key={index}
+                    style={[
+                      styles.reasonButton,
+                      selectedAutoChangeReason === reason && styles.reasonButtonSelected
+                    ]}
+                    onPress={() => setSelectedAutoChangeReason(reason)}
+                  >
+                    <Text style={[
+                      styles.reasonButtonText,
+                      selectedAutoChangeReason === reason && styles.reasonButtonTextSelected
+                    ]}>
+                      {reason}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <TouchableOpacity
+                style={[
+                  styles.autoChangeSubmitButton,
+                  (!selectedAutoChangeReason || autoChangeLoading === autoChangeItemId) && styles.autoChangeSubmitButtonDisabled,
+                ]}
+                onPress={handleAutoChangeReasonSubmit}
+                disabled={!selectedAutoChangeReason || autoChangeLoading === autoChangeItemId}
+              >
+                {autoChangeLoading === autoChangeItemId ? (
+                  <ActivityIndicator size="small" color="white" />
+                ) : (
+                  <Text style={[
+                    styles.autoChangeSubmitButtonText,
+                    (!selectedAutoChangeReason) && { color: '#999' }
+                  ]}>
+                    Xác nhận đổi tự động
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       {/* Measurement Modal for INTERNAL QR Scan Result */}
       {showMeasurementModal && (selectedOldItems.length > 0 || scannedNewItemsForModal.length > 0) && (
         <View style={styles.warningOverlay}>
@@ -2116,13 +2415,15 @@ const ExportInventoryScreen: React.FC = () => {
                         <Text style={styles.measurementItemValue}>Giá trị: {item.measurementValue} {itemUnitType || "đơn vị"}</Text>
                         <Text style={styles.measurementItemLocation}>Vị trí: {formatLocationString(item.storedLocationName)}</Text>
                       </View>
-                      <TouchableOpacity
-                        style={styles.removeItemButton}
-                        onPress={() => handleRemoveOldItem(item.id)}
-                        disabled={manualChangeLoading}
-                      >
+                      {untrackedSelectedItems.length > 1 && (
+                        <TouchableOpacity
+                          style={styles.removeItemButton}
+                          onPress={() => handleRemoveOldItem(item.id)}
+                          disabled={manualChangeLoading}
+                        >
                           <Ionicons name="close-circle" size={24} color="#ff4444" />
                         </TouchableOpacity>
+                      )}
                       </View>
                     </View>
                       ))}
@@ -2142,13 +2443,15 @@ const ExportInventoryScreen: React.FC = () => {
                         <Text style={styles.measurementItemValue}>Giá trị: {scannedItem.measurementValue} {itemUnitType || "đơn vị"}</Text>
                         <Text style={styles.measurementItemLocation}>Vị trí: {formatLocationString(scannedItem.storedLocationName)}</Text>
                       </View>
-                      <TouchableOpacity
-                        style={styles.removeItemButton}
-                        onPress={() => handleRemoveScannedItem(scannedItem.id)}
-                        disabled={manualChangeLoading}
-                      >
-                        <Ionicons name="close-circle" size={24} color="#ff4444" />
-                      </TouchableOpacity>
+                      {scannedNewItemsForModal.length > 1 && (
+                        <TouchableOpacity
+                          style={styles.removeItemButton}
+                          onPress={() => handleRemoveScannedItem(scannedItem.id)}
+                          disabled={manualChangeLoading}
+                        >
+                          <Ionicons name="close-circle" size={24} color="#ff4444" />
+                        </TouchableOpacity>
+                      )}
                     </View>
                   </View>
                 ))}
@@ -2890,6 +3193,107 @@ const styles = StyleSheet.create({
   removeItemButton: {
     padding: 4,
     marginTop: 2,
+  },
+
+  // Auto Change Reason Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  reasonModalContainer: {
+    width: "90%",
+    backgroundColor: "white",
+    borderRadius: 12,
+    elevation: 5,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+  },
+  reasonModalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f0f0f0",
+  },
+  reasonModalTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    flex: 1,
+    textAlign: "center",
+    marginRight: 24,
+  },
+  closeButton: {
+    padding: 4,
+  },
+  reasonModalContent: {
+    padding: 16,
+  },
+  autoChangeItemInfo: {
+    backgroundColor: "#f8f9fa",
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+  },
+  autoChangeItemTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#333",
+    marginBottom: 4,
+  },
+  autoChangeItemId: {
+    fontSize: 14,
+    color: "#1677ff",
+    fontWeight: "500",
+  },
+  reasonButtonsContainer: {
+    marginBottom: 20,
+  },
+  reasonSectionTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#333",
+    marginBottom: 12,
+  },
+  reasonButton: {
+    backgroundColor: "#f8f9fa",
+    borderWidth: 1,
+    borderColor: "#e0e0e0",
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 8,
+    alignItems: "center",
+  },
+  reasonButtonSelected: {
+    backgroundColor: "#1677ff",
+    borderColor: "#1677ff",
+  },
+  reasonButtonText: {
+    fontSize: 14,
+    color: "#333",
+    fontWeight: "500",
+  },
+  reasonButtonTextSelected: {
+    color: "white",
+    fontWeight: "600",
+  },
+  autoChangeSubmitButton: {
+    backgroundColor: "#1677ff",
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  autoChangeSubmitButtonDisabled: {
+    backgroundColor: "#ccc",
+  },
+  autoChangeSubmitButtonText: {
+    color: "white",
+    fontSize: 14,
+    fontWeight: "600",
   },
 });
 

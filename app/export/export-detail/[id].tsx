@@ -852,7 +852,7 @@ const ExportRequestScreen: React.FC = () => {
 
 
   // Handle auto-change inventory item
-  const handleAutoChange = async (inventoryItemId: string) => {
+  const handleAutoChange = async (inventoryItemId: string, note?: string) => {
     try {
       if (autoChangeInProgress.current || autoChangeLoading) {
         return;
@@ -874,7 +874,7 @@ const ExportRequestScreen: React.FC = () => {
                 const currentItem = selectedInventoryItems.find(item => item.id === inventoryItemId);
 
                 // ✅ 1) THỰC HIỆN AUTO-CHANGE TRƯỚC
-                const result = await autoChangeInventoryItem(inventoryItemId);
+                const result = await autoChangeInventoryItem(inventoryItemId, note);
                 console.log("✅ Auto change thành công:", result);
 
                 // ✅ 2) NẾU AUTO-CHANGE THÀNH CÔNG, MỚI RESET TRACKING
