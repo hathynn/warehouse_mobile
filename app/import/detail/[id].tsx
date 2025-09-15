@@ -152,6 +152,8 @@ const ImportOrderScreen: React.FC = () => {
             sku: `Mã sản phẩm ${detailData.itemId}`,
             itemId: detailData.itemId,
             inventoryItemId: detailData.inventoryItemId,
+            inventoryItemRealId: inventoryItems.length > 0 ? inventoryItems[0].id : null,
+            parentId: inventoryItems.length > 0 ? inventoryItems[0].parentId : null,
             expectedQuantity: detailData.expectQuantity,
             countedQuantity: detailData.actualQuantity,
             expectedMeasurementValue: detailData.expectMeasurementValue,

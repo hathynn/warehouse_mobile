@@ -12,7 +12,7 @@ export interface InventoryItem {
   expiredDate: string; 
   importedDate: string;
   updatedDate: string; 
-  parentId: number | null;
+  parentId: string | null;
   childrenIds: number[];
   itemId: string; 
   itemName: string;
