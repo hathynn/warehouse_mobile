@@ -1992,11 +1992,23 @@ const ExportInventoryScreen: React.FC = () => {
               )}
             </View>
 
-            {exportRequestStatus === ExportRequestStatus.IN_PROGRESS && 
-             !(
-               (exportRequestType === "INTERNAL" && (exportRequestDetailData as any)?.status === "MATCH") ||
-               (exportRequestType === "SELLING" && exportRequestDetailData?.actualQuantity === exportRequestDetailData?.quantity)
-             ) && (
+            {(() => {
+              // Debug SELLING logic
+              if (exportRequestType === "SELLING") {
+                console.log('🔍 SELLING Debug:', {
+                  actualQuantity: exportRequestDetailData?.actualQuantity,
+                  quantity: exportRequestDetailData?.quantity,
+                  isEqual: exportRequestDetailData?.actualQuantity === exportRequestDetailData?.quantity,
+                  exportRequestStatus,
+                  exportRequestDetailData
+                });
+              }
+              return exportRequestStatus === ExportRequestStatus.IN_PROGRESS &&
+                !(
+                  (exportRequestType === "INTERNAL" && (exportRequestDetailData as any)?.status === "MATCH") ||
+                  (exportRequestType === "SELLING" && exportRequestDetailData?.actualQuantity === exportRequestDetailData?.quantity)
+                );
+            })() && (
               <View style={styles.scanButtonContainer}>
                 <View style={styles.buttonRow}>
                   <TouchableOpacity

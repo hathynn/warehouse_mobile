@@ -21,11 +21,13 @@ import useItemService from "@/services/useItemService";
 
 
 export default function ScanQrScreen() {
-  const { id } = useLocalSearchParams<{
+  const { id, returnToModal, itemCode } = useLocalSearchParams<{
     id: string;
+    returnToModal?: string;
+    itemCode?: string;
   }>();
 
-  console.log(`📱 QR Scan screen loaded with params:`, { id });
+  console.log(`📱 QR Scan screen loaded with params:`, { id, returnToModal, itemCode });
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [scannedIds, setScannedIds] = useState<string[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -43,7 +45,6 @@ export default function ScanQrScreen() {
     null
   );
   const [scannedItemCode, setScannedItemCode] = useState<string>("");
-  const [currentTargetItemId, setCurrentTargetItemId] = useState<string | null>(null);
 
   // Import Redux actions and dispatch
   const dispatch = useDispatch();
@@ -248,10 +249,7 @@ export default function ScanQrScreen() {
       throw new Error(`Chỉ được phép quét inventory item của mã hàng ${matched.itemId}`);
     }
 
-    // If we have a specific target item set from alert, only allow scanning for that item
-    if (currentTargetItemId && matched.itemId !== currentTargetItemId) {
-      throw new Error(`Hiện tại đang quét mã hàng ${currentTargetItemId}. Vui lòng quét inventory item của mã hàng ${currentTargetItemId}.`);
-    }
+    // Allow scanning any item - removed itemId restriction
 
     console.log("🔄 Call API với:", {
       exportRequestDetailId,
@@ -298,10 +296,20 @@ export default function ScanQrScreen() {
     let shouldShowAlert = false;
     
     if (exportRequest?.type === "SELLING") {
-      // For SELLING: check if we've reached the expected quantity (after +1 from this scan)
-      const newActualQuantity = matched.actualQuantity + 1;
-      shouldShowAlert = newActualQuantity >= matched.quantity;
-      console.log(`🔔 SELLING alert check: actualQuantity(${matched.actualQuantity}) + 1 = ${newActualQuantity} >= expectedQuantity(${matched.quantity}) = ${shouldShowAlert}`);
+      // For SELLING: fetch fresh data to get updated actualQuantity
+      try {
+        const freshExportDetail = await fetchExportRequestDetailById(Number(exportRequestDetailId));
+        const actualQuantity = freshExportDetail?.actualQuantity || 0;
+        const expectedQuantity = freshExportDetail?.quantity || matched.quantity;
+
+        shouldShowAlert = actualQuantity >= expectedQuantity;
+        console.log(`🔔 SELLING alert check from API: actualQuantity(${actualQuantity}) >= expectedQuantity(${expectedQuantity}) = ${shouldShowAlert}`);
+      } catch (error) {
+        console.log(`❌ SELLING: Error fetching fresh data, fallback to old logic:`, error);
+        const actualScannedCount = scannedIds.length; // Simple fallback
+        shouldShowAlert = actualScannedCount >= matched.quantity;
+        console.log(`🔔 SELLING fallback: actualScannedCount(${actualScannedCount}) >= expectedQuantity(${matched.quantity}) = ${shouldShowAlert}`);
+      }
     } else if (exportRequest?.type === "INTERNAL") {
       // For INTERNAL: fetch fresh data to check if status became COMPLETED after this scan
       try {
@@ -334,11 +342,7 @@ export default function ScanQrScreen() {
     
     console.log(`🔔 Final shouldShowAlert decision: ${shouldShowAlert} for export type: ${exportRequest?.type}`);
 
-    // Clear current target if this item is now complete
-    if (shouldShowAlert && currentTargetItemId === matched.itemId) {
-      console.log(`🔓 Clearing currentTargetItemId as item ${currentTargetItemId} is now complete`);
-      setCurrentTargetItemId(null);
-    }
+    // Target item logic removed - allow scanning any item
 
     if (shouldShowAlert) {
       try {
@@ -471,6 +475,32 @@ export default function ScanQrScreen() {
                 text: "OK",
                 onPress: () => {
                   setAlertShowing(false);
+
+                  // Navigate back to export-inventory if came from there
+                  if (returnToModal === 'true' && itemCode) {
+                    // Find the export request detail for this itemCode
+                    const targetDetail = exportDetails.find(
+                      (detail: any) => detail.itemId === itemCode
+                    );
+
+                    if (targetDetail) {
+                      console.log(`🔙 QR completion - returning to ExportInventory for itemCode: ${itemCode}`);
+                      router.replace({
+                        pathname: '/export/export-inventory/[id]',
+                        params: {
+                          id: targetDetail.id,
+                          itemCode: itemCode,
+                          exportRequestDetailId: targetDetail.id,
+                          exportRequestId: id,
+                          exportRequestType: exportRequest?.type || "",
+                          exportRequestStatus: exportRequest?.status || "",
+                        },
+                      });
+                      return;
+                    }
+                  }
+
+                  // Default: navigate back to export-detail
                   router.replace(`/export/export-detail/${id}`);
                 }
               }
@@ -552,6 +582,32 @@ export default function ScanQrScreen() {
                 text: "OK",
                 onPress: () => {
                   setAlertShowing(false);
+
+                  // Navigate back to export-inventory if came from there
+                  if (returnToModal === 'true' && itemCode) {
+                    // Find the export request detail for this itemCode
+                    const targetDetail = exportDetails.find(
+                      (detail: any) => detail.itemId === itemCode
+                    );
+
+                    if (targetDetail) {
+                      console.log(`🔙 QR completion fallback - returning to ExportInventory for itemCode: ${itemCode}`);
+                      router.replace({
+                        pathname: '/export/export-inventory/[id]',
+                        params: {
+                          id: targetDetail.id,
+                          itemCode: itemCode,
+                          exportRequestDetailId: targetDetail.id,
+                          exportRequestId: id,
+                          exportRequestType: exportRequest?.type || "",
+                          exportRequestStatus: exportRequest?.status || "",
+                        },
+                      });
+                      return;
+                    }
+                  }
+
+                  // Default: navigate back to export-detail
                   router.replace(`/export/export-detail/${id}`);
                 }
               }
