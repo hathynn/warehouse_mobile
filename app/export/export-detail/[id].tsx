@@ -1160,9 +1160,26 @@ const ExportRequestScreen: React.FC = () => {
       }
     });
 
-    // Check if current date is before expected export date
-    const isBeforeExportDate = exportRequest.exportDate 
-      ? new Date() < new Date(exportRequest.exportDate)
+    // Check if current date is before expected export date (only compare dates, not time)
+    const isBeforeExportDate = exportRequest.exportDate
+      ? (() => {
+          const today = new Date();
+          const exportDate = new Date(exportRequest.exportDate);
+
+          // Set both dates to start of day (00:00:00) to compare only dates
+          today.setHours(0, 0, 0, 0);
+          exportDate.setHours(0, 0, 0, 0);
+
+          console.log('🔍 Debug ngày xuất (chỉ so sánh ngày):', {
+            exportRequestDate: exportRequest.exportDate,
+            todayDateOnly: today.toString(),
+            exportDateOnly: exportDate.toString(),
+            isBeforeExportDate: today < exportDate,
+            status: exportRequest.status
+          });
+
+          return today < exportDate;
+        })()
       : false;
 
     switch (status) {
