@@ -213,9 +213,22 @@ export default function StockCheckScanQrScreen() {
       // Check if this inventory item is already counted
       console.log("🔍 Checking if item is already counted...");
       const stockCheckDetail = await getStockCheckDetailById(parseInt(stockCheckDetailId));
-      
+
       if (stockCheckDetail?.checkedInventoryItemIds?.some(item => item.inventoryItemId === rawInventoryItemId.toUpperCase())) {
         throw new Error("Sản phẩm này đã được kiểm đếm");
+      }
+
+      // Check if scanned inventory item belongs to the expected stock check detail
+      // Get inventory item details to validate itemId match
+      console.log("🔍 Fetching inventory item data to validate itemId...");
+      const inventoryItemData = await fetchInventoryItemById(rawInventoryItemId.toUpperCase());
+      if (!inventoryItemData) {
+        throw new Error("Mã hàng tồn kho không tìm thấy trong hệ thống");
+      }
+
+      // Validate that scanned inventory item belongs to the correct itemId for this stock check detail
+      if (inventoryItemData.itemId !== stockCheckDetail.itemId) {
+        throw new Error(`Chỉ được phép quét inventory item của mã hàng ${stockCheckDetail.itemId}`);
       }
 
       console.log("🔄 Call API với:", {
@@ -272,6 +285,10 @@ export default function StockCheckScanQrScreen() {
 
       if (message.includes("Inventory item ID not found in stock check request detail")) {
         displayMessage = "Sản phẩm không nằm trong danh sách kiểm kho";
+      } else if (message.includes("Mã hàng tồn kho không tìm thấy trong hệ thống")) {
+        displayMessage = "Mã hàng tồn kho không tìm thấy trong hệ thống";
+      } else if (message.includes("Chỉ được phép quét hàng tồn kho")) {
+        displayMessage = message; // Use the exact error message for itemId validation
       } else if (message.includes("không tìm thấy")) {
         displayMessage = "Không tìm thấy sản phẩm tương ứng với mã QR.";
       } else if (message.includes("đã được kiểm đếm")) {
@@ -366,6 +383,10 @@ export default function StockCheckScanQrScreen() {
 
       if (message.includes("Inventory item ID not found in stock check request detail")) {
         displayMessage = "Sản phẩm không nằm trong danh sách kiểm kho";
+      } else if (message.includes("Mã hàng tồn kho không tìm thấy trong hệ thống")) {
+        displayMessage = "Mã hàng tồn kho không tìm thấy trong hệ thống";
+      } else if (message.includes("Chỉ được phép quét inventory item")) {
+        displayMessage = message; // Use the exact error message for itemId validation
       } else if (message.includes("không tìm thấy")) {
         displayMessage = "Không tìm thấy sản phẩm tương ứng với mã QR.";
       } else if (message.includes("đã được kiểm đếm")) {

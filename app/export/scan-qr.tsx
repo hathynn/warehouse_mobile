@@ -223,7 +223,7 @@ export default function ScanQrScreen() {
       );
 
       if (!matchingExportDetail) {
-        throw new Error(`Chỉ được phép quét inventory item của mã hàng trong danh sách xuất`);
+        throw new Error(`Chỉ được phép quét hàng tồn kho của mã hàng trong danh sách xuất`);
       }
 
       // NEW: Handle case where inventoryItemId is not in scanMappings (INTERNAL only)
@@ -246,7 +246,7 @@ export default function ScanQrScreen() {
 
     // Validate itemId match - only allow scanning inventory items of the correct itemId
     if (inventoryItemData.itemId !== matched.itemId) {
-      throw new Error(`Chỉ được phép quét inventory item của mã hàng ${matched.itemId}`);
+      throw new Error(`Chỉ được phép quét hàng tồn kho của mã hàng ${matched.itemId}`);
     }
 
     // Allow scanning any item - removed itemId restriction

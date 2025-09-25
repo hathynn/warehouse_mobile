@@ -307,18 +307,20 @@ const StockCheckInventoryScreen: React.FC = () => {
         </View>
 
         {/* Inventory list */}
-        <FlatList
-          style={styles.inventoryList}
-          data={filteredInventoryItems}
-          renderItem={renderInventoryItem}
-          keyExtractor={(item) => item.id}
-          showsVerticalScrollIndicator={false}
-          ListEmptyComponent={
-            <View style={styles.loadingContainer}>
-              <Text style={styles.loadingText}>Không có sản phẩm nào</Text>
-            </View>
-          }
-        />
+        <View style={styles.listContainer}>
+          <FlatList
+            data={filteredInventoryItems}
+            renderItem={renderInventoryItem}
+            keyExtractor={(item) => item.id}
+            showsVerticalScrollIndicator={true}
+            contentContainerStyle={styles.listContentContainer}
+            ListEmptyComponent={
+              <View style={styles.emptyContainer}>
+                <Text style={styles.loadingText}>Không có sản phẩm nào</Text>
+              </View>
+            }
+          />
+        </View>
       </View>
     </TouchableWithoutFeedback>
   );
@@ -403,6 +405,14 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     marginLeft: 8,
   },
+  listContainer: {
+    flex: 1,
+    marginHorizontal: 16,
+    marginBottom: 16,
+  },
+  listContentContainer: {
+    paddingBottom: 20,
+  },
   inventoryList: {
     flex: 1,
     marginHorizontal: 16,
@@ -410,6 +420,11 @@ const styles = StyleSheet.create({
   },
   loadingContainer: {
     flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: 40,
+  },
+  emptyContainer: {
     justifyContent: "center",
     alignItems: "center",
     paddingVertical: 40,
