@@ -1068,7 +1068,7 @@ const renderActionButton = () => {
           <View style={styles.searchInputContainer}>
             <TextInput
               style={styles.searchInput}
-              placeholder="Nhập mã hàng (ItemId) để tìm kiếm..."
+              placeholder="Nhập mã hàng để tìm kiếm..."
               value={searchText}
               onChangeText={handleSearchByText}
               autoCapitalize="none"
