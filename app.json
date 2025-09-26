@@ -2,9 +2,9 @@
   "expo": {
     "name": "WarehouseManagement_Mobile",
     "slug": "WarehouseManagement_Mobile",
-    "version": "1.0.1",
+    "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/logo.png",
     "scheme": "myapp",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -17,7 +17,8 @@
         "backgroundColor": "#ffffff"
       },
       "permissions": [
-        "android.permission.CAMERA"
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
       ],
       "package": "com.hathyn.WarehouseManagement_Mobile"
     },
@@ -51,7 +52,7 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "4a6468d3-4098-438f-8917-9739332f6af5"
+        "projectId": "5e558348-1146-48ba-9831-2baf37374534"
       }
     }
   }

@@ -696,70 +696,70 @@ const ExportInventoryScreen: React.FC = () => {
   };
 
   // Handle step transitions for INTERNAL export type
-  const handleInternalStepTransition = async () => {
-    if (internalManualChangeStep === 'select_old') {
-      if (selectedOldItems.length === 0) {
-        Alert.alert("Lỗi", "Vui lòng chọn ít nhất một sản phẩm cần thay đổi để thay đổi");
-        return;
-      }
+  // const handleInternalStepTransition = async () => {
+  //   if (internalManualChangeStep === 'select_old') {
+  //     if (selectedOldItems.length === 0) {
+  //       Alert.alert("Lỗi", "Vui lòng chọn ít nhất một sản phẩm cần thay đổi để thay đổi");
+  //       return;
+  //     }
 
-      console.log(`🔄 INTERNAL - Moving to select_new step with ${selectedOldItems.length} old items selected`);
+  //     console.log(`🔄 INTERNAL - Moving to select_new step with ${selectedOldItems.length} old items selected`);
 
-      // Load available items for replacement
-      setManualDataLoading(true);
-      try {
-        const allInventoryItemsForItemId = await fetchInventoryItemByItemId(itemCode);
+  //     // Load available items for replacement
+  //     setManualDataLoading(true);
+  //     try {
+  //       const allInventoryItemsForItemId = await fetchInventoryItemByItemId(itemCode);
 
-        // Filter for AVAILABLE status AND not assigned to other export request details
-        const filteredItems = allInventoryItemsForItemId.filter(item =>
-          item.status === 'AVAILABLE' &&
-          !item.exportRequestDetailId
-        );
+  //       // Filter for AVAILABLE status AND not assigned to other export request details
+  //       const filteredItems = allInventoryItemsForItemId.filter(item =>
+  //         item.status === 'AVAILABLE' &&
+  //         !item.exportRequestDetailId
+  //       );
 
-        // Convert to InventoryItem format
-        const convertedItems = filteredItems.map(item => ({
-          id: item.id,
-          reasonForDisposal: item.reasonForDisposal,
-          measurementValue: item.measurementValue,
-          status: item.status,
-          expiredDate: item.expiredDate,
-          importedDate: item.importedDate,
-          updatedDate: item.updatedDate,
-          parentId: item.parentId ? Number(item.parentId) : null,
-          childrenIds: item.childrenIds?.map((id: any) => Number(id)) || [],
-          itemId: item.itemId,
-          itemName: item.itemName,
-          itemCode: item.itemCode,
-          exportRequestDetailId: item.exportRequestDetailId,
-          importOrderDetailId: item.importOrderDetailId || 0,
-          storedLocationId: item.storedLocationId,
-          storedLocationName: item.storedLocationName,
-          isTrackingForExport: item.isTrackingForExport,
-        }));
+  //       // Convert to InventoryItem format
+  //       const convertedItems = filteredItems.map(item => ({
+  //         id: item.id,
+  //         reasonForDisposal: item.reasonForDisposal,
+  //         measurementValue: item.measurementValue,
+  //         status: item.status,
+  //         expiredDate: item.expiredDate,
+  //         importedDate: item.importedDate,
+  //         updatedDate: item.updatedDate,
+  //         parentId: item.parentId ? Number(item.parentId) : null,
+  //         childrenIds: item.childrenIds?.map((id: any) => Number(id)) || [],
+  //         itemId: item.itemId,
+  //         itemName: item.itemName,
+  //         itemCode: item.itemCode,
+  //         exportRequestDetailId: item.exportRequestDetailId,
+  //         importOrderDetailId: item.importOrderDetailId || 0,
+  //         storedLocationId: item.storedLocationId,
+  //         storedLocationName: item.storedLocationName,
+  //         isTrackingForExport: item.isTrackingForExport,
+  //       }));
 
-        setAllInventoryItems(convertedItems);
+  //       setAllInventoryItems(convertedItems);
 
-        // Check all untracked items by default
-        if (checkAllOldItems) {
-          const untrackedItems = convertedItems.filter(item => !item.isTrackingForExport);
-          setSelectedOldItems(untrackedItems);
-        }
+  //       // Check all untracked items by default
+  //       if (checkAllOldItems) {
+  //         const untrackedItems = convertedItems.filter(item => !item.isTrackingForExport);
+  //         setSelectedOldItems(untrackedItems);
+  //       }
 
-        // Skip select_new step, go directly to reason_input
-        setInternalManualChangeStep('reason_input');
-        setCurrentPage('reason_input');
-        setMultiSelectMode(null);
+  //       // Skip select_new step, go directly to reason_input
+  //       setInternalManualChangeStep('reason_input');
+  //       setCurrentPage('reason_input');
+  //       setMultiSelectMode(null);
 
-        console.log(`✅ INTERNAL - Loaded ${convertedItems.length} available items for new selection`);
+  //       console.log(`✅ INTERNAL - Loaded ${convertedItems.length} available items for new selection`);
 
-      } catch (error) {
-        console.log("❌ Error loading available items:", error);
-        Alert.alert("Lỗi", "Không thể tải danh sách sản phẩm khả dụng");
-      } finally {
-        setManualDataLoading(false);
-      }
-    }
-  };
+  //     } catch (error) {
+  //       console.log("❌ Error loading available items:", error);
+  //       Alert.alert("Lỗi", "Không thể tải danh sách sản phẩm khả dụng");
+  //     } finally {
+  //       setManualDataLoading(false);
+  //     }
+  //   }
+  // };
 
   // Handle submission for INTERNAL export type multi-selection
   const handleInternalManualChangeSubmit = async () => {
