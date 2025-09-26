@@ -18,18 +18,25 @@ export function createPusherClient() {
     authorizer: (channel) => {
       return {
         authorize: (socketId, callback) => {
+          console.log('🔐 Pusher auth request:', {
+            socketId,
+            channelName: channel.name
+          });
+
           // Use the same API instance that handles token refresh
           api.post('/pusher/auth', {
             socket_id: socketId,
             channel_name: channel.name
           })
           .then(response => {
+            console.log('✅ Pusher auth success:', response.data);
             // Forward the auth token to Pusher
             const auth = response.data.content.auth;
             const parsedAuth = JSON.parse(auth);
             callback(null, { auth: parsedAuth.auth });
           })
           .catch(error => {
+            console.log('❌ Pusher auth failed:', error.response?.data || error.message);
             callback(new Error(`Couldn't authenticate Pusher for ${channel.name}`), { auth: '' });
           });
         }

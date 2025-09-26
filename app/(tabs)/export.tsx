@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import {
   useQuery,
+  useQueryClient,
   QueryClient,
   QueryClientProvider,
 } from "@tanstack/react-query";
@@ -26,6 +27,20 @@ import { useDispatch, useSelector } from "react-redux";
 import { setPaperData } from "@/redux/paperSlice";
 import { RootState } from "@/redux/store";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { usePusherContext } from "@/contexts/pusher/PusherContext";
+import {
+  EXPORT_REQUEST_CREATED_EVENT,
+  EXPORT_REQUEST_COUNTED_EVENT,
+  EXPORT_REQUEST_CONFIRMED_EVENT,
+  EXPORT_REQUEST_CANCELLED_EVENT,
+  EXPORT_REQUEST_COMPLETED_EVENT,
+  EXPORT_REQUEST_ASSIGNED_EVENT,
+  EXPORT_REQUEST_EXTENDED_EVENT,
+  EXPORT_REQUEST_IN_PROGRESS_EVENT,
+  EXPORT_REQUEST_COUNT_CONFIRMED_EVENT,
+  EXPORT_REQUEST_WAITING_EXPORT_EVENT,
+  EXPORT_REQUEST_STATUS_CHANGED_EVENT
+} from "@/constants/channelsNEvents";
 
 const queryClient = new QueryClient();
 
@@ -138,6 +153,11 @@ function ExportListComponent() {
   const dispatch = useDispatch();
   const insets = useSafeAreaInsets();
 
+  // WebSocket integration
+  const { latestNotification, isConnected } = usePusherContext();
+  const [lastProcessedTimestamp, setLastProcessedTimestamp] = useState<number>(0);
+  const queryClient = useQueryClient();
+
   const { fetchExportRequestsByStaffId, filterExportRequestsByRole } = useExportRequest();
   const { data: allExportRequests, isLoading } = useQuery({
     queryKey: ["export-requests", userId],
@@ -152,9 +172,77 @@ function ExportListComponent() {
   });
 
   // Filter requests theo role của user
-  const exportRequests = userId && allExportRequests 
+  const exportRequests = userId && allExportRequests
     ? filterExportRequestsByRole(allExportRequests, Number(userId))
     : [];
+
+  // Handle WebSocket notifications
+  useEffect(() => {
+    if (!latestNotification || !userId) {
+      return;
+    }
+
+    const { type: eventType, data, timestamp } = latestNotification;
+
+    // Avoid processing the same event multiple times
+    if (timestamp <= lastProcessedTimestamp) {
+      console.log("⏭️ Export Screen - Skipping already processed event:", { timestamp, lastProcessed: lastProcessedTimestamp });
+      return;
+    }
+
+    console.log("🔔 [EXPORT SCREEN] Processing new WebSocket event:", {
+      eventType,
+      data,
+      userId,
+      timestamp,
+      screen: 'EXPORT'
+    });
+
+    // 🔥 UNIVERSAL HANDLER - Refresh on ANY event related to "export"
+    const containsExport = eventType.toLowerCase().includes('export');
+
+    // Check if the event is related to export requests
+    const exportEvents = [
+      EXPORT_REQUEST_CREATED_EVENT,
+      EXPORT_REQUEST_COUNTED_EVENT,
+      EXPORT_REQUEST_CONFIRMED_EVENT,
+      EXPORT_REQUEST_CANCELLED_EVENT,
+      EXPORT_REQUEST_COMPLETED_EVENT,
+      EXPORT_REQUEST_ASSIGNED_EVENT,
+      EXPORT_REQUEST_EXTENDED_EVENT,
+      EXPORT_REQUEST_IN_PROGRESS_EVENT,
+      EXPORT_REQUEST_COUNT_CONFIRMED_EVENT,
+      EXPORT_REQUEST_WAITING_EXPORT_EVENT,
+      EXPORT_REQUEST_STATUS_CHANGED_EVENT
+    ];
+
+    const isExportEvent = exportEvents.some(event =>
+      eventType === event || eventType.startsWith(event + '-')
+    );
+
+    console.log("🤔 [EXPORT SCREEN] Event analysis:", {
+      eventType,
+      exportEvents,
+      isExportEvent,
+      containsExport,
+      exactMatch: exportEvents.includes(eventType),
+      startsWithMatch: exportEvents.some(event => eventType.startsWith(event + '-'))
+    });
+
+    // 🚨 REFRESH IF: Known export event OR contains "export"
+    if (isExportEvent || containsExport) {
+      console.log("🔄 [EXPORT SCREEN] REFRESHING DATA:", {
+        reason: isExportEvent ? 'Known export event' : 'Contains export keyword',
+        eventType
+      });
+      setLastProcessedTimestamp(timestamp);
+      // Invalidate and refetch export requests
+      queryClient.invalidateQueries({ queryKey: ["export-requests", userId] });
+    } else {
+      console.log("⏭️ Export Screen - Ignoring non-export event:", eventType);
+      setLastProcessedTimestamp(timestamp);
+    }
+  }, [latestNotification, userId, queryClient, lastProcessedTimestamp]);
 
   // Định nghĩa các tab status - luôn hiển thị tất cả tabs
   const getStatusTabs = (): StatusTab[] => {
@@ -378,7 +466,20 @@ function ExportListComponent() {
 
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
-        <Text style={styles.headerTitle}>Danh sách phiếu xuất</Text>
+        <View style={styles.headerContent}>
+          <Text style={styles.headerTitle}>Danh sách phiếu xuất</Text>
+          <View style={styles.connectionStatus}>
+            <View
+              style={[
+                styles.connectionDot,
+                { backgroundColor: isConnected ? '#4CAF50' : '#F44336' }
+              ]}
+            />
+            <Text style={styles.connectionText}>
+              {isConnected ? 'Trực tuyến' : 'Ngoại tuyến'}
+            </Text>
+          </View>
+        </View>
       </View>
 
       {/* Search Bar */}
@@ -398,6 +499,7 @@ function ExportListComponent() {
             onChangeText={setSearchQuery}
           />
         </View>
+
       </View>
 
       {/* Status Tabs */}
@@ -448,18 +550,37 @@ const styles = StyleSheet.create({
   header: {
     backgroundColor: "#1677ff",
     paddingBottom: 16,
-    alignItems: "center",
-    justifyContent: "center",
+    paddingHorizontal: 16,
     elevation: 4,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 3,
   },
+  headerContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
   headerTitle: {
     color: "white",
     fontSize: 18,
     fontWeight: "700",
+  },
+  connectionStatus: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  connectionDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 6,
+  },
+  connectionText: {
+    color: "white",
+    fontSize: 12,
+    fontWeight: "500",
   },
   searchContainer: {
     paddingHorizontal: 16,

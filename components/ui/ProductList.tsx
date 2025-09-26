@@ -77,7 +77,7 @@ const SimpleProductList: React.FC<Props> = ({
             console.log(`❌ Error fetching inventory/item details for ${product.inventoryItemId}:`, error);
           }
         } else {
-          console.log("⏭️ Skipping product - not an inventory item");
+          // Skip products that are not inventory items
         }
       }
       
