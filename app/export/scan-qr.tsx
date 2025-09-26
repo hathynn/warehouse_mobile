@@ -444,7 +444,7 @@ export default function ScanQrScreen() {
                   });
 
                   // Set the target item ID to focus on the next item
-                  setCurrentTargetItemId(nextItem.itemId);
+                  // setCurrentTargetItemId(nextItem.itemId);
 
                   // Re-enable scanning
                   setTimeout(() => {
@@ -459,7 +459,7 @@ export default function ScanQrScreen() {
         } else {
           // All items are complete - clear target and navigate back to main screen
           console.log(`✅ All items are complete - showing completion alert`);
-          setCurrentTargetItemId(null);
+          // setCurrentTargetItemId(null);
           setAlertShowing(true);
           setScanningEnabled(false);
 
@@ -554,7 +554,7 @@ export default function ScanQrScreen() {
                 text: "Xác nhận",
                 onPress: () => {
                   setAlertShowing(false);
-                  setCurrentTargetItemId(nextItem.itemId);
+                  // setCurrentTargetItemId(nextItem.itemId);
                   setTimeout(() => {
                     setScanningEnabled(true);
                   }, 100);
@@ -566,7 +566,7 @@ export default function ScanQrScreen() {
         } else {
           // Show completion alert
           console.log(`✅ Fallback: All items are complete`);
-          setCurrentTargetItemId(null);
+          // setCurrentTargetItemId(null);
           setAlertShowing(true);
           setScanningEnabled(false);
 
