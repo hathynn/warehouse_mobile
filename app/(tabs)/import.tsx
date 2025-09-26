@@ -23,6 +23,22 @@ import usePaperService from "@/services/usePaperService";
 import { ImportOrderStatus } from "@/types/importOrder.type";
 import StatusBadge from "@/components/StatusBadge";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { usePusherContext } from "@/contexts/pusher/PusherContext";
+import {
+  IMPORT_ORDER_CREATED_EVENT,
+  IMPORT_ORDER_COUNTED_EVENT,
+  IMPORT_ORDER_CONFIRMED_EVENT,
+  IMPORT_ORDER_CANCELLED_EVENT,
+  IMPORT_ORDER_COMPLETED_EVENT,
+  IMPORT_ORDER_ASSIGNED_EVENT,
+  IMPORT_ORDER_EXTENDED_EVENT,
+  IMPORT_ORDER_COUNT_AGAIN_REQUESTED_EVENT,
+  IMPORT_ORDER_IN_PROGRESS_EVENT,
+  IMPORT_ORDER_COUNT_CONFIRMED_EVENT,
+  IMPORT_ORDER_READY_TO_STORE_EVENT,
+  IMPORT_ORDER_STORED_EVENT,
+  IMPORT_ORDER_STATUS_CHANGED_EVENT
+} from "@/constants/channelsNEvents";
 
 interface StatusTab {
   key: string;
@@ -42,13 +58,17 @@ export default function ReceiptDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const dispatch = useDispatch();
+  const insets = useSafeAreaInsets();
+
+  // WebSocket integration
+  const { latestNotification, isConnected } = usePusherContext();
+  const [lastProcessedTimestamp, setLastProcessedTimestamp] = useState<number>(0);
 
   const { loading, fetchImportOrders } = useImportOrder();
   const [allOrders, setAllOrders] = useState([]);
   const [papers, setPapers] = useState<any[]>([]);
   const { getPaperById } = usePaperService();
   const { fetchImportOrderDetails } = useImportOrderDetail();
-  const insets = useSafeAreaInsets();
 
   // Định nghĩa các tab status
   const getStatusTabs = (): StatusTab[] => {
@@ -141,6 +161,77 @@ export default function ReceiptDetail() {
       fetchOrders();
     }, [fetchOrders])
   );
+
+  // Handle WebSocket notifications
+  useEffect(() => {
+    if (!latestNotification || !userId) return;
+
+    const { type: eventType, data, timestamp } = latestNotification;
+
+    // Avoid processing the same event multiple times
+    if (timestamp <= lastProcessedTimestamp) {
+      console.log("⏭️ Import Screen - Skipping already processed event:", { timestamp, lastProcessed: lastProcessedTimestamp });
+      return;
+    }
+
+    console.log("🔔 [IMPORT SCREEN] Processing new WebSocket event:", {
+      eventType,
+      data,
+      userId,
+      timestamp,
+      screen: 'IMPORT'
+    });
+
+    // 🔥 UNIVERSAL HANDLER - Refresh on ANY event related to "import"
+    const containsImport = eventType.toLowerCase().includes('import');
+
+    // Check if the event is related to import orders
+    const importEvents = [
+      // Basic events
+      IMPORT_ORDER_CREATED_EVENT,
+      IMPORT_ORDER_COUNTED_EVENT,
+      IMPORT_ORDER_CONFIRMED_EVENT,
+      IMPORT_ORDER_CANCELLED_EVENT,
+      IMPORT_ORDER_COMPLETED_EVENT,
+      IMPORT_ORDER_ASSIGNED_EVENT,
+      IMPORT_ORDER_EXTENDED_EVENT,
+      IMPORT_ORDER_COUNT_AGAIN_REQUESTED_EVENT,
+
+      // Status change events
+      IMPORT_ORDER_IN_PROGRESS_EVENT,
+      IMPORT_ORDER_COUNT_CONFIRMED_EVENT,
+      IMPORT_ORDER_READY_TO_STORE_EVENT,
+      IMPORT_ORDER_STORED_EVENT,
+      IMPORT_ORDER_STATUS_CHANGED_EVENT
+    ];
+
+    const isImportEvent = importEvents.some(event =>
+      eventType === event || eventType.startsWith(event + '-')
+    );
+
+    console.log("🤔 [IMPORT SCREEN] Event analysis:", {
+      eventType,
+      importEvents,
+      isImportEvent,
+      containsImport,
+      exactMatch: importEvents.includes(eventType),
+      startsWithMatch: importEvents.some(event => eventType.startsWith(event + '-'))
+    });
+
+    // 🚨 REFRESH IF: Known import event OR contains "import"
+    if (isImportEvent || containsImport) {
+      console.log("🔄 [IMPORT SCREEN] REFRESHING DATA:", {
+        reason: isImportEvent ? 'Known import event' : 'Contains import keyword',
+        eventType
+      });
+      setLastProcessedTimestamp(timestamp);
+      // Refetch import orders
+      fetchOrders();
+    } else {
+      console.log("⏭️ Import Screen - Ignoring non-import event:", eventType);
+      setLastProcessedTimestamp(timestamp);
+    }
+  }, [latestNotification, userId, fetchOrders, lastProcessedTimestamp]);
 
   // Lọc dữ liệu theo tab active và search
   const getFilteredData = () => {
@@ -272,7 +363,20 @@ export default function ReceiptDetail() {
 
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
-        <Text style={styles.headerTitle}>Danh sách đơn nhập</Text>
+        <View style={styles.headerContent}>
+          <Text style={styles.headerTitle}>Danh sách đơn nhập</Text>
+          <View style={styles.connectionStatus}>
+            <View
+              style={[
+                styles.connectionDot,
+                { backgroundColor: isConnected ? '#4CAF50' : '#F44336' }
+              ]}
+            />
+            <Text style={styles.connectionText}>
+              {isConnected ? 'Trực tuyến' : 'Ngoại tuyến'}
+            </Text>
+          </View>
+        </View>
       </View>
 
       {/* Search Bar */}
@@ -367,18 +471,37 @@ const styles = StyleSheet.create({
   header: {
     backgroundColor: "#1677ff",
     paddingBottom: 16,
-    alignItems: "center",
-    justifyContent: "center",
+    paddingHorizontal: 16,
     elevation: 4,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 3,
   },
+  headerContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
   headerTitle: {
     color: "white",
     fontSize: 18,
     fontWeight: "700",
+  },
+  connectionStatus: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  connectionDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 6,
+  },
+  connectionText: {
+    color: "white",
+    fontSize: 12,
+    fontWeight: "500",
   },
   searchContainer: {
     paddingHorizontal: 16,

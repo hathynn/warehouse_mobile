@@ -3,6 +3,7 @@ import useAccountService from "@/services/useAccountService";
 import useStaffTaskService from "@/services/useStaffTaskService";
 import useImportOrder from "@/services/useImportOrderService";
 import useExportRequest from "@/services/useExportRequestService";
+import useStockCheck from "@/services/useStockCheckService";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useState, useEffect } from "react";
@@ -43,6 +44,7 @@ const MainDashboard = () => {
   
   const { fetchImportOrderById } = useImportOrder();
   const { fetchExportRequestById } = useExportRequest();
+  const { fetchStockCheckById } = useStockCheck();
 
   const authState = useSelector((state: RootState) => state.auth);
   const { user: authUser, isLoggedIn, isLoggingOut, isRestoring } = authState;
@@ -193,23 +195,34 @@ const MainDashboard = () => {
           // Try as export request if not processed
           if (!taskProcessed) {
             try {
-              await fetchExportRequestById(taskId);
-              // fetchExportRequestById sets the exportRequest in state but doesn't return it
-              // We need to access it from the service's state or make an assumption that it exists
-              // For now, we'll add the task and let the UI handle the display
-              orderItems.push({
-                id: `export_${taskId}`,
-                type: "export",
-                title: `Phiếu Xuất Hàng #${taskId}`,
-                subtitle: "Kiểm đếm và xử lý yêu cầu xuất kho",
-                icon: "arrow-up-circle" as const,
-                gradient: ["#1677ff", "#0ea5e9"],
-                priority: "high",
-                screen: `/export/export-detail/${taskId}`,
-                orderId: taskId,
-              });
-              exportFilteredCount++;
-              taskProcessed = true;
+              const exportRequest = await fetchExportRequestById(taskId);
+              if (exportRequest) {
+                // Check if user should see this export request based on status
+                const shouldShowForCountingStaff =
+                  (exportRequest.status === 'IN_PROGRESS' || exportRequest.status === 'COUNTED') &&
+                  exportRequest.countingStaffId === authUser?.id;
+
+                const shouldShowForWarehouseKeeper =
+                  (exportRequest.status !== 'IN_PROGRESS' && exportRequest.status !== 'COUNTED') &&
+                  exportRequest.assignedWareHouseKeeperId === authUser?.id;
+
+                if (shouldShowForCountingStaff || shouldShowForWarehouseKeeper) {
+                  orderItems.push({
+                    id: `export_${taskId}`,
+                    type: "export",
+                    title: `Phiếu Xuất Hàng #${taskId}`,
+                    subtitle: "Kiểm đếm và xử lý yêu cầu xuất kho",
+                    icon: "arrow-up-circle" as const,
+                    gradient: ["#1677ff", "#0ea5e9"],
+                    priority: "high",
+                    screen: `/export/export-detail/${taskId}`,
+                    orderId: taskId,
+                    status: exportRequest.status,
+                  });
+                  exportFilteredCount++;
+                }
+                taskProcessed = true;
+              }
             } catch (error) {
               // Not an export request, continue to next type
             }
@@ -217,18 +230,26 @@ const MainDashboard = () => {
 
           // If not processed as import or export, assume it's a stock check
           if (!taskProcessed) {
-            orderItems.push({
-              id: `stock_${taskId}`,
-              type: "stock_check",
-              title: `Phiếu Kiểm Kho #${taskId}`,
-              subtitle: "Thực hiện kiểm tra tồn kho",
-              icon: "clipboard" as const,
-              gradient: ["#1677ff", "#0ea5e9"],
-              priority: "medium",
-              screen: `/stock-check/detail/${taskId}`,
-              orderId: taskId,
-            });
-            stockFilteredCount++;
+            try {
+              const stockCheck = await fetchStockCheckById(taskId);
+              if (stockCheck && stockCheck.status === 'IN_PROGRESS') {
+                orderItems.push({
+                  id: `stock_${taskId}`,
+                  type: "stock_check",
+                  title: `Phiếu Kiểm Kho #${taskId}`,
+                  subtitle: "Thực hiện kiểm tra tồn kho",
+                  icon: "clipboard" as const,
+                  gradient: ["#1677ff", "#0ea5e9"],
+                  priority: "medium",
+                  screen: `/stock-check/detail/${taskId}`,
+                  orderId: taskId,
+                  status: stockCheck.status,
+                });
+                stockFilteredCount++;
+              }
+            } catch (error) {
+              console.log(`Error fetching stock check ${taskId}:`, error);
+            }
           }
         } catch (error) {
           console.log(`Error processing task ID ${taskId}:`, error);
@@ -242,7 +263,7 @@ const MainDashboard = () => {
     };
 
     filterOrders();
-  }, [taskOfStaffPerDate, fetchImportOrderById, fetchExportRequestById]);
+  }, [taskOfStaffPerDate, fetchImportOrderById, fetchExportRequestById, fetchStockCheckById]);
 
   const handleOrderPress = (screen: string) => {
     router.push(screen);
