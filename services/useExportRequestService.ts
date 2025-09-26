@@ -111,13 +111,15 @@ const filterExportRequestsByRole = useCallback(
   // Lấy chi tiết Export Request theo ID
   const fetchExportRequestById = useCallback(
     async (id: string) => {
-      if (!id) return;
+      if (!id) return null;
       setIsLoading(true);
       try {
         const response = await callApi("get", `/export-request/${id}`);
         setExportRequest(response.content);
+        return response.content;
       } catch (error) {
         console.log("Lỗi khi lấy export request:", error);
+        return null;
       } finally {
         setIsLoading(false);
       }

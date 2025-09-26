@@ -71,13 +71,29 @@ export const PusherProvider = ({ children }: { children: ReactNode }) => {
 
     // Ensure user object has all required properties before proceeding
     if (!user || !user.id || !user.role || typeof user.id !== 'string' || typeof user.role !== 'string') {
-      console.warn('PusherProvider: User object is incomplete, skipping Pusher setup', { user });
+      console.warn('🔴 PusherProvider: User object is incomplete, skipping Pusher setup', {
+        user,
+        hasUser: !!user,
+        hasId: !!user?.id,
+        hasRole: !!user?.role,
+        idType: typeof user?.id,
+        roleType: typeof user?.role
+      });
       setConnectionError('User ID or role is missing or invalid');
       return undefined;
     }
 
     const channelName = getChannelForRole(user.role as AccountRole, Number(user.id));
+    console.log('🔍 Pusher setup info:', {
+      userId: user.id,
+      userRole: user.role,
+      channelName,
+      isLoggedIn,
+      isLoggingOut
+    });
+
     if (!channelName) {
+      console.log('❌ No channel defined for role:', user.role);
       setConnectionError(`No channel defined for role: ${user.role}`);
       return undefined;
     }
@@ -88,15 +104,18 @@ export const PusherProvider = ({ children }: { children: ReactNode }) => {
         pusherRef.current = createPusherClient();
 
         pusherRef.current.connection.bind('connected', () => {
+          console.log('✅ Pusher connected successfully');
           setIsConnected(true);
           setConnectionError(null);
         });
 
         pusherRef.current.connection.bind('disconnected', () => {
+          console.log('🔴 Pusher disconnected');
           setIsConnected(false);
         });
 
         pusherRef.current.connection.bind('error', (error: any) => {
+          console.log('❌ Pusher connection error:', error);
           setConnectionError(`Connection error: ${error.message || 'Unknown error'}`);
           setIsConnected(false);
         });
@@ -106,29 +125,71 @@ export const PusherProvider = ({ children }: { children: ReactNode }) => {
       const channel = pusherRef.current.subscribe(channelName);
       channelRef.current = channel;
       channel.bind('pusher:subscription_succeeded', () => {
+        console.log('✅ Channel subscription succeeded:', channelName);
         setConnectionError(null);
       });
       channel.bind('pusher:subscription_error', (error: any) => {
+        console.log('❌ Channel subscription error:', error);
         setConnectionError(`Subscription error: ${error.message || 'Unknown error'}`);
       });
       // Use bind_global to handle all application events
       channel.bind_global((eventName: string, data: any) => {
+        console.log('📡 [EVENT MONITOR] Raw event received:', {
+          eventName,
+          data,
+          timestamp: new Date().toISOString(),
+          channel: channelName
+        });
+
         // Skip pusher system events
-        if (eventName.startsWith('pusher:')) return;
-        
+        if (eventName.startsWith('pusher:')) {
+          console.log('⏭️ Skipping pusher system event:', eventName);
+          return;
+        }
+
+        // 🚨 LOG ALL REAL EVENTS - để biết backend gửi event gì
+        console.log('🚨 [BACKEND EVENT RECEIVED]', {
+          event: eventName,
+          timestamp: new Date().toISOString(),
+          isStatic: staticAppEvents.includes(eventName),
+          isDynamic: dynamicAppEvents.some(event => eventName.startsWith(event + '-')),
+          dataKeys: Object.keys(data || {}),
+          eventDataSample: data
+        });
+
+        // 📊 Track event frequency
+        console.log('📊 [EVENT TRACKING]', {
+          eventType: eventName.split('-').slice(0, 3).join('-'), // e.g., "import-order-count"
+          fullEvent: eventName,
+          suggestion: 'Monitor this to see what events backend actually sends'
+        });
+
+        console.log('🎯 Processing app event:', { eventName, data });
+
         // Handle static events
         if (staticAppEvents.includes(eventName)) {
+          console.log('📊 Static event detected:', eventName);
           handleNotificationEvent(data, eventName);
           return;
         }
-        
+
         // Handle dynamic events with IDs
-        const isDynamicEvent = dynamicAppEvents.some(event => 
+        const isDynamicEvent = dynamicAppEvents.some(event =>
           eventName.startsWith(event + '-')
         );
-        
+
         if (isDynamicEvent) {
+          console.log('🔄 Dynamic event detected:', eventName);
           handleDynamicNotificationEvent(data, eventName);
+        } else {
+          console.log('❓ [UNKNOWN EVENT] This might be the one we need!', {
+            eventName,
+            data,
+            suggestion: 'Check if this should be added to constants!'
+          });
+
+          // 🔥 STILL PROCESS UNKNOWN EVENTS để test
+          handleNotificationEvent(data, eventName);
         }
       });
     } catch (error) {

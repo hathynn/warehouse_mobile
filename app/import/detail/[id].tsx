@@ -24,6 +24,22 @@ import { useDispatch } from "react-redux";
 import { setProducts } from "@/redux/productSlice";
 import { setPaperData } from "@/redux/paperSlice";
 import usePaperService from "@/services/usePaperService";
+import { usePusherContext } from "@/contexts/pusher/PusherContext";
+import {
+  IMPORT_ORDER_CREATED_EVENT,
+  IMPORT_ORDER_COUNTED_EVENT,
+  IMPORT_ORDER_CONFIRMED_EVENT,
+  IMPORT_ORDER_CANCELLED_EVENT,
+  IMPORT_ORDER_COMPLETED_EVENT,
+  IMPORT_ORDER_ASSIGNED_EVENT,
+  IMPORT_ORDER_EXTENDED_EVENT,
+  IMPORT_ORDER_COUNT_AGAIN_REQUESTED_EVENT,
+  IMPORT_ORDER_IN_PROGRESS_EVENT,
+  IMPORT_ORDER_COUNT_CONFIRMED_EVENT,
+  IMPORT_ORDER_READY_TO_STORE_EVENT,
+  IMPORT_ORDER_STORED_EVENT,
+  IMPORT_ORDER_STATUS_CHANGED_EVENT
+} from "@/constants/channelsNEvents";
 
 interface RouteParams {
   id: string;
@@ -34,12 +50,16 @@ const ImportOrderScreen: React.FC = () => {
   const route = useRoute();
   const { id } = route.params as RouteParams;
   const dispatch = useDispatch();
+
+  // WebSocket integration
+  const { latestNotification, isConnected } = usePusherContext();
   const { fetchImportOrderDetailById, fetchImportOrderDetails } =
     useImportOrderDetailService();
   const { updateImportOrderToStored } = useImportOrder();
   const [importOrderDetails, setImportOrderDetails] = useState<any[]>([]);
   const [loadingDetails, setLoadingDetails] = useState(true);
   const [confirmedStorageItems, setConfirmedStorageItems] = useState<Set<string>>(new Set());
+  const [lastProcessedTimestamp, setLastProcessedTimestamp] = useState<number>(0);
   const { resetPaperById } = usePaperService();
 
   const { fetchInventoryItemsByImportOrderDetailId } = useInventoryService();
@@ -199,6 +219,99 @@ const ImportOrderScreen: React.FC = () => {
     }, [])
   );
 
+  // Handle WebSocket notifications
+  useEffect(() => {
+    if (!latestNotification || !id) {
+      return;
+    }
+
+    const { type: eventType, data, timestamp } = latestNotification;
+
+    // Avoid processing the same event multiple times
+    if (timestamp <= lastProcessedTimestamp) {
+      console.log("⏭️ Import Detail Screen - Skipping already processed event:", { timestamp, lastProcessed: lastProcessedTimestamp });
+      return;
+    }
+
+    console.log("🔔 Import Detail Screen - Processing new event:", {
+      eventType,
+      data,
+      timestamp,
+      currentOrderId: id
+    });
+
+    // Check if the event is related to import orders and specifically to this order
+    const importEvents = [
+      // Basic events
+      IMPORT_ORDER_CREATED_EVENT,
+      IMPORT_ORDER_COUNTED_EVENT,
+      IMPORT_ORDER_CONFIRMED_EVENT,
+      IMPORT_ORDER_CANCELLED_EVENT,
+      IMPORT_ORDER_COMPLETED_EVENT,
+      IMPORT_ORDER_ASSIGNED_EVENT,
+      IMPORT_ORDER_EXTENDED_EVENT,
+      IMPORT_ORDER_COUNT_AGAIN_REQUESTED_EVENT,
+
+      // Status change events
+      IMPORT_ORDER_IN_PROGRESS_EVENT,
+      IMPORT_ORDER_COUNT_CONFIRMED_EVENT,
+      IMPORT_ORDER_READY_TO_STORE_EVENT,
+      IMPORT_ORDER_STORED_EVENT,
+      IMPORT_ORDER_STATUS_CHANGED_EVENT
+    ];
+
+    const isImportEvent = importEvents.some(event =>
+      eventType === event || eventType.startsWith(event + '-')
+    );
+
+    // 🔥 UNIVERSAL HANDLER - Refresh on ANY event related to "import"
+    const containsImport = eventType.toLowerCase().includes('import');
+    const containsOrderId = eventType.includes(id);
+
+    console.log("🤔 Import Detail Screen - Event analysis:", {
+      eventType,
+      isImportEvent,
+      containsImport,
+      containsOrderId,
+      currentOrderId: id,
+      importEvents,
+      exactMatch: importEvents.includes(eventType)
+    });
+
+    // 🚨 REFRESH IF: Known import event OR contains "import" AND matches order ID
+    if (isImportEvent || (containsImport && (containsOrderId || !data?.objectId))) {
+      // Check if the event is for this specific import order
+      const eventOrderId = data?.objectId || data?.importOrderId || data?.id;
+
+      console.log("🔍 Import Detail Screen - Order ID check:", {
+        eventOrderId,
+        currentOrderId: id,
+        shouldRefetch: eventOrderId ? eventOrderId.toString() === id : true
+      });
+
+      if (eventOrderId && eventOrderId.toString() === id) {
+        console.log("✅ Import Detail Screen - Refetching for matching order ID:", {
+          reason: isImportEvent ? 'Known import event' : 'Contains import keyword',
+          eventType
+        });
+        setLastProcessedTimestamp(timestamp);
+        loadData();
+      } else if (!eventOrderId && containsImport) {
+        console.log("⚠️ Import Detail Screen - Refetching (no specific order ID)");
+        setLastProcessedTimestamp(timestamp);
+        loadData();
+      } else {
+        console.log("⏭️ Import Detail Screen - Ignoring event for different order:", {
+          eventOrderId,
+          currentOrderId: id
+        });
+        setLastProcessedTimestamp(timestamp);
+      }
+    } else {
+      console.log("⏭️ Import Detail Screen - Ignoring non-import event");
+    }
+  }, [latestNotification, id, loadData, lastProcessedTimestamp]);
+
   // Handler for storage confirmation success
   const handleStorageConfirmed = (inventoryItemId: string) => {
     setConfirmedStorageItems(prev => {
@@ -318,6 +431,7 @@ const ImportOrderScreen: React.FC = () => {
           paddingHorizontal: 17,
           flexDirection: "row",
           alignItems: "center",
+          justifyContent: "space-between",
         }}
       >
         <TouchableOpacity
@@ -327,19 +441,34 @@ const ImportOrderScreen: React.FC = () => {
           <Ionicons name="arrow-back" size={24} color="white" />
         </TouchableOpacity>
 
-        <Text
-          style={{
-            color: "white",
-            fontSize: 16,
-            fontWeight: "bold",
-            marginTop: 7,
-            flex: 1,
-            textAlign: "right",
-
-          }}
-        >
-          {id}
-        </Text>
+        <View style={{ flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+          <Text
+            style={{
+              color: "white",
+              fontSize: 16,
+              fontWeight: "bold",
+              marginTop: 7,
+              flex: 1,
+              textAlign: "center",
+            }}
+          >
+            {id}
+          </Text>
+          <View style={{ flexDirection: "row", alignItems: "center", marginTop: 7 }}>
+            <View
+              style={{
+                width: 8,
+                height: 8,
+                borderRadius: 4,
+                backgroundColor: isConnected ? '#4CAF50' : '#F44336',
+                marginRight: 6,
+              }}
+            />
+            <Text style={{ color: "white", fontSize: 12, fontWeight: "500" }}>
+              {isConnected ? 'Trực tuyến' : 'Ngoại tuyến'}
+            </Text>
+          </View>
+        </View>
       </View>
 
       <ScrollView style={styles.container}>
