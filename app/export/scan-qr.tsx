@@ -357,14 +357,37 @@ export default function ScanQrScreen() {
         let insufficientItems: any[] = [];
         
         if (exportRequest?.type === "SELLING") {
-          // For SELLING: find items with insufficient quantity
-          insufficientItems = exportDetails.filter(
-            (detail: any) => {
-              // For the current item that was just scanned, it should now have updated actualQuantity
-              // For other items, check current actualQuantity
-              return detail.actualQuantity < detail.quantity;
-            }
-          );
+          // For SELLING: fetch fresh data for the current item and check others
+          try {
+            console.log("🔄 SELLING: Fetching fresh data for current item to ensure accurate completion check");
+            const freshCurrentDetail = await fetchExportRequestDetailById(Number(exportRequestDetailId));
+            console.log(`🔔 SELLING: Fresh current item actualQuantity: ${freshCurrentDetail?.actualQuantity}, expected: ${freshCurrentDetail?.quantity}`);
+
+            // Update the current item in exportDetails with fresh data
+            const updatedExportDetails = exportDetails.map(detail =>
+              detail.id === exportRequestDetailId
+                ? { ...detail, actualQuantity: freshCurrentDetail?.actualQuantity || detail.actualQuantity }
+                : detail
+            );
+
+            // For SELLING: find items with insufficient quantity (excluding the current item that was just scanned)
+            insufficientItems = updatedExportDetails.filter(
+              (detail: any) => {
+                // For the current item that was just scanned, it should now have updated actualQuantity
+                // For other items, check current actualQuantity
+                // FIXED: Exclude the current item that was just scanned to prevent false positive
+                return detail.actualQuantity < detail.quantity && detail.id !== exportRequestDetailId;
+              }
+            );
+          } catch (error) {
+            console.log(`❌ Error fetching fresh current item data for SELLING, using fallback:`, error);
+            // Fallback to original logic
+            insufficientItems = exportDetails.filter(
+              (detail: any) => {
+                return detail.actualQuantity < detail.quantity && detail.id !== exportRequestDetailId;
+              }
+            );
+          }
         } else if (exportRequest?.type === "INTERNAL") {
           // For INTERNAL: need to fetch fresh status for all items
           const freshStatusPromises = exportDetails.map(async (detail: any) => {
