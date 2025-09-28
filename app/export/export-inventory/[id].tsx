@@ -547,16 +547,23 @@ const ExportInventoryScreen: React.FC = () => {
 
       console.log(`📦 After AVAILABLE + unassigned filter: ${filteredItems.length} items`);
 
-      // Additional filtering for SELLING export type: only items with matching measurement value
+      // Additional filtering for SELLING export type: only items with matching measurement value to original item
       if (exportRequestType === "SELLING") {
-        const itemDetails = await getItemDetailById(itemCode);
-        const requiredMeasurementValue = itemDetails?.measurementValue;
+        try {
+          const originalItem = await fetchInventoryItemById(originalInventoryItemId);
+          const originalMeasurementValue = originalItem?.measurementValue;
 
-        if (requiredMeasurementValue !== undefined) {
-          filteredItems = filteredItems.filter(item =>
-            item.measurementValue === requiredMeasurementValue
-          );
-          console.log(`📦 After SELLING measurement filter (${requiredMeasurementValue}): ${filteredItems.length} items`);
+          if (originalMeasurementValue !== undefined) {
+            filteredItems = filteredItems.filter(item =>
+              item.measurementValue === originalMeasurementValue
+            );
+            console.log(`📦 After SELLING measurement filter (original: ${originalMeasurementValue}): ${filteredItems.length} items`);
+          } else {
+            console.log(`⚠️ Original item measurement value is undefined, showing all filtered items`);
+          }
+        } catch (error) {
+          console.log(`❌ Error fetching original item for measurement filtering:`, error);
+          console.log(`⚠️ Showing all filtered items due to error`);
         }
       }
 
@@ -969,7 +976,15 @@ const ExportInventoryScreen: React.FC = () => {
         }
         console.log(`✅ ItemId validation passed: ${item.itemId} matches ${originalItem.itemId}`);
 
-        // ✅ 2) Removed measurement validation - allow all measurement values
+        // ✅ 2) SELLING export: validate measurement value must match
+        if (exportRequestType === "SELLING") {
+          console.log(`🔍 SELLING export - Comparing measurement values - Original: ${originalItem.measurementValue}, Selected: ${item.measurementValue}`);
+          if (item.measurementValue !== originalItem.measurementValue) {
+            Alert.alert("Lỗi", `Chỉ được đổi hàng tồn kho có cùng giá trị đo lường!\nGiá trị gốc: ${originalItem.measurementValue}\nGiá trị đã chọn: ${item.measurementValue}`);
+            return;
+          }
+          console.log(`✅ SELLING measurement validation passed: ${item.measurementValue} === ${originalItem.measurementValue}`);
+        }
 
       } catch (error) {
         console.log("❌ Error validating original item:", error);
@@ -991,12 +1006,36 @@ const ExportInventoryScreen: React.FC = () => {
   };
 
   const submitManualChange = async () => {
-    if (!selectedManualItem || !originalItemId || !changeReason.trim()) {
-      Alert.alert("Lỗi", "Vui lòng chọn item và nhập lý do thay đổi");
+    console.log("🔍 submitManualChange validation:", {
+      selectedManualItem: selectedManualItem ? {
+        id: selectedManualItem.id,
+        itemId: selectedManualItem.itemId
+      } : null,
+      originalItemId,
+      originalItemIdState,
+      changeReason: changeReason.trim(),
+      changeReasonLength: changeReason.trim().length
+    });
+
+    // Use originalItemIdState (set by handleManualChangePress) instead of originalItemId (from route params)
+    const effectiveOriginalItemId = originalItemIdState || originalItemId;
+
+    if (!selectedManualItem || !effectiveOriginalItemId || !changeReason.trim()) {
+      console.log("❌ submitManualChange validation failed:", {
+        hasSelectedManualItem: !!selectedManualItem,
+        hasOriginalItemId: !!originalItemId,
+        hasOriginalItemIdState: !!originalItemIdState,
+        hasEffectiveOriginalItemId: !!effectiveOriginalItemId,
+        hasChangeReason: !!changeReason.trim(),
+        originalItemIdValue: originalItemId,
+        originalItemIdStateValue: originalItemIdState,
+        effectiveOriginalItemIdValue: effectiveOriginalItemId
+      });
+      Alert.alert("Lỗi", "Vui lòng chọn sản phẩm và nhập lý do thay đổi");
       return;
     }
 
-    if (originalItemId === selectedManualItem.id) {
+    if (effectiveOriginalItemId === selectedManualItem.id) {
       Alert.alert("Lỗi", "Không thể đổi sang cùng một inventory item!");
       return;
     }
@@ -1007,18 +1046,18 @@ const ExportInventoryScreen: React.FC = () => {
       // ✅ 1) RESET TRACKING TRƯỚC KHI ĐỔI - giống như QR manual change
       let wasTrackingBeforeReset = false;
 
-      if (exportRequestDetailId && originalItemId) {
+      if (exportRequestDetailId && effectiveOriginalItemId) {
         try {
-          // console.log(`🔄 ExportInventory - Reset tracking trước khi manual change cho item: ${originalItemId}`);
-          const originalInventoryItemData = await fetchInventoryItemById(originalItemId);
+          // console.log(`🔄 ExportInventory - Reset tracking trước khi manual change cho item: ${effectiveOriginalItemId}`);
+          const originalInventoryItemData = await fetchInventoryItemById(effectiveOriginalItemId);
           wasTrackingBeforeReset = !!originalInventoryItemData?.isTrackingForExport;
 
           if (originalInventoryItemData?.isTrackingForExport) {
-            const ok = await resetTracking(exportRequestDetailId.toString(), originalItemId);
+            const ok = await resetTracking(exportRequestDetailId.toString(), effectiveOriginalItemId);
             if (!ok) throw new Error("Không thể reset tracking cho item cũ");
-            // console.log(`✅ ExportInventory - Reset tracking successful for: ${originalItemId}`);
+            // console.log(`✅ ExportInventory - Reset tracking successful for: ${effectiveOriginalItemId}`);
           } else {
-            // console.log(`ℹ️ ExportInventory - ${originalItemId} không tracking, bỏ qua reset`);
+            // console.log(`ℹ️ ExportInventory - ${effectiveOriginalItemId} không tracking, bỏ qua reset`);
           }
         } catch (e) {
           console.log("❌ ExportInventory - Reset tracking error:", e);
@@ -1035,7 +1074,7 @@ const ExportInventoryScreen: React.FC = () => {
 
       try {
         manualChangeResult = await changeInventoryItemForExportDetail(
-          originalItemId,
+          effectiveOriginalItemId,
           selectedManualItem.id,
           changeReason
         );
@@ -1045,10 +1084,10 @@ const ExportInventoryScreen: React.FC = () => {
         }
       } catch (manualChangeError) {
         // ❌ Nếu manual change thất bại sau khi đã reset tracking, gọi lại updateActualQuantity để khôi phục
-        if (wasTrackingBeforeReset && exportRequestDetailId && originalItemId) {
+        if (wasTrackingBeforeReset && exportRequestDetailId && effectiveOriginalItemId) {
           // console.log("🔄 Manual change thất bại, đang khôi phục tracking bằng updateActualQuantity...");
           try {
-            await updateActualQuantity(exportRequestDetailId.toString(), originalItemId);
+            await updateActualQuantity(exportRequestDetailId.toString(), effectiveOriginalItemId);
             console.log("✅ Đã khôi phục tracking thành công sau lỗi manual change");
           } catch (updateError) {
             console.log("❌ Không thể khôi phục tracking sau lỗi manual change:", updateError);
@@ -1063,16 +1102,16 @@ const ExportInventoryScreen: React.FC = () => {
       console.log("✅ Manual change successful");
 
       // ✅ CẬP NHẬT SCAN MAPPING VỚI ITEM MỚI (giống auto-change)
-      if (selectedManualItem?.id && exportRequestDetailId && originalItemId) {
+      if (selectedManualItem?.id && exportRequestDetailId && effectiveOriginalItemId) {
         const newInventoryItemId = selectedManualItem.id;
-        // console.log(`🔄 Manual change - Cập nhật scan mapping: ${originalItemId} → ${newInventoryItemId}`);
+        // console.log(`🔄 Manual change - Cập nhật scan mapping: ${effectiveOriginalItemId} → ${newInventoryItemId}`);
         // console.log(`🔍 Manual change - exportRequestDetailId: ${exportRequestDetailId}`);
         // console.log(`🔍 Manual change - Current scan mappings:`, JSON.stringify(scanMappings, null, 2));
 
         // Tìm mapping hiện tại
         const existingMapping = scanMappings.find(
           mapping => mapping.exportRequestDetailId.toString() === exportRequestDetailId.toString() &&
-            mapping.inventoryItemId.toLowerCase() === originalItemId.toLowerCase()
+            mapping.inventoryItemId.toLowerCase() === effectiveOriginalItemId.toLowerCase()
         );
         // console.log(`🔍 Manual change - Existing mapping found:`, existingMapping);
 
@@ -1080,7 +1119,7 @@ const ExportInventoryScreen: React.FC = () => {
           // Cập nhật mapping hiện tại
           dispatch(updateInventoryItemId({
             exportRequestDetailId: exportRequestDetailId,
-            oldInventoryItemId: originalItemId,
+            oldInventoryItemId: effectiveOriginalItemId,
             newInventoryItemId: newInventoryItemId
           }));
           console.log("✅ Manual change - Đã cập nhật scan mapping hiện tại");
@@ -1687,7 +1726,14 @@ const ExportInventoryScreen: React.FC = () => {
     const qrScanId = exportRequestId || id;
     console.log(`📱 Using QR scan ID: ${qrScanId} (exportRequestId: ${exportRequestId}, id: ${id})`);
 
-    if (mode === 'manual_change' && originalItemId) {
+    if (mode === 'manual_change') {
+      // Manual change mode - originalItemId should be provided, if not it's an error
+      if (!originalItemId) {
+        console.error('❌ Manual change mode requires originalItemId');
+        Alert.alert('Lỗi', 'Vui lòng chọn sản phẩm cần đổi trước');
+        return;
+      }
+
       // Navigate to QR scan for manual change mode
       router.push({
         pathname: '/export/scan-qr-manual',
@@ -1700,10 +1746,16 @@ const ExportInventoryScreen: React.FC = () => {
         },
       });
     } else {
-      // Navigate to QR scan with normal return parameters
-      router.push(
-        `/export/scan-qr?id=${qrScanId}&returnToModal=true&itemCode=${itemCode}`
-      );
+      // Navigate to normal QR scan screen for regular scanning
+      router.push({
+        pathname: '/export/scan-qr',
+        params: {
+          id: String(qrScanId),
+          returnToModal: 'true',
+          itemCode: String(itemCode),
+          exportRequestDetailId: String(exportRequestDetailId),
+        },
+      });
     }
   };
 
@@ -2073,14 +2125,34 @@ const ExportInventoryScreen: React.FC = () => {
             {/* QR Scan Button for Manual Change - Only for non-INTERNAL or traditional flow */}
             {exportRequestStatus === ExportRequestStatus.IN_PROGRESS &&
               !(exportRequestType === "INTERNAL" && multiSelectMode === 'old') &&
-              !(
-                (exportRequestType === "INTERNAL" && (exportRequestDetailData as any)?.status === "MATCH") ||
-                (exportRequestType === "SELLING" && exportRequestDetailData?.actualQuantity === exportRequestDetailData?.quantity)
-              ) && (
+              !(exportRequestType === "INTERNAL" && (exportRequestDetailData as any)?.status === "MATCH") &&
+              // For SELLING export, always show the button
+              exportRequestType !== "INTERNAL" && (
                 <View style={styles.scanButtonContainer}>
                   <TouchableOpacity
                     style={styles.manualScanButton}
-                    onPress={() => handleQRScanPress('manual_change', originalItemId)}
+                    onPress={() => {
+                      console.log("🔍 QR Scan button pressed - Debug info:", {
+                        exportRequestType,
+                        selectedManualItem: selectedManualItem ? {
+                          id: selectedManualItem.id,
+                          itemId: selectedManualItem.itemId
+                        } : null,
+                        currentPage,
+                        originalItemIdState
+                      });
+
+                      if (exportRequestType === "SELLING" && currentPage === "manual_select" && originalItemIdState) {
+                        console.log("📱 SELLING manual change mode with originalItemIdState:", originalItemIdState);
+                        handleQRScanPress('manual_change', originalItemIdState);
+                      } else if (exportRequestType === "SELLING" && !selectedManualItem && currentPage !== "manual_select") {
+                        console.log("📱 Using normal scan mode (no selected item, not in manual select)");
+                        handleQRScanPress('normal');
+                      } else {
+                        console.log("📱 Using manual change mode with selectedManualItem:", selectedManualItem?.id);
+                        handleQRScanPress('manual_change', selectedManualItem?.id);
+                      }
+                    }}
                   >
                     <Ionicons name="qr-code-outline" size={20} color="white" />
                     <Text style={styles.manualScanButtonText}>Quét QR để chọn sản phẩm</Text>

@@ -464,9 +464,6 @@ const ImportOrderScreen: React.FC = () => {
                 marginRight: 6,
               }}
             />
-            <Text style={{ color: "white", fontSize: 12, fontWeight: "500" }}>
-              {isConnected ? 'Trực tuyến' : 'Ngoại tuyến'}
-            </Text>
           </View>
         </View>
       </View>
@@ -561,20 +558,35 @@ const ImportOrderScreen: React.FC = () => {
                   importOrder.importOrderId
                 );
 
-                const products = response.map((item: any) => ({
-                  id: item.itemId,
-                  name: item.itemName,
-                  expect: item.expectQuantity,
-                  actual: item.actualQuantity || 0,
-                  importOrderId: importOrder.importOrderId,
-                  inventoryItemId: item.inventoryItemId || null,
-                  importOrderDetailId: item.importOrderDetailId,
-                  measurementValue: item.actualMeasurementValue || 0, // Thêm measurementValue
-                  expectMeasurementValue: item.expectMeasurementValue || 0,
-                }));
+                // Lấy thông tin providerCode từ API item cho từng product
+                const productsWithProviderCode = await Promise.all(
+                  response.map(async (item: any) => {
+                    let providerCode = null;
+                    try {
+                      const itemDetail = await getItemDetailById(item.itemId);
+                      providerCode = itemDetail?.providerCode || null;
+                      console.log(`🔍 Item ${item.itemId} providerCode:`, providerCode);
+                    } catch (error) {
+                      console.log(`❌ Error fetching item detail for ${item.itemId}:`, error);
+                    }
 
-                dispatch(setProducts(products));
-                console.log("Product: ", products)
+                    return {
+                      id: item.itemId,
+                      name: item.itemName,
+                      expect: item.expectQuantity,
+                      actual: item.actualQuantity || 0,
+                      importOrderId: importOrder.importOrderId,
+                      inventoryItemId: item.inventoryItemId || null,
+                      importOrderDetailId: item.importOrderDetailId,
+                      measurementValue: item.actualMeasurementValue || 0,
+                      expectMeasurementValue: item.expectMeasurementValue || 0,
+                      providerCode: providerCode,
+                    };
+                  })
+                );
+
+                dispatch(setProducts(productsWithProviderCode));
+                console.log("Products with providerCode: ", productsWithProviderCode)
                 dispatch(
                   setPaperData({
                     importOrderId: importOrder.importOrderId,
@@ -625,21 +637,34 @@ const ImportOrderScreen: React.FC = () => {
                   importOrder.importOrderId
                 );
 
-                const products = response.map((item: any) => ({
-                  id: item.itemId,
-                  name: item.itemName,
-                  expect: item.expectQuantity,
-                  actual: item.actualQuantity || 0,
-                  importOrderId: importOrder.importOrderId,
+                // Lấy thông tin providerCode từ API item cho từng product
+                const productsWithProviderCode = await Promise.all(
+                  response.map(async (item: any) => {
+                    let providerCode = null;
+                    try {
+                      const itemDetail = await getItemDetailById(item.itemId);
+                      providerCode = itemDetail?.providerCode || null;
+                      console.log(`🔍 Reset - Item ${item.itemId} providerCode:`, providerCode);
+                    } catch (error) {
+                      console.log(`❌ Reset - Error fetching item detail for ${item.itemId}:`, error);
+                    }
 
-                  inventoryItemId: item.inventoryItemId || null,
-                  importOrderDetailId: item.importOrderDetailId,
-                  measurementValue: item.actualMeasurementValue || 0, // Thêm measurementValue
-                  expectMeasurementValue: item.expectMeasurementValue || 0,
+                    return {
+                      id: item.itemId,
+                      name: item.itemName,
+                      expect: item.expectQuantity,
+                      actual: item.actualQuantity || 0,
+                      importOrderId: importOrder.importOrderId,
+                      inventoryItemId: item.inventoryItemId || null,
+                      importOrderDetailId: item.importOrderDetailId,
+                      measurementValue: item.actualMeasurementValue || 0,
+                      expectMeasurementValue: item.expectMeasurementValue || 0,
+                      providerCode: providerCode,
+                    };
+                  })
+                );
 
-                }));
-
-                dispatch(setProducts(products));
+                dispatch(setProducts(productsWithProviderCode));
                 dispatch(
                   setPaperData({
                     importOrderId: importOrder.importOrderId,

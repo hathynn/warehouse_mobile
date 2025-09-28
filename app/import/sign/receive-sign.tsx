@@ -176,10 +176,28 @@ const SignReceiveScreen = () => {
     try {
       // Step 1: Update actualQuantity for ORDER type only
       if (importOrder?.importType !== "RETURN") {
-        const updatePayload = products.map((p) => ({
-          itemId: p.id,
-          actualQuantity: p.actual ?? 0,
-        }));
+        console.log("🔍 DEBUG - importOrder.importType:", importOrder?.importType);
+        console.log("🔍 DEBUG - products data:", products.map(p => ({
+          id: p.id,
+          name: p.name,
+          providerCode: p.providerCode,
+          hasProviderCode: !!p.providerCode
+        })));
+
+        const updatePayload = products.map((p) => {
+          // Khi importType là ORDER, sử dụng providerCode thay vì itemId
+          const shouldUseProviderCode = importOrder?.importType === "ORDER" && p.providerCode;
+          const finalItemId = shouldUseProviderCode ? p.providerCode : p.id;
+
+          console.log(`🔍 DEBUG - Product ${p.id}: shouldUseProviderCode=${shouldUseProviderCode}, finalItemId=${finalItemId}`);
+
+          return {
+            itemId: finalItemId,
+            actualQuantity: p.actual ?? 0,
+          };
+        });
+
+        console.log("🔍 DEBUG - Final updatePayload:", updatePayload);
 
         const updateResponse = await updateImportOrderDetailsByOrderId(
           importOrderId,
