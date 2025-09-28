@@ -62,13 +62,13 @@ export default function SuccessPage() {
     return state.product.products.find((p) => p.id === productId);
   });
   
-  console.log(`🔍 Detail-product page - ProductID: ${productId}, inventoryItemId param: ${inventoryItemId}, isInventoryItemScan: ${isInventoryItemScan}, Found product:`, {
-    id: product?.id,
-    name: product?.name, 
-    itemId: product?.itemId,
-    inventoryItemId: product?.inventoryItemId,
-    actualMeasurementValue: product?.actualMeasurementValue
-  });
+  // console.log(`🔍 Detail-product page - ProductID: ${productId}, inventoryItemId param: ${inventoryItemId}, isInventoryItemScan: ${isInventoryItemScan}, Found product:`, {
+  //   id: product?.id,
+  //   name: product?.name, 
+  //   itemId: product?.itemId,
+  //   inventoryItemId: product?.inventoryItemId,
+  //   actualMeasurementValue: product?.actualMeasurementValue
+  // });
 
   const [quantity, setQuantity] = useState("0");
   const [measurementValue, setMeasurementValue] = useState("0");

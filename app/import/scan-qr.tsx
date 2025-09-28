@@ -206,6 +206,20 @@ export default function ScanQrScreen() {
         //   showAlert("Đã đủ số lượng", `Inventory item ${foundProduct.name} đã được quét đủ số lượng dự kiến (${foundProduct.actual}/${foundProduct.expect}). Không thể quét thêm.`);
         //   return;
         // }
+      } else if (importType === "ORDER" && cleanData.includes('-') && cleanData.split('-').length >= 4) {
+        // Trường hợp đặc biệt cho ORDER: QR code format PROV-XXX-XXX-XXX
+        // Tách phần itemId từ format PROV-VAI-KT-001 -> VAI-KT-001
+        const parts = cleanData.split('-');
+        if (parts.length >= 4) {
+          const itemId = parts.slice(1).join('-'); // Bỏ phần PROV, lấy phần còn lại
+          console.log(`🏷️ ORDER type - Provider code format detected. Original: ${cleanData}, ItemId: ${itemId}`);
+
+          foundProduct = products.find(
+            (product) => product.id === itemId
+          );
+          scanMethod = "itemId";
+          console.log(`🏷️ Scanning by extracted itemId: ${itemId}, Found: ${!!foundProduct}`);
+        }
       } else {
         // Trường hợp 2: ItemId (có thể là JSON hoặc string)
         try {

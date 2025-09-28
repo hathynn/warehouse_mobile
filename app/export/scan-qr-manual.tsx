@@ -41,6 +41,19 @@ export default function ScanQrManualScreen() {
   // Check if this is INTERNAL multi-select mode
   const isInternalMultiSelect = originalFromRoute === 'INTERNAL_MULTI_SELECT';
 
+  // Check if this is normal scan mode (not replacing any item)
+  const isNormalScan = originalFromRoute === 'NORMAL_SCAN';
+
+  // Debug logging for params
+  console.log(`🔍 Manual QR Scan params:`, {
+    id,
+    originalFromRoute,
+    currentOriginalId,
+    isInternalMultiSelect,
+    isNormalScan,
+    exportRequestDetailId
+  });
+
 
 
   // ép sang number để gọi API
@@ -284,6 +297,8 @@ export default function ScanQrManualScreen() {
 
       if (isInternalMultiSelect) {
         console.log(`📝 INTERNAL Multi-select mode: Scanned item ${inventoryItemId} to add to selection`);
+      } else if (isNormalScan) {
+        console.log(`📝 Normal scan mode: Scanned item ${inventoryItemId} for regular processing`);
       } else {
         // Manual change mode: Validate same itemId before allowing change
         console.log(`📝 Manual change mode: Scanned new item ${inventoryItemId} to replace ${currentOriginalId}`);
@@ -300,22 +315,39 @@ export default function ScanQrManualScreen() {
       }
 
       let originalItemData = null;
-      
-      if (!isInternalMultiSelect) {
-        // Validate that the new item has the same itemId (product type) as the original
+
+      if (!isInternalMultiSelect && !isNormalScan) {
+        // Manual change mode: Validate that the new item has the same itemId (product type) as the original
         // We need to get the original item's data to compare itemId
-        originalItemData = await fetchInventoryItemById(currentOriginalId || '');
-        if (!originalItemData) {
-          throw new Error("Không tìm thấy thông tin hàng tồn kho gốc");
+        if (!currentOriginalId || currentOriginalId.trim() === '' || currentOriginalId === 'NORMAL_SCAN') {
+          throw new Error("Thiếu thông tin inventory item gốc để so sánh");
         }
 
+        console.log(`🔍 Fetching original item data for: ${currentOriginalId}`);
+        originalItemData = await fetchInventoryItemById(currentOriginalId);
+        if (!originalItemData) {
+          throw new Error(`Không tìm thấy thông tin hàng tồn kho gốc: ${currentOriginalId}`);
+        }
+
+        console.log(`🔍 Comparing itemIds - Original: ${originalItemData.itemId}, Scanned: ${inventoryItemData.itemId}`);
         if (inventoryItemData.itemId !== originalItemData.itemId) {
-          throw new Error("Chỉ cho phép đổi hàng tồn kho cùng 1 loại sản phẩm");
+          throw new Error(`Chỉ được đổi hàng tồn kho có cùng mã sản phẩm!`);
         }
 
         console.log(`✅ ItemId validation passed: ${inventoryItemData.itemId} === ${originalItemData.itemId}`);
-      } else {
+
+        // Additional validation for SELLING export: measurement value must match
+        if (exportRequest?.type === "SELLING") {
+          console.log(`🔍 SELLING export - Comparing measurement values - Original: ${originalItemData.measurementValue}, Scanned: ${inventoryItemData.measurementValue}`);
+          if (inventoryItemData.measurementValue !== originalItemData.measurementValue) {
+            throw new Error(`Chỉ được đổi hàng tồn kho có cùng giá trị đo lường!\nGiá trị gốc: ${originalItemData.measurementValue}\nGiá trị đã quét: ${inventoryItemData.measurementValue}`);
+          }
+          console.log(`✅ SELLING measurement validation passed: ${inventoryItemData.measurementValue} === ${originalItemData.measurementValue}`);
+        }
+      } else if (isInternalMultiSelect) {
         console.log(`✅ INTERNAL multi-select: Skipping original item validation`);
+      } else if (isNormalScan) {
+        console.log(`✅ Normal scan mode: Skipping original item validation`);
       }
 
       // For INTERNAL multi-select mode, handle differently
@@ -388,16 +420,54 @@ export default function ScanQrManualScreen() {
       // Store the itemId for back navigation
       setItemIdForNavigation(inventoryItemData.itemId);
 
-      // Only show reason input after data is properly set
-      setTimeout(() => {
-        setShowReasonInput(true);
-      }, 100);
       await playBeep();
-      setLastScannedProduct({
-        id: inventoryItemId,
-        itemId: inventoryItemId,
-        message: "Đã quét item mới. Vui lòng nhập lý do thay đổi."
-      });
+
+      if (isNormalScan) {
+        // Normal scan mode - directly process without reason input
+        setLastScannedProduct({
+          id: inventoryItemId,
+          itemId: inventoryItemId,
+          message: "Đã quét item thành công."
+        });
+
+        // For normal scan, call updateActualQuantity directly
+        if (exportDetailIdNum) {
+          try {
+            console.log(`🔄 Normal scan - updating actual quantity for item: ${inventoryItemId}`);
+            const updateResult = await updateActualQuantity(exportDetailIdNum.toString(), inventoryItemId);
+            if (updateResult) {
+              console.log("✅ Normal scan - actual quantity updated successfully");
+
+              // Add scan mapping for normal scan
+              const newMapping = { exportRequestDetailId: exportDetailIdNum.toString(), inventoryItemId: inventoryItemId };
+              const updatedMappings = [...scanMappings, newMapping];
+              dispatch(setScanMappings(updatedMappings));
+              console.log("✅ Normal scan - scan mapping added");
+
+              // Navigate back after successful scan
+              setTimeout(() => {
+                router.back();
+              }, 1500);
+            } else {
+              console.log("❌ Normal scan - failed to update actual quantity");
+              setErrorMessage("Không thể cập nhật số lượng thực tế");
+            }
+          } catch (normalScanError) {
+            console.log("❌ Normal scan error:", normalScanError);
+            setErrorMessage("Lỗi khi xử lý scan: " + (normalScanError as any)?.message);
+          }
+        }
+      } else {
+        // Manual change mode - show reason input
+        setTimeout(() => {
+          setShowReasonInput(true);
+        }, 100);
+        setLastScannedProduct({
+          id: inventoryItemId,
+          itemId: inventoryItemId,
+          message: "Đã quét item mới. Vui lòng nhập lý do thay đổi."
+        });
+      }
 
     } catch (err: any) {
       console.log("❌ Manual Scan error:", err);
@@ -413,11 +483,13 @@ export default function ScanQrManualScreen() {
       // Clear error message after 4s
       setTimeout(() => setErrorMessage(null), 4000);
     } finally {
-      // Clear the currently processing ref
-      currentlyProcessingRef.current = null;
-      console.log("🔓 Cleared processing ref");
-
       setIsProcessing(false);
+
+      // Delay clearing the processing ref to prevent rapid duplicate scans
+      setTimeout(() => {
+        currentlyProcessingRef.current = null;
+        console.log("🔓 Cleared processing ref");
+      }, 500);
 
       // Re-enable scanning after longer delay
       setTimeout(() => {
@@ -450,8 +522,27 @@ export default function ScanQrManualScreen() {
   };
 
   const handleManualChangeSubmit = async () => {
-    if (!scannedNewItemId || !currentOriginalId || !changeReason.trim()) {
-      setErrorMessage("Vui lòng nhập lý do thay đổi");
+    console.log("🔍 Manual change submit validation:", {
+      scannedNewItemId,
+      currentOriginalId,
+      changeReason: changeReason.trim(),
+      changeReasonLength: changeReason.trim().length
+    });
+
+    if (!scannedNewItemId || !currentOriginalId || currentOriginalId === "NORMAL_SCAN" || !changeReason.trim()) {
+      console.log("❌ Validation failed:", {
+        hasScannedNewItemId: !!scannedNewItemId,
+        hasCurrentOriginalId: !!currentOriginalId,
+        isNormalScanValue: currentOriginalId === "NORMAL_SCAN",
+        hasChangeReason: !!changeReason.trim(),
+        currentOriginalIdValue: currentOriginalId
+      });
+
+      if (currentOriginalId === "NORMAL_SCAN") {
+        setErrorMessage("Lỗi: Không thể thực hiện manual change từ normal scan mode");
+      } else {
+        setErrorMessage("Vui lòng nhập lý do thay đổi");
+      }
       return;
     }
 

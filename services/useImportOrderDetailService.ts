@@ -51,6 +51,7 @@ const useImportOrderDetail = () => {
         });
 
         const data = response.content;
+        console.log("🔍 DEBUG - API response data:", JSON.stringify(data, null, 2));
 
         if (Array.isArray(data)) {
           setImportOrderDetails(data);

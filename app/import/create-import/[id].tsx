@@ -15,6 +15,7 @@ import { RootState } from "@/redux/store";
 import useImportOrderDetail from "@/services/useImportOrderDetailService";
 import { setProducts } from "@/redux/productSlice";
 import { Button } from "tamagui";
+import useItemService from "@/services/useItemService";
 
 export default function KiemDemScreen() {
   const dispatch = useDispatch();
@@ -25,6 +26,7 @@ export default function KiemDemScreen() {
   const products = useSelector((state: RootState) => state.product.products);
   const { importOrderDetails, fetchImportOrderDetails } =
     useImportOrderDetail();
+  const { getItemDetailById } = useItemService();
 
   useEffect(() => {
     if (id) {
@@ -35,22 +37,39 @@ export default function KiemDemScreen() {
     console.log("Redux State Updated:", products);
   }, [products]);
 
-  useEffect(() => {  
-    if (Array.isArray(importOrderDetails) && importOrderDetails.length > 0) {
-      const newProducts = importOrderDetails.map((item) => {
-        const existingProduct = products.find((p) => p.id === item.itemId);
-        return {
-          id: item.itemId,
-          name: item.itemName || `Sản phẩm ${item.itemId}`,
-          expect: item.expectQuantity,  
-          actual: existingProduct ? existingProduct.actual : item.actualQuantity, // Giữ actual đã nhập
-        };
-      });
-  
-      dispatch(setProducts(newProducts));
-    } else {
-      console.warn("Không có dữ liệu để cập nhật Redux.");
-    }
+  useEffect(() => {
+    const updateProductsWithProviderCode = async () => {
+      if (Array.isArray(importOrderDetails) && importOrderDetails.length > 0) {
+        // Lấy thông tin providerCode từ API item cho từng product
+        const newProducts = await Promise.all(
+          importOrderDetails.map(async (item) => {
+            const existingProduct = products.find((p) => p.id === item.itemId);
+            let providerCode = null;
+            try {
+              const itemDetail = await getItemDetailById(item.itemId);
+              providerCode = itemDetail?.providerCode || null;
+              console.log(`🔍 Create-import - Item ${item.itemId} providerCode:`, providerCode);
+            } catch (error) {
+              console.log(`❌ Create-import - Error fetching item detail for ${item.itemId}:`, error);
+            }
+
+            return {
+              id: item.itemId,
+              name: item.itemName || `Sản phẩm ${item.itemId}`,
+              expect: item.expectQuantity,
+              actual: existingProduct ? existingProduct.actual : item.actualQuantity, // Giữ actual đã nhập
+              providerCode: providerCode,
+            };
+          })
+        );
+
+        dispatch(setProducts(newProducts));
+      } else {
+        console.warn("Không có dữ liệu để cập nhật Redux.");
+      }
+    };
+
+    updateProductsWithProviderCode();
   }, [importOrderDetails]);
   
 

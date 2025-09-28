@@ -18,6 +18,7 @@ import usePaperService from "@/services/usePaperService";
 import useImportOrderDetail from "@/services/useImportOrderDetailService";
 import { setProducts } from "@/redux/productSlice";
 import { RootState } from "@/redux/store";
+import useItemService from "@/services/useItemService";
 
 export default function ReceiptDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -32,6 +33,7 @@ export default function ReceiptDetail() {
   const [papers, setPapers] = useState<any[]>([]); // danh sách chứng từ đã fetch
   const { getPaperById } = usePaperService();
   const { fetchImportOrderDetails } = useImportOrderDetail();
+  const { getItemDetailById } = useItemService();
   useEffect(() => {
     if (!id) return;
 
@@ -162,16 +164,30 @@ export default function ReceiptDetail() {
                               order.importOrderId
                             );
 
-                            const products = response?.map((item: any) => ({
-                              id: item.itemId,
-                              name: item.itemName,
-                              expect: item.expectQuantity,
-                              actual: item.actualQuantity || 0,
-                              importOrderId: order.importOrderId,
-                            }));
-                            
+                            // Lấy thông tin providerCode từ API item cho từng product
+                            const productsWithProviderCode = await Promise.all(
+                              response?.map(async (item: any) => {
+                                let providerCode = null;
+                                try {
+                                  const itemDetail = await getItemDetailById(item.itemId);
+                                  providerCode = itemDetail?.providerCode || null;
+                                  console.log(`🔍 Import-order - Item ${item.itemId} providerCode:`, providerCode);
+                                } catch (error) {
+                                  console.log(`❌ Import-order - Error fetching item detail for ${item.itemId}:`, error);
+                                }
 
-                            dispatch(setProducts(products));
+                                return {
+                                  id: item.itemId,
+                                  name: item.itemName,
+                                  expect: item.expectQuantity,
+                                  actual: item.actualQuantity || 0,
+                                  importOrderId: order.importOrderId,
+                                  providerCode: providerCode,
+                                };
+                              }) || []
+                            );
+
+                            dispatch(setProducts(productsWithProviderCode));
                             dispatch(
                               setPaperData({
                                 importOrderId: order.importOrderId,

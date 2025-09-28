@@ -1056,7 +1056,14 @@ const ExportRequestScreen: React.FC = () => {
     // Close the modal first
     setInventoryModalVisible(false);
 
-    if (mode === 'manual_change' && originalItemId) {
+    if (mode === 'manual_change') {
+      // Manual change mode - originalItemId should be provided, if not it's an error
+      if (!originalItemId) {
+        console.error('❌ Manual change mode requires originalItemId');
+        Alert.alert('Lỗi', 'Vui lòng chọn sản phẩm cần đổi trước');
+        return;
+      }
+
       // Navigate to QR scan for manual change mode
       router.push({
         pathname: '/export/scan-qr-manual',
@@ -1070,10 +1077,17 @@ const ExportRequestScreen: React.FC = () => {
       });
 
     } else {
-      // Navigate to QR scan with normal return parameters
-      router.push(
-        `/export/scan-qr?id=${id}&returnToModal=true&itemCode=${selectedItemCode}`
-      );
+      // Navigate to QR scan-manual with normal return parameters
+      router.push({
+        pathname: '/export/scan-qr-manual',
+        params: {
+          id: String(id),
+          returnToModal: 'true',
+          itemCode: String(selectedItemCode),
+          originalItemId: 'NORMAL_SCAN', // Special flag for normal scan mode
+          exportRequestDetailId: String(selectedExportRequestDetailId),
+        },
+      });
     }
   };
 

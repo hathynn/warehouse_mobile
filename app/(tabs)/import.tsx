@@ -372,9 +372,6 @@ export default function ReceiptDetail() {
                 { backgroundColor: isConnected ? '#4CAF50' : '#F44336' }
               ]}
             />
-            <Text style={styles.connectionText}>
-              {isConnected ? 'Trực tuyến' : 'Ngoại tuyến'}
-            </Text>
           </View>
         </View>
       </View>
