@@ -181,13 +181,13 @@ const SignReceiveScreen = () => {
           id: p.id,
           name: p.name,
           providerCode: p.providerCode,
-          hasProviderCode: !!p.providerCode
+          hasProviderCode: !!(p.providerCode && p.providerCode.length > 0)
         })));
 
         const updatePayload = products.map((p) => {
           // Khi importType là ORDER, sử dụng providerCode thay vì itemId
-          const shouldUseProviderCode = importOrder?.importType === "ORDER" && p.providerCode;
-          const finalItemId = shouldUseProviderCode ? p.providerCode : p.id;
+          const shouldUseProviderCode = importOrder?.importType === "ORDER" && p.providerCode && p.providerCode.length > 0;
+          const finalItemId = shouldUseProviderCode ? p.providerCode[0] : p.id;
 
           console.log(`🔍 DEBUG - Product ${p.id}: shouldUseProviderCode=${shouldUseProviderCode}, finalItemId=${finalItemId}`);
 

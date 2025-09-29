@@ -561,10 +561,10 @@ const ImportOrderScreen: React.FC = () => {
                 // Lấy thông tin providerCode từ API item cho từng product
                 const productsWithProviderCode = await Promise.all(
                   response.map(async (item: any) => {
-                    let providerCode = null;
+                    let providerCode: string[] = [];
                     try {
                       const itemDetail = await getItemDetailById(item.itemId);
-                      providerCode = itemDetail?.providerCode || null;
+                      providerCode = itemDetail?.providerCode || [];
                       console.log(`🔍 Item ${item.itemId} providerCode:`, providerCode);
                     } catch (error) {
                       console.log(`❌ Error fetching item detail for ${item.itemId}:`, error);
@@ -640,10 +640,10 @@ const ImportOrderScreen: React.FC = () => {
                 // Lấy thông tin providerCode từ API item cho từng product
                 const productsWithProviderCode = await Promise.all(
                   response.map(async (item: any) => {
-                    let providerCode = null;
+                    let providerCode: string[] = [];
                     try {
                       const itemDetail = await getItemDetailById(item.itemId);
-                      providerCode = itemDetail?.providerCode || null;
+                      providerCode = itemDetail?.providerCode || [];
                       console.log(`🔍 Reset - Item ${item.itemId} providerCode:`, providerCode);
                     } catch (error) {
                       console.log(`❌ Reset - Error fetching item detail for ${item.itemId}:`, error);
