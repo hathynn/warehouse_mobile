@@ -1,7 +1,7 @@
 export interface ItemType {
   id: string; 
   name: string;
-  providerCode:string;
+  providerCode: string[];
   description?: string;
   measurementUnit: string; 
   measurementValue: number;

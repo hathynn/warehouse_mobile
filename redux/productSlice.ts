@@ -12,7 +12,7 @@ interface Product {
   expectMeasurementValue: number | 0;
   actualMeasurementValue?: number | 0;
   measurementUnit?: string;
-  providerCode?: string;
+  providerCode?: string[];
 }
 
 

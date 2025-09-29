@@ -167,10 +167,10 @@ export default function ReceiptDetail() {
                             // Lấy thông tin providerCode từ API item cho từng product
                             const productsWithProviderCode = await Promise.all(
                               response?.map(async (item: any) => {
-                                let providerCode = null;
+                                let providerCode: string[] = [];
                                 try {
                                   const itemDetail = await getItemDetailById(item.itemId);
-                                  providerCode = itemDetail?.providerCode || null;
+                                  providerCode = itemDetail?.providerCode || [];
                                   console.log(`🔍 Import-order - Item ${item.itemId} providerCode:`, providerCode);
                                 } catch (error) {
                                   console.log(`❌ Import-order - Error fetching item detail for ${item.itemId}:`, error);
