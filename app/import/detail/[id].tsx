@@ -558,32 +558,21 @@ const ImportOrderScreen: React.FC = () => {
                   importOrder.importOrderId
                 );
 
-                // Lấy thông tin providerCode từ API item cho từng product
-                const productsWithProviderCode = await Promise.all(
-                  response.map(async (item: any) => {
-                    let providerCode: string[] = [];
-                    try {
-                      const itemDetail = await getItemDetailById(item.itemId);
-                      providerCode = itemDetail?.providerCode || [];
-                      console.log(`🔍 Item ${item.itemId} providerCode:`, providerCode);
-                    } catch (error) {
-                      console.log(`❌ Error fetching item detail for ${item.itemId}:`, error);
-                    }
-
-                    return {
-                      id: item.itemId,
-                      name: item.itemName,
-                      expect: item.expectQuantity,
-                      actual: item.actualQuantity || 0,
-                      importOrderId: importOrder.importOrderId,
-                      inventoryItemId: item.inventoryItemId || null,
-                      importOrderDetailId: item.importOrderDetailId,
-                      measurementValue: item.actualMeasurementValue || 0,
-                      expectMeasurementValue: item.expectMeasurementValue || 0,
-                      providerCode: providerCode,
-                    };
-                  })
-                );
+                // Lấy thông tin providerCode trực tiếp từ importOrderDetail
+                const productsWithProviderCode = response.map((item: any) => {
+                  return {
+                    id: item.itemId,
+                    name: item.itemName,
+                    expect: item.expectQuantity,
+                    actual: item.actualQuantity || 0,
+                    importOrderId: importOrder.importOrderId,
+                    inventoryItemId: item.inventoryItemId || null,
+                    importOrderDetailId: item.importOrderDetailId,
+                    measurementValue: item.actualMeasurementValue || 0,
+                    expectMeasurementValue: item.expectMeasurementValue || 0,
+                    providerCode: item.providerCode || "",
+                  };
+                });
 
                 dispatch(setProducts(productsWithProviderCode));
                 console.log("Products with providerCode: ", productsWithProviderCode)
@@ -637,32 +626,21 @@ const ImportOrderScreen: React.FC = () => {
                   importOrder.importOrderId
                 );
 
-                // Lấy thông tin providerCode từ API item cho từng product
-                const productsWithProviderCode = await Promise.all(
-                  response.map(async (item: any) => {
-                    let providerCode: string[] = [];
-                    try {
-                      const itemDetail = await getItemDetailById(item.itemId);
-                      providerCode = itemDetail?.providerCode || [];
-                      console.log(`🔍 Reset - Item ${item.itemId} providerCode:`, providerCode);
-                    } catch (error) {
-                      console.log(`❌ Reset - Error fetching item detail for ${item.itemId}:`, error);
-                    }
-
-                    return {
-                      id: item.itemId,
-                      name: item.itemName,
-                      expect: item.expectQuantity,
-                      actual: item.actualQuantity || 0,
-                      importOrderId: importOrder.importOrderId,
-                      inventoryItemId: item.inventoryItemId || null,
-                      importOrderDetailId: item.importOrderDetailId,
-                      measurementValue: item.actualMeasurementValue || 0,
-                      expectMeasurementValue: item.expectMeasurementValue || 0,
-                      providerCode: providerCode,
-                    };
-                  })
-                );
+                // Lấy thông tin providerCode trực tiếp từ importOrderDetail
+                const productsWithProviderCode = response.map((item: any) => {
+                  return {
+                    id: item.itemId,
+                    name: item.itemName,
+                    expect: item.expectQuantity,
+                    actual: item.actualQuantity || 0,
+                    importOrderId: importOrder.importOrderId,
+                    inventoryItemId: item.inventoryItemId || null,
+                    importOrderDetailId: item.importOrderDetailId,
+                    measurementValue: item.actualMeasurementValue || 0,
+                    expectMeasurementValue: item.expectMeasurementValue || 0,
+                    providerCode: item.providerCode || "",
+                  };
+                });
 
                 dispatch(setProducts(productsWithProviderCode));
                 dispatch(
