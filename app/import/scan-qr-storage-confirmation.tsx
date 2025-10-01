@@ -14,9 +14,12 @@ import { useIsFocused } from "@react-navigation/native";
 
 export default function ScanQrStorageConfirmationScreen() {
   const [audioPlayer, setAudioPlayer] = useState<any>(null);
-  const { inventoryItemId, importOrderId } = useLocalSearchParams<{ 
-    inventoryItemId: string; 
+  const { inventoryItemId, importOrderId, importType, itemId, productName } = useLocalSearchParams<{
+    inventoryItemId: string;
     importOrderId: string;
+    importType?: string;
+    itemId?: string;
+    productName?: string;
   }>();
   
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
@@ -112,30 +115,63 @@ export default function ScanQrStorageConfirmationScreen() {
 
     try {
       const cleanData = data.trim();
-      
-      // Kiểm tra xem mã scan có trùng với inventoryItemId cần xác nhận không
-      if (cleanData === inventoryItemId) {
+      let isMatch = false;
+      let scannedItemId = "";
+
+      if (importType === "ORDER") {
+        // ORDER type: Quét providerCode (format: PROV-XXX-XXX-XXX)
+        // Cần kiểm tra xem providerCode có chứa itemId không
+        if (cleanData.includes('-') && cleanData.split('-').length >= 4) {
+          const parts = cleanData.split('-');
+          const extractedItemId = parts.slice(1).join('-'); // Bỏ phần PROV
+
+          console.log(`🔍 ORDER type scan - cleanData: ${cleanData}, extractedItemId: ${extractedItemId}, itemId: ${itemId}`);
+
+          if (extractedItemId === itemId) {
+            isMatch = true;
+            scannedItemId = itemId;
+          }
+        }
+      } else {
+        // RETURN type: Quét inventoryItemId (format: ITM-XXX-XXX-XXX...)
+        console.log(`🔍 RETURN type scan - cleanData: ${cleanData}, inventoryItemId: ${inventoryItemId}`);
+
+        if (cleanData === inventoryItemId) {
+          isMatch = true;
+          scannedItemId = inventoryItemId;
+        }
+      }
+
+      if (isMatch) {
         await playBeep();
         console.log("✅ Storage confirmation successful");
-        
+
         setLastScannedData(cleanData);
-        
+
+        const message = importType === "ORDER"
+          ? `Sản phẩm: ${productName || itemId}`
+          : `Đã xác nhận lưu kho cho mã: ${cleanData}`;
+
+        const title = importType === "ORDER" ? "Thông tin sản phẩm" : "Xác nhận thành công";
+
         showAlert(
-          "Xác nhận thành công",
-          `Đã xác nhận lưu kho cho mã: ${cleanData}`,
+          title,
+          message,
           () => {
-            // Lưu thông tin scan thành công vào global state hoặc storage
-            // Tạm thời sử dụng cách này để test
-            global.__SCANNED_ITEM__ = inventoryItemId;
-            
+            // Chỉ lưu thông tin scan cho RETURN type (cần kiểm tra)
+            if (importType !== "ORDER") {
+              global.__SCANNED_ITEM__ = scannedItemId;
+            }
+
             // Quay về màn hình trước
             router.back();
           }
         );
       } else {
+        const expectedValue = importType === "ORDER" ? itemId : inventoryItemId;
         showAlert(
           "Mã không khớp",
-          `Mã quét được: ${cleanData}\nMã cần xác nhận: ${inventoryItemId}\n\nVui lòng quét đúng mã hàng cần xác nhận.`
+          `Mã quét được: ${cleanData}\n${importType === "ORDER" ? "Mã sản phẩm" : "Mã hàng"} cần xác nhận: ${expectedValue}\n\nVui lòng quét đúng mã cần xác nhận.`
         );
       }
 
@@ -158,10 +194,23 @@ export default function ScanQrStorageConfirmationScreen() {
       </View>
 
       <View style={styles.instructionBox}>
-        <Text style={styles.instructionTitle}>Quét mã để xác nhận lưu kho</Text>
-        <Text style={styles.instructionText}>
-          Mã cần xác nhận: <Text style={styles.highlightText}>{inventoryItemId}</Text>
+        <Text style={styles.instructionTitle}>
+          {importType === "ORDER" ? "Quét mã sản phẩm để xác nhận" : "Quét mã để xác nhận lưu kho"}
         </Text>
+        {importType === "ORDER" ? (
+          <>
+            <Text style={styles.instructionText}>
+              Sản phẩm: <Text style={styles.highlightText}>{productName || itemId}</Text>
+            </Text>
+            <Text style={styles.instructionText}>
+              Mã cần xác nhận: <Text style={styles.highlightText}>{itemId}</Text>
+            </Text>
+          </>
+        ) : (
+          <Text style={styles.instructionText}>
+            Mã cần xác nhận: <Text style={styles.highlightText}>{inventoryItemId}</Text>
+          </Text>
+        )}
       </View>
 
       <View style={styles.cameraWrapper}>

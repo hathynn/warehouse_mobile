@@ -122,14 +122,32 @@ const useImportOrderDetail = () => {
     ) => {
       setLoading(true);
       try {
+        console.log("\n" + "🔵".repeat(40));
+        console.log("📡 API CALL - Update Import Order Details");
+        console.log("Endpoint: PUT /import-order-detail/" + importOrderId);
+        console.log("Import Order ID:", importOrderId);
+        console.log("Request Body:");
+        console.log(JSON.stringify(updateItems, null, 2));
+        console.log("Number of items:", updateItems.length);
+        console.log("🔵".repeat(40) + "\n");
+
         const response = await callApi(
           "put",
           `/import-order-detail/${importOrderId}`,
           updateItems
         );
+
+        console.log("\n" + "🟢".repeat(40));
+        console.log("✅ API RESPONSE - Update Import Order Details");
+        console.log("Response:", JSON.stringify(response, null, 2));
+        console.log("🟢".repeat(40) + "\n");
+
         return response;
       } catch (error) {
-        console.log("Lỗi khi cập nhật số lượng thực tế:", error);
+        console.log("\n" + "🔴".repeat(40));
+        console.log("❌ API ERROR - Update Import Order Details");
+        console.log("Error:", error);
+        console.log("🔴".repeat(40) + "\n");
         return null;
       } finally {
         setLoading(false);

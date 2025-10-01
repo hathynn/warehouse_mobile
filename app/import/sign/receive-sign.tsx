@@ -185,19 +185,43 @@ const SignReceiveScreen = () => {
         })));
 
         const updatePayload = products.map((p) => {
-          // Khi importType là ORDER, sử dụng providerCode thay vì itemId
-          const shouldUseProviderCode = importOrder?.importType === "ORDER" && p.providerCode && p.providerCode.length > 0;
-          const finalItemId = shouldUseProviderCode ? p.providerCode[0] : p.id;
+          // Ưu tiên sử dụng scannedProviderCode (mã QR quét được), nếu không có thì dùng providerCode từ importOrderDetail
+          let finalItemId = p.id; // Default: itemId
 
-          console.log(`🔍 DEBUG - Product ${p.id}: shouldUseProviderCode=${shouldUseProviderCode}, finalItemId=${finalItemId}`);
+          console.log(`\n📦 Processing Product ${p.id} (${p.name}):`);
+          console.log(`   - scannedProviderCode: ${p.scannedProviderCode || 'null'}`);
+          console.log(`   - providerCode from importOrderDetail: ${p.providerCode ? JSON.stringify(p.providerCode) : 'null'}`);
+          console.log(`   - itemId: ${p.id}`);
+          console.log(`   - actual: ${p.actual}`);
 
-          return {
+          if (importOrder?.importType === "ORDER") {
+            if (p.scannedProviderCode) {
+              // Ưu tiên 1: Dùng mã QR quét được
+              finalItemId = p.scannedProviderCode;
+              console.log(`   ✅ SELECTED: scannedProviderCode = ${finalItemId}`);
+            } else if (p.providerCode && p.providerCode.length > 0) {
+              // Ưu tiên 2: Dùng providerCode từ importOrderDetail (trường hợp nhập thủ công)
+              finalItemId = p.providerCode[0];
+              console.log(`   ✅ SELECTED: providerCode[0] = ${finalItemId}`);
+            } else {
+              console.log(`   ✅ SELECTED: itemId = ${finalItemId}`);
+            }
+          }
+
+          const payload = {
             itemId: finalItemId,
             actualQuantity: p.actual ?? 0,
           };
+
+          console.log(`   📤 Payload for this product:`, JSON.stringify(payload, null, 2));
+
+          return payload;
         });
 
-        console.log("🔍 DEBUG - Final updatePayload:", updatePayload);
+        console.log("\n" + "=".repeat(80));
+        console.log("🚀 FINAL UPDATE PAYLOAD TO API:");
+        console.log(JSON.stringify(updatePayload, null, 2));
+        console.log("=".repeat(80) + "\n");
 
         const updateResponse = await updateImportOrderDetailsByOrderId(
           importOrderId,

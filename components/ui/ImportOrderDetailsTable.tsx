@@ -84,11 +84,11 @@ const ImportOrderDetailsTable: React.FC<ImportOrderDetailsTableProps> = ({
     importOrderDetails[0]?.status === ImportOrderStatus.READY_TO_STORE;
 
   // Kiểm tra xem đã check đủ tất cả items chưa
-  const allItemsChecked = isReadyToStore ? 
-    (importType === ImportType.RETURN 
-      ? importOrderDetails.every(item => confirmedStorageItems.has(item.inventoryItemId)) // RETURN: cần scan hết
-      : true // Non-RETURN: luôn ready
-    ) : 
+  const allItemsChecked = isReadyToStore ?
+    (importType === ImportType.RETURN
+      ? importOrderDetails.every(item => confirmedStorageItems.has(item.inventoryItemId)) // RETURN: cần scan hết để kiểm tra
+      : true // ORDER: không cần scan, chỉ scan để xem tên sản phẩm
+    ) :
     false;
 
   // Handler để hoàn thành quy trình nhập kho
@@ -98,14 +98,17 @@ const ImportOrderDetailsTable: React.FC<ImportOrderDetailsTableProps> = ({
     }
   };
 
-  // Handler cho việc scan QR (chỉ cho RETURN type)
-  const handleScanItem = (inventoryItemId: string) => {
+  // Handler cho việc scan QR - hỗ trợ cả RETURN và ORDER type
+  const handleScanItem = (inventoryItemId: string, itemId?: string, productName?: string) => {
     // Navigate to separate QR scan screen for storage confirmation
     router.push({
       pathname: "/import/scan-qr-storage-confirmation",
       params: {
         inventoryItemId: inventoryItemId,
         importOrderId: importOrderId || "",
+        importType: importType || "RETURN",
+        itemId: itemId || inventoryItemId,
+        productName: productName || "",
       }
     });
   };
@@ -346,22 +349,37 @@ const ImportOrderDetailsTable: React.FC<ImportOrderDetailsTableProps> = ({
           </View>
         </View>
         
-        {/* Show scan button and checkbox for READY_TO_STORE status in separate row - Only for RETURN type */}
-        {isReadyToStore && importType === ImportType.RETURN && (
+        {/* Show scan button and checkbox for READY_TO_STORE status in separate row */}
+        {isReadyToStore && (
           <View style={styles.actionRow}>
-            {confirmedStorageItems.has(item.inventoryItemId) ? (
-              <View style={styles.checkedContainer}>
-                <Ionicons name="checkmark-circle" size={24} color="#10b981" />
-                <Text style={styles.checkedText}>Đã kiểm tra</Text>
-              </View>
+            {importType === ImportType.RETURN ? (
+              // RETURN type: Scan inventoryItemId
+              confirmedStorageItems.has(item.inventoryItemId) ? (
+                <View style={styles.checkedContainer}>
+                  <Ionicons name="checkmark-circle" size={24} color="#10b981" />
+                  <Text style={styles.checkedText}>Đã kiểm tra</Text>
+                </View>
+              ) : (
+                <TouchableOpacity
+                  style={styles.scanButton}
+                  onPress={() => handleScanItem(item.inventoryItemId, item.itemId, item.productName)}
+                >
+                  <Ionicons name="scan" size={20} color="#1677ff" />
+                  <Text style={styles.scanText}>Quét để xác nhận</Text>
+                </TouchableOpacity>
+              )
             ) : (
-              <TouchableOpacity
-                style={styles.scanButton}
-                onPress={() => handleScanItem(item.inventoryItemId)}
-              >
-                <Ionicons name="scan" size={20} color="#1677ff" />
-                <Text style={styles.scanText}>Quét để xác nhận</Text>
-              </TouchableOpacity>
+              // ORDER type: Scan providerCode để xem tên sản phẩm (không cần đánh dấu)
+              <View style={styles.orderScanRow}>
+                <Text style={styles.itemIdText}>Mã: {item.itemId}</Text>
+                <TouchableOpacity
+                  style={styles.scanButton}
+                  onPress={() => handleScanItem(item.itemId, item.itemId, item.productName)}
+                >
+                  <Ionicons name="scan" size={20} color="#1677ff" />
+                  <Text style={styles.scanText}>Quét để xem</Text>
+                </TouchableOpacity>
+              </View>
             )}
           </View>
         )}
@@ -814,12 +832,12 @@ const ImportOrderDetailsTable: React.FC<ImportOrderDetailsTableProps> = ({
               styles.completeButtonText,
               !allItemsChecked && styles.disabledButtonText
             ]}>
-              {allItemsChecked 
-                ? "Xác nhận hoàn thành nhập kho" 
-                : (importType === ImportType.RETURN 
-                    ? `Kiểm tra sản phẩm (${confirmedStorageItems.size}/${importOrderDetails.length})`
-                    : "Xác nhận hoàn thành nhập kho"
+              {importType === ImportType.RETURN
+                ? (allItemsChecked
+                    ? "Xác nhận hoàn thành nhập kho"
+                    : `Kiểm tra sản phẩm (${confirmedStorageItems.size}/${importOrderDetails.length})`
                   )
+                : "Xác nhận hoàn thành nhập kho"
               }
             </Text>
           </TouchableOpacity>
@@ -1358,6 +1376,20 @@ const styles = StyleSheet.create({
   },
   disabledButtonText: {
     color: "#999",
+  },
+
+  // ORDER type scan row styles
+  orderScanRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    width: "100%",
+  },
+  itemIdText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#333",
+    flex: 1,
   },
 });
 
