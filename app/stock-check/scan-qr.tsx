@@ -236,26 +236,11 @@ export default function StockCheckScanQrScreen() {
         inventoryItemId: rawInventoryItemId.toUpperCase(),
       });
 
-      // Fetch current measurement value from inventory item
-      console.log("🔍 Fetching inventory item details for measurement value...");
-      let defaultMeasurementValue = "";
-      
-      try {
-        const inventoryItemData = await fetchInventoryItemById(rawInventoryItemId.toUpperCase());
-        if (inventoryItemData && inventoryItemData.measurementValue) {
-          defaultMeasurementValue = inventoryItemData.measurementValue.toString();
-          console.log("✅ Found measurement value:", defaultMeasurementValue);
-        } else {
-          console.log("⚠️ No measurement value found, using empty default");
-        }
-      } catch (error) {
-        console.log("❌ Error fetching measurement value:", error);
-      }
-
       // Show modal for entering measurement value
+      // User will enter measurement value manually (not pre-filled)
       setCurrentInventoryItemId(rawInventoryItemId.toUpperCase());
       setShowMeasurementModal(true);
-      setMeasurementValue(defaultMeasurementValue);
+      setMeasurementValue(""); // Empty by default - user will input manually
       setNeedsLiquidation(false);
       setSelectedNote("");
       
