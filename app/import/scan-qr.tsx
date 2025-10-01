@@ -217,7 +217,7 @@ export default function ScanQrScreen() {
           foundProduct = products.find(
             (product) => product.id === itemId
           );
-          scanMethod = "itemId";
+          scanMethod = "providerCode"; // Đổi scanMethod thành providerCode để lưu lại mã QR gốc
           console.log(`🏷️ Scanning by extracted itemId: ${itemId}, Found: ${!!foundProduct}`);
         }
       } else {
@@ -278,6 +278,16 @@ export default function ScanQrScreen() {
         } else {
           console.log("📦 Inventory item scan - RETURN type: no actual quantity update");
         }
+      } else if (scanMethod === "providerCode") {
+        // Với providerCode: lưu mã QR gốc và tăng actual
+        console.log(`📦 Provider code scan - saving scanned code: ${cleanData}`);
+        dispatch(
+          updateProduct({
+            id: foundProduct.id,
+            actual: foundProduct.actual + 1,
+            scannedProviderCode: cleanData, // Lưu mã QR gốc (PROV-XXX-XXX-XXX)
+          })
+        );
       } else {
         // Với itemId: cập nhật actual quantity như cũ (cho cả ORDER và RETURN)
         dispatch(

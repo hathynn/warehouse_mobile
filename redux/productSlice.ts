@@ -13,6 +13,7 @@ interface Product {
   actualMeasurementValue?: number | 0;
   measurementUnit?: string;
   providerCode?: string[];
+  scannedProviderCode?: string; // Mã QR provider code được quét
 }
 
 
@@ -41,10 +42,13 @@ const productSlice = createSlice({
         product.actual = actual; // Cập nhật số lượng mới
       }
     },
-    updateProduct: (state, action: PayloadAction<{ id: string; actual: number }>) => { // Sửa lại id: number
+    updateProduct: (state, action: PayloadAction<{ id: string; actual: number; scannedProviderCode?: string }>) => {
       const product = state.products.find(p => p.id === action.payload.id);
       if (product) {
         product.actual = action.payload.actual;
+        if (action.payload.scannedProviderCode !== undefined) {
+          product.scannedProviderCode = action.payload.scannedProviderCode;
+        }
       }
     },
 
