@@ -7,6 +7,7 @@ export interface ImportOrderDetailType {
   expectQuantity: number;
   actualQuantity: number;
   status: ImportOrderDetailStatus;
+  providerCode: string;
 }
 
 export enum ImportOrderDetailStatus {

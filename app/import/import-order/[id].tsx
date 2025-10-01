@@ -164,28 +164,17 @@ export default function ReceiptDetail() {
                               order.importOrderId
                             );
 
-                            // Lấy thông tin providerCode từ API item cho từng product
-                            const productsWithProviderCode = await Promise.all(
-                              response?.map(async (item: any) => {
-                                let providerCode: string[] = [];
-                                try {
-                                  const itemDetail = await getItemDetailById(item.itemId);
-                                  providerCode = itemDetail?.providerCode || [];
-                                  console.log(`🔍 Import-order - Item ${item.itemId} providerCode:`, providerCode);
-                                } catch (error) {
-                                  console.log(`❌ Import-order - Error fetching item detail for ${item.itemId}:`, error);
-                                }
-
-                                return {
-                                  id: item.itemId,
-                                  name: item.itemName,
-                                  expect: item.expectQuantity,
-                                  actual: item.actualQuantity || 0,
-                                  importOrderId: order.importOrderId,
-                                  providerCode: providerCode,
-                                };
-                              }) || []
-                            );
+                            // Lấy thông tin providerCode trực tiếp từ importOrderDetail
+                            const productsWithProviderCode = response?.map((item: any) => {
+                              return {
+                                id: item.itemId,
+                                name: item.itemName,
+                                expect: item.expectQuantity,
+                                actual: item.actualQuantity || 0,
+                                importOrderId: order.importOrderId,
+                                providerCode: item.providerCode || "",
+                              };
+                            }) || [];
 
                             dispatch(setProducts(productsWithProviderCode));
                             dispatch(
