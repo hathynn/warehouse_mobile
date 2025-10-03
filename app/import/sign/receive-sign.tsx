@@ -201,8 +201,8 @@ const SignReceiveScreen = () => {
               console.log(`   ✅ SELECTED: scannedProviderCode = ${finalItemId}`);
             } else if (p.providerCode && p.providerCode.length > 0) {
               // Ưu tiên 2: Dùng providerCode từ importOrderDetail (trường hợp nhập thủ công)
-              finalItemId = p.providerCode[0];
-              console.log(`   ✅ SELECTED: providerCode[0] = ${finalItemId}`);
+              finalItemId = p.providerCode;
+              console.log(`   ✅ SELECTED: providerCode = ${finalItemId}`);
             } else {
               console.log(`   ✅ SELECTED: itemId = ${finalItemId}`);
             }
@@ -254,7 +254,7 @@ const SignReceiveScreen = () => {
             // Get correct itemId from inventory item
             const inventoryItem = await fetchInventoryItemById(product.inventoryItemId);
             const correctItemId = inventoryItem?.item?.id || product.id;
-            
+
             const measurementValue = Number(product.actualMeasurementValue || 0);
             const requestData = {
               itemId: correctItemId,
@@ -262,17 +262,30 @@ const SignReceiveScreen = () => {
               actualMeasurement: measurementValue,
               inventoryItemId: product.inventoryItemId,
             };
-            
+
             const importOrderDetailIdNum = Number(product.importOrderDetailId);
             if (isNaN(importOrderDetailIdNum) || importOrderDetailIdNum <= 0) {
               throw new Error(`Invalid importOrderDetailId: ${product.importOrderDetailId}`);
             }
-            
+
+            console.log("\n" + "=".repeat(80));
+            console.log(`🚀 CALLING updateImportOrderDetailMeasurement API`);
+            console.log(`📋 Product: ${product.name} (${product.id})`);
+            console.log(`🆔 Import Order Detail ID: ${importOrderDetailIdNum}`);
+            console.log(`📤 REQUEST DATA:`, JSON.stringify(requestData, null, 2));
+            console.log("=".repeat(80));
+
             const result = await updateImportOrderDetailMeasurement(
               importOrderDetailIdNum,
               requestData
             );
-            
+
+            console.log("=".repeat(80));
+            console.log(`📥 RESPONSE FROM updateImportOrderDetailMeasurement API`);
+            console.log(`✅ Success: ${!!result}`);
+            console.log(`📦 Response Data:`, JSON.stringify(result, null, 2));
+            console.log("=".repeat(80) + "\n");
+
             measurementResults.push({ success: !!result, productId: product.id });
             
           } catch (error) {
@@ -289,11 +302,24 @@ const SignReceiveScreen = () => {
       }
 
       // Bước 3: Tạo paper
-      const paperResponse = await createPaper({
+      const paperRequestData = {
         ...paperData,
         signProviderName: paperData.signProviderName || "",
         signReceiverName: user.name || "",
-      });
+      };
+
+      console.log("\n" + "=".repeat(80));
+      console.log("🚀 CALLING createPaper API");
+      console.log("📤 REQUEST DATA:", JSON.stringify(paperRequestData, null, 2));
+      console.log("=".repeat(80));
+
+      const paperResponse = await createPaper(paperRequestData);
+
+      console.log("=".repeat(80));
+      console.log("📥 RESPONSE FROM createPaper API");
+      console.log(`✅ Success: ${!!paperResponse}`);
+      console.log("📦 Response Data:", JSON.stringify(paperResponse, null, 2));
+      console.log("=".repeat(80) + "\n");
 
       if (paperResponse) {
         console.log("✅ Tạo paper thành công");
