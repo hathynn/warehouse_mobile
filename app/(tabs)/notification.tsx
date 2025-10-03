@@ -21,9 +21,12 @@ import { EXPORT_REQUEST_ASSIGNED_EVENT, IMPORT_ORDER_ASSIGNED_EVENT } from "@/co
 
 const formatTimeAgo = (dateString: string) => {
   if (!dateString) return "";
+
+  // Parse date và cộng 7 giờ để convert từ UTC sang Vietnam timezone
   const date = new Date(dateString);
+  const vietnamTime = new Date(date.getTime() + (7 * 60 * 60 * 1000));
   const now = new Date();
-  const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+  const seconds = Math.floor((now.getTime() - vietnamTime.getTime()) / 1000);
 
   let interval = seconds / 31536000;
   if (interval > 1) {
@@ -122,11 +125,25 @@ export default function NotificationScreen() {
         console.log("Failed to mark notification as clicked:", error);
       }
     }
+
+    // Handle navigation based on event type
     if (notification.eventType === IMPORT_ORDER_ASSIGNED_EVENT) {
       router.push(`/import/detail/${notification.objectId}`);
     }
     else if (notification.eventType === EXPORT_REQUEST_ASSIGNED_EVENT) {
       router.push(`/export/export-detail/${notification.objectId}`);
+    }
+    // Handle import-order-ready-to-store dynamic event
+    else if (notification.eventType.startsWith('import-order-ready-to-store-')) {
+      router.push(`/import/detail/${notification.objectId}`);
+    }
+    // Handle all other export events
+    else if (notification.eventType.startsWith('export-request-')) {
+      router.push(`/export/export-detail/${notification.objectId}`);
+    }
+    // Handle all other import events
+    else if (notification.eventType.startsWith('import-order-')) {
+      router.push(`/import/detail/${notification.objectId}`);
     }
   };
 

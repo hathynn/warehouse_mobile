@@ -207,17 +207,41 @@ export default function ScanQrScreen() {
         //   return;
         // }
       } else if (importType === "ORDER" && cleanData.includes('-') && cleanData.split('-').length >= 4) {
-        // Trường hợp đặc biệt cho ORDER: QR code format PROV-XXX-XXX-XXX
-        // Tách phần itemId từ format PROV-VAI-KT-001 -> VAI-KT-001
+        // Trường hợp đặc biệt cho ORDER: QR code format PROV-XXX-XXX-XXX hoặc PROV-N-XXX-XXX-XXX
+        // Format 1: PROV-VAI-JE-001 -> VAI-JE-001
+        // Format 2: PROV-2-KHO-NH-001 -> KHO-NH-001 (bỏ số loại mặt hàng)
         const parts = cleanData.split('-');
         if (parts.length >= 4) {
-          const itemId = parts.slice(1).join('-'); // Bỏ phần PROV, lấy phần còn lại
-          console.log(`🏷️ ORDER type - Provider code format detected. Original: ${cleanData}, ItemId: ${itemId}`);
+          let itemId: string;
 
-          foundProduct = products.find(
+          // Kiểm tra parts[1] có phải là số không (để phân biệt 2 format)
+          if (parts.length >= 5 && /^\d+$/.test(parts[1])) {
+            // Format 2: PROV-N-XXX-XXX-XXX -> bỏ PROV và số, lấy phần còn lại
+            itemId = parts.slice(2).join('-');
+            console.log(`🏷️ ORDER type - Format 2 (with number). Original: ${cleanData}, ItemId: ${itemId}`);
+          } else {
+            // Format 1: PROV-XXX-XXX-XXX -> bỏ PROV, lấy phần còn lại
+            itemId = parts.slice(1).join('-');
+            console.log(`🏷️ ORDER type - Format 1. Original: ${cleanData}, ItemId: ${itemId}`);
+          }
+
+          // Tìm product theo itemId
+          const candidateProduct = products.find(
             (product) => product.id === itemId
           );
-          scanMethod = "providerCode"; // Đổi scanMethod thành providerCode để lưu lại mã QR gốc
+
+          // Kiểm tra xem providerCode có trong danh sách providerCode của product không
+          if (candidateProduct) {
+            if (candidateProduct.providerCode && candidateProduct.providerCode.includes(cleanData)) {
+              foundProduct = candidateProduct;
+              scanMethod = "providerCode";
+              console.log(`✅ Provider code ${cleanData} is valid for product ${itemId}`);
+            } else {
+              console.log(`❌ Provider code ${cleanData} NOT in product's providerCode list`);
+              showAlert("Mã này không có trong đơn nhập.", "⚠️");
+              return;
+            }
+          }
           console.log(`🏷️ Scanning by extracted itemId: ${itemId}, Found: ${!!foundProduct}`);
         }
       } else {
