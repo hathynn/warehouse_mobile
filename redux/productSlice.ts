@@ -1,7 +1,8 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 
 interface Product {
-  id: string;
+  id: string; // Unique ID: inventoryItemId for RETURN, itemId for ORDER
+  itemId?: string; // Original itemId (product SKU)
   name: string;
   expect: number;
   actual: number;

@@ -225,9 +225,9 @@ export default function ScanQrScreen() {
             console.log(`🏷️ ORDER type - Format 1. Original: ${cleanData}, ItemId: ${itemId}`);
           }
 
-          // Tìm product theo itemId
+          // Tìm product theo itemId (dùng itemId field thay vì id)
           const candidateProduct = products.find(
-            (product) => product.id === itemId
+            (product) => (product.itemId || product.id) === itemId
           );
 
           // Kiểm tra xem providerCode có trong danh sách providerCode của product không
@@ -254,7 +254,7 @@ export default function ScanQrScreen() {
           if (qrData.id || qrData.itemId) {
             const itemId = qrData.id || qrData.itemId;
             foundProduct = products.find(
-              (product) => product.id === String(itemId)
+              (product) => (product.itemId || product.id) === String(itemId)
             );
             scanMethod = "itemId";
             console.log(`🏷️ Scanning by itemId from JSON: ${itemId}, Found: ${!!foundProduct}`);
@@ -262,7 +262,7 @@ export default function ScanQrScreen() {
         } catch (jsonError) {
           // Không phải JSON, xử lý như itemId string
           foundProduct = products.find(
-            (product) => product.id === cleanData
+            (product) => (product.itemId || product.id) === cleanData
           );
           scanMethod = "itemId";
           console.log(`🏷️ Scanning by itemId string: ${cleanData}, Found: ${!!foundProduct}`);

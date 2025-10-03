@@ -106,6 +106,8 @@ const SignReceiveScreen = () => {
     fetchImportOrderById,
   } = useImportOrder();
 
+  const [currentOrder, setCurrentOrder] = useState<any>(null);
+
   useEffect(() => {
     const loadOrder = async () => {
       if (!importOrderId) return;
@@ -113,6 +115,7 @@ const SignReceiveScreen = () => {
 
       if (order) {
         console.log("🧾 Import Order:", order);
+        setCurrentOrder(order);
       } else {
         console.warn("⚠️ Không tìm thấy đơn nhập");
       }
@@ -175,8 +178,8 @@ const SignReceiveScreen = () => {
 
     try {
       // Step 1: Update actualQuantity for ORDER type only
-      if (importOrder?.importType !== "RETURN") {
-        console.log("🔍 DEBUG - importOrder.importType:", importOrder?.importType);
+      if (currentOrder?.importType !== "RETURN") {
+        console.log("🔍 DEBUG - importOrder.importType:", currentOrder?.importType);
         console.log("🔍 DEBUG - products data:", products.map(p => ({
           id: p.id,
           name: p.name,
@@ -186,15 +189,15 @@ const SignReceiveScreen = () => {
 
         const updatePayload = products.map((p) => {
           // Ưu tiên sử dụng scannedProviderCode (mã QR quét được), nếu không có thì dùng providerCode từ importOrderDetail
-          let finalItemId = p.id; // Default: itemId
+          let finalItemId = p.itemId || p.id; // Default: itemId (use itemId field for ORDER, id for fallback)
 
           console.log(`\n📦 Processing Product ${p.id} (${p.name}):`);
           console.log(`   - scannedProviderCode: ${p.scannedProviderCode || 'null'}`);
           console.log(`   - providerCode from importOrderDetail: ${p.providerCode ? JSON.stringify(p.providerCode) : 'null'}`);
-          console.log(`   - itemId: ${p.id}`);
+          console.log(`   - itemId: ${p.itemId || p.id}`);
           console.log(`   - actual: ${p.actual}`);
 
-          if (importOrder?.importType === "ORDER") {
+          if (currentOrder?.importType === "ORDER") {
             if (p.scannedProviderCode) {
               // Ưu tiên 1: Dùng mã QR quét được
               finalItemId = p.scannedProviderCode;
@@ -235,10 +238,10 @@ const SignReceiveScreen = () => {
       }
 
       // Step 2: Update measurements for RETURN type inventory items only
-      const inventoryProducts = products.filter(p => 
-        p.inventoryItemId && 
-        p.actualMeasurementValue !== undefined && 
-        importOrder?.importType === "RETURN"
+      const inventoryProducts = products.filter(p =>
+        p.inventoryItemId &&
+        p.actualMeasurementValue !== undefined &&
+        currentOrder?.importType === "RETURN"
       );
 
       if (inventoryProducts.length > 0) {
@@ -251,9 +254,8 @@ const SignReceiveScreen = () => {
           }
 
           try {
-            // Get correct itemId from inventory item
-            const inventoryItem = await fetchInventoryItemById(product.inventoryItemId);
-            const correctItemId = inventoryItem?.item?.id || product.id;
+            // Use itemId directly from product (no need to fetch inventoryItem)
+            const correctItemId = product.itemId || product.id;
 
             const measurementValue = Number(product.actualMeasurementValue || 0);
             const requestData = {
@@ -270,7 +272,7 @@ const SignReceiveScreen = () => {
 
             console.log("\n" + "=".repeat(80));
             console.log(`🚀 CALLING updateImportOrderDetailMeasurement API`);
-            console.log(`📋 Product: ${product.name} (${product.id})`);
+            console.log(`📋 Product: ${product.name} (${correctItemId})`);
             console.log(`🆔 Import Order Detail ID: ${importOrderDetailIdNum}`);
             console.log(`📤 REQUEST DATA:`, JSON.stringify(requestData, null, 2));
             console.log("=".repeat(80));
@@ -308,18 +310,18 @@ const SignReceiveScreen = () => {
         signReceiverName: user.name || "",
       };
 
-      console.log("\n" + "=".repeat(80));
-      console.log("🚀 CALLING createPaper API");
-      console.log("📤 REQUEST DATA:", JSON.stringify(paperRequestData, null, 2));
-      console.log("=".repeat(80));
+      // console.log("\n" + "=".repeat(80));
+      // console.log("🚀 CALLING createPaper API");
+      // console.log("📤 REQUEST DATA:", JSON.stringify(paperRequestData, null, 2));
+      // console.log("=".repeat(80));
 
       const paperResponse = await createPaper(paperRequestData);
 
-      console.log("=".repeat(80));
-      console.log("📥 RESPONSE FROM createPaper API");
-      console.log(`✅ Success: ${!!paperResponse}`);
-      console.log("📦 Response Data:", JSON.stringify(paperResponse, null, 2));
-      console.log("=".repeat(80) + "\n");
+      // console.log("=".repeat(80));
+      // console.log("📥 RESPONSE FROM createPaper API");
+      // console.log(`✅ Success: ${!!paperResponse}`);
+      // console.log("📦 Response Data:", JSON.stringify(paperResponse, null, 2));
+      // console.log("=".repeat(80) + "\n");
 
       if (paperResponse) {
         console.log("✅ Tạo paper thành công");
@@ -374,9 +376,9 @@ const SignReceiveScreen = () => {
 
         <View style={{ paddingHorizontal: 16, paddingTop: 16 }}>
           {/* <Label>Xác nhận thông tin sản phẩm</Label> */}
-          <ProductListAccordion 
-            products={products} 
-            isReturnType={importOrder?.importType === "RETURN"}
+          <ProductListAccordion
+            products={products}
+            isReturnType={currentOrder?.importType === "RETURN"}
           />
         </View>
 

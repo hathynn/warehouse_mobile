@@ -132,6 +132,7 @@ export default function ScanQrInventoryCheckScreen() {
       let scanMethod = "";
       const cleanData = data.trim();
 
+      // Trường hợp 1: inventoryItemId cho RETURN type
       if (cleanData.startsWith('ITM-')) {
         foundProduct = products.find(
           (product) =>
@@ -143,7 +144,48 @@ export default function ScanQrInventoryCheckScreen() {
         if (foundProduct) {
           console.log(`📦 Found product ID: ${foundProduct.id}, name: ${foundProduct.name}, inventoryItemId: ${foundProduct.inventoryItemId}`);
         }
-      } else {
+      }
+      // Trường hợp 2: providerCode cho ORDER type (READY_TO_STORED)
+      else if (cleanData.startsWith('PROV-')) {
+        console.log(`🏷️ Provider Code detected: ${cleanData}`);
+
+        // Extract itemId từ providerCode
+        // Format 1: PROV-XXX-XXX-XXX (bỏ PROV)
+        // Format 2: PROV-2-XXX-XXX-XXX (bỏ PROV và số)
+        const parts = cleanData.split('-');
+        let itemId: string;
+
+        if (!isNaN(Number(parts[1]))) {
+          // Format 2: PROV-2-VAI-TH-005 -> VAI-TH-005
+          itemId = parts.slice(2).join('-');
+          console.log(`🏷️ ORDER type - Format 2 (with number). Original: ${cleanData}, ItemId: ${itemId}`);
+        } else {
+          // Format 1: PROV-VAI-KK-001 -> VAI-KK-001
+          itemId = parts.slice(1).join('-');
+          console.log(`🏷️ ORDER type - Format 1. Original: ${cleanData}, ItemId: ${itemId}`);
+        }
+
+        // Tìm product theo itemId
+        const candidateProduct = products.find(
+          (product) => (product.itemId || product.id) === itemId
+        );
+
+        // Kiểm tra xem providerCode có trong danh sách providerCode của product không
+        if (candidateProduct) {
+          if (candidateProduct.providerCode && candidateProduct.providerCode.includes(cleanData)) {
+            foundProduct = candidateProduct;
+            scanMethod = "providerCode";
+            console.log(`✅ Provider code ${cleanData} is valid for product ${itemId}`);
+          } else {
+            console.log(`❌ Provider code ${cleanData} NOT in product's providerCode list`);
+            showAlert("Mã này không có trong đơn nhập.", "⚠️");
+            return;
+          }
+        }
+        console.log(`🏷️ Scanning by extracted itemId: ${itemId}, Found: ${!!foundProduct}`);
+      }
+      // Trường hợp 3: ItemId (JSON hoặc string)
+      else {
         try {
           const qrData = JSON.parse(decodeURIComponent(cleanData));
           console.log("🔍 Parsed as JSON:", qrData);
@@ -151,14 +193,14 @@ export default function ScanQrInventoryCheckScreen() {
           if (qrData.id || qrData.itemId) {
             const itemId = qrData.id || qrData.itemId;
             foundProduct = products.find(
-              (product) => product.id === String(itemId)
+              (product) => (product.itemId || product.id) === String(itemId)
             );
             scanMethod = "itemId";
             console.log(`🏷️ Scanning by itemId from JSON: ${itemId}, Found: ${!!foundProduct}`);
           }
         } catch (jsonError) {
           foundProduct = products.find(
-            (product) => product.id === cleanData
+            (product) => (product.itemId || product.id) === cleanData
           );
           scanMethod = "itemId";
           console.log(`🏷️ Scanning by itemId string: ${cleanData}, Found: ${!!foundProduct}`);
@@ -181,31 +223,16 @@ export default function ScanQrInventoryCheckScreen() {
       }
 
       await playBeep();
-      console.log("✅ Product found, updating Redux...");
+      console.log("✅ Product found, displaying info (no Redux update)");
 
-      if (scanMethod === "inventoryItemId") {
-        if (importType !== "RETURN") {
-          console.log("📦 Inventory item scan - ORDER type: updating actual quantity");
-          dispatch(
-            updateProduct({
-              id: foundProduct.id,
-              actual: foundProduct.actual + 1,
-            })
-          );
-        } else {
-          console.log("📦 Inventory item scan - RETURN type: no actual quantity update");
-        }
-      } else {
-        dispatch(
-          updateProduct({
-            id: foundProduct.id,
-            actual: foundProduct.actual + 1,
-          })
-        );
-      }
+      // Chỉ hiển thị thông tin sản phẩm, KHÔNG update actual
+      // Logic:
+      // - RETURN + inventoryItemId: Navigate to detail screen để nhập measurement
+      // - ORDER + providerCode: Chỉ hiển thị tên sản phẩm
+      // - Các trường hợp khác: Chỉ hiển thị tên sản phẩm
 
       if (importType === "RETURN" && scanMethod === "inventoryItemId") {
-        console.log("📦 RETURN + inventory item: redirecting directly to detail product screen");
+        console.log("📦 RETURN + inventory item: redirecting to detail product screen for measurement input");
         router.push({
           pathname: "/import/detail-product/[id]",
           params: {
@@ -217,16 +244,15 @@ export default function ScanQrInventoryCheckScreen() {
         return;
       }
 
+      // Hiển thị thông tin sản phẩm đã scan (không update actual)
       setLastScannedProduct({
         ...foundProduct,
-        actual: (scanMethod === "inventoryItemId" && importType === "RETURN") 
-          ? foundProduct.actual
-          : foundProduct.actual + 1,
+        actual: foundProduct.actual, // Giữ nguyên actual, không tăng
         measurementValue: foundProduct.measurementValue,
         scannedBy: scanMethod,
       });
 
-      const resetDelay = scanMethod === "inventoryItemId" ? 5000 : 2000;
+      const resetDelay = 2000; // 2 giây cho tất cả các trường hợp
       setTimeout(() => {
         setLastScannedProduct(null);
         scanInProgress.current = false;
