@@ -29,6 +29,11 @@ const NotificationPopup: React.FC = () => {
   const insets = useSafeAreaInsets();
 
   const getNotificationTypeFromEvent = (eventType: string): string => {
+    // Handle dynamic events with IDs
+    if (eventType.startsWith("import-order-ready-to-store-")) {
+      return "pending";
+    }
+
     switch (eventType) {
       case "import-order-created":
         return "import";
