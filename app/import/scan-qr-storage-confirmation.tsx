@@ -119,11 +119,23 @@ export default function ScanQrStorageConfirmationScreen() {
       let scannedItemId = "";
 
       if (importType === "ORDER") {
-        // ORDER type: Quét providerCode (format: PROV-XXX-XXX-XXX)
-        // Cần kiểm tra xem providerCode có chứa itemId không
-        if (cleanData.includes('-') && cleanData.split('-').length >= 4) {
+        // ORDER type: Quét providerCode (format: PROV-XXX-XXX-XXX hoặc PROV-2-XXX-XXX-XXX)
+        // Extract itemId từ providerCode
+        if (cleanData.startsWith('PROV-')) {
           const parts = cleanData.split('-');
-          const extractedItemId = parts.slice(1).join('-'); // Bỏ phần PROV
+          let extractedItemId: string;
+
+          // Format 1: PROV-VAI-KK-001 → VAI-KK-001
+          // Format 2: PROV-2-VAI-TH-005 → VAI-TH-005 (bỏ PROV và số)
+          if (!isNaN(Number(parts[1]))) {
+            // Format 2: có số sau PROV
+            extractedItemId = parts.slice(2).join('-');
+            console.log(`🏷️ ORDER type - Format 2 (with number). Original: ${cleanData}, Extracted: ${extractedItemId}`);
+          } else {
+            // Format 1: không có số
+            extractedItemId = parts.slice(1).join('-');
+            console.log(`🏷️ ORDER type - Format 1. Original: ${cleanData}, Extracted: ${extractedItemId}`);
+          }
 
           console.log(`🔍 ORDER type scan - cleanData: ${cleanData}, extractedItemId: ${extractedItemId}, itemId: ${itemId}`);
 

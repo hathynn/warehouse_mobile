@@ -560,8 +560,13 @@ const ImportOrderScreen: React.FC = () => {
 
                 // Lấy thông tin providerCode trực tiếp từ importOrderDetail
                 const productsWithProviderCode = response.map((item: any) => {
+                  // For RETURN type: Use inventoryItemId as unique ID to distinguish multiple items with same itemId
+                  // For ORDER type: Use itemId as unique ID
+                  const uniqueId = item.inventoryItemId || item.itemId;
+
                   return {
-                    id: item.itemId,
+                    id: uniqueId,
+                    itemId: item.itemId, // Keep original itemId for API calls
                     name: item.itemName,
                     expect: item.expectQuantity,
                     actual: item.actualQuantity || 0,
@@ -628,8 +633,13 @@ const ImportOrderScreen: React.FC = () => {
 
                 // Lấy thông tin providerCode trực tiếp từ importOrderDetail
                 const productsWithProviderCode = response.map((item: any) => {
+                  // For RETURN type: Use inventoryItemId as unique ID to distinguish multiple items with same itemId
+                  // For ORDER type: Use itemId as unique ID
+                  const uniqueId = item.inventoryItemId || item.itemId;
+
                   return {
-                    id: item.itemId,
+                    id: uniqueId,
+                    itemId: item.itemId, // Keep original itemId for API calls
                     name: item.itemName,
                     expect: item.expectQuantity,
                     actual: item.actualQuantity || 0,
