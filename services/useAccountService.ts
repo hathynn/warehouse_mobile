@@ -30,9 +30,13 @@ const useAccountService = () => {
 
         return response;
       } catch (e: any) {
-        // console.log("Lỗi khi đăng nhập:", e);
+        // console.log("===== ACCOUNT SERVICE LOGIN ERROR =====");
+        // console.log("Error object:", e);
+        // console.log("Error response:", e?.response);
+        // console.log("Error data:", e?.response?.data);
+        // console.log("=======================================");
         setError("Đăng nhập thất bại, vui lòng thử lại.");
-        return null;
+        throw e; // Throw lại error để login.tsx xử lý
       } finally {
         setIsLoading(false);
       }

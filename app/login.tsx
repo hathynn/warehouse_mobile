@@ -60,9 +60,21 @@ const LoginScreen = () => {
       }, 200);
     } catch (error: any) {
       // Lấy message từ backend nếu có
+      // console.log("===== LOGIN ERROR =====");
+      // console.log("Full error object:", error);
+      // console.log("Error response:", error?.response);
+      // console.log("Error data:", error?.response?.data);
+      // console.log("Error message:", error?.response?.data?.message);
+      // console.log("=======================");
+
       let errorMessage = error?.response?.data?.message
         || error?.response?.data?.error
         || "Email hoặc mật khẩu không chính xác. Vui lòng thử lại.";
+
+      // Kiểm tra nếu hệ thống đang kiểm kho
+      if (errorMessage.includes("System is checking")) {
+        errorMessage = "Hệ thống tạm thời khóa để kiểm kho.";
+      }
 
       Alert.alert("Đăng nhập thất bại", errorMessage);
     } finally {
